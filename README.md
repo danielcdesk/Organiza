@@ -1,111 +1,203 @@
-# Organiza
+<p align="center">
+  <img src="assets/branding/organiza-app-icon.png" width="96" alt="Ícone do Organiza">
+</p>
 
-Aplicativo pessoal de organização financeira para Windows, pensado para funcionar localmente e sem internet. O produto reúne contas, movimentações, cartões, orçamentos, assinaturas, investimentos, planejamento, metas e relatórios em uma única base SQLite.
+<h1 align="center">Organiza</h1>
 
-## Interface
+<p align="center">
+  Controle financeiro pessoal para Windows, privado por padrão e funcional sem internet.
+</p>
 
-![Dashboard do Organiza](docs/screenshots/dashboard.png)
+<p align="center">
+  <img alt="Flutter" src="https://img.shields.io/badge/Flutter-desktop-02569B?logo=flutter&logoColor=white">
+  <img alt="Dart" src="https://img.shields.io/badge/Dart-3.x-0175C2?logo=dart&logoColor=white">
+  <img alt="Windows" src="https://img.shields.io/badge/Windows-10%2F11-0078D4?logo=windows11&logoColor=white">
+  <img alt="SQLite" src="https://img.shields.io/badge/SQLite-local-003B57?logo=sqlite&logoColor=white">
+  <img alt="Versão" src="https://img.shields.io/badge/versão-0.2.0-F0643B">
+</p>
 
-![Módulo de cartões](docs/screenshots/cards.png)
+## Sobre o projeto
 
-![Investimentos](docs/screenshots/investments.png)
+O **Organiza** reúne contas, lançamentos, cartões, orçamentos, assinaturas, investimentos, planejamento salarial, metas e relatórios em uma experiência desktop única. O aplicativo foi desenhado para tornar a situação financeira compreensível em poucos segundos, sem depender de login, nuvem ou serviços bancários externos.
 
-![Nova transação com conta identificada](docs/screenshots/transaction-dialog.png)
+> **Local-first:** os dados financeiros permanecem no computador do usuário, em uma base SQLite local. O aplicativo não inclui telemetria, analytics ou sincronização automática.
 
-![Relatórios](docs/screenshots/reports.png)
+## Destaques
 
-![Orçamentos](docs/screenshots/budgets.png)
+- **Fluxo financeiro real e planejado:** receitas, despesas e transferências, com lançamentos únicos, recorrentes ou parcelados e controle de pago/pendente.
+- **Organização flexível:** categorias e subcategorias personalizáveis, filtros, busca e identificação visual das contas bancárias.
+- **Cartões e compromissos:** limite, ciclo, fatura atual, compras parceladas, orçamentos mensais e assinaturas recorrentes.
+- **Patrimônio e objetivos:** carteira de investimentos por classe, renda fixa por tipo/emissor/vencimento, planejamento salarial e metas com aportes.
+- **Análise visual:** evolução mensal, entradas versus saídas, distribuição por categoria, ranking de gastos, exportação CSV e mapa anual.
+- **Experiência desktop:** temas claro e escuro, ocultação de valores, animações sutis, atalhos de teclado e tela cheia.
 
-![Assinaturas](docs/screenshots/subscriptions.png)
+## Visão do produto
 
-![Planejamento salarial](docs/screenshots/planning.png)
+<p align="center">
+  <img src="docs/screenshots/dashboard.png" width="900" alt="Dashboard financeiro do Organiza">
+</p>
 
-![Metas financeiras](docs/screenshots/goals.png)
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/transaction-dialog.png" alt="Cadastro de transação"></td>
+    <td width="50%"><img src="docs/screenshots/investments.png" alt="Carteira de investimentos"></td>
+  </tr>
+  <tr>
+    <td align="center"><strong>Lançamentos organizados</strong></td>
+    <td align="center"><strong>Carteira consolidada</strong></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/cards.png" alt="Módulo de cartões"></td>
+    <td><img src="docs/screenshots/reports.png" alt="Relatórios financeiros"></td>
+  </tr>
+  <tr>
+    <td align="center"><strong>Controle de cartões</strong></td>
+    <td align="center"><strong>Relatórios visuais</strong></td>
+  </tr>
+</table>
 
-![Mapa anual de gastos](docs/screenshots/reports-roadmap.png)
+<details>
+  <summary><strong>Ver mais telas</strong></summary>
+  <br>
+  <p align="center">
+    <img src="docs/screenshots/accounts.png" width="49%" alt="Contas">
+    <img src="docs/screenshots/budgets.png" width="49%" alt="Orçamentos">
+    <img src="docs/screenshots/subscriptions.png" width="49%" alt="Assinaturas">
+    <img src="docs/screenshots/planning.png" width="49%" alt="Planejamento salarial">
+    <img src="docs/screenshots/goals.png" width="49%" alt="Metas financeiras">
+    <img src="docs/screenshots/reports-roadmap.png" width="49%" alt="Mapa anual de gastos">
+  </p>
+</details>
 
-## Funcionalidades
+## Módulos
 
-- Contas com saldo inicial, saldo calculado e ícones visuais de Nubank, Inter, Caixa, Itaú, Banco do Brasil, Bradesco, Santander ou banco genérico
-- Receitas, despesas e transferências entre contas, com conta identificada por ícone e data escolhida pelo usuário
-- Lançamentos únicos, recorrentes ou parcelados; ocorrências futuras ficam pendentes até a confirmação do usuário
-- Histórico de movimentações com fluxo mensal de entradas, saídas e resultado
-- Busca e filtros por tipo, categoria, subcategoria e descrição, com exclusão confirmada
-- Visão geral com entradas, saídas e disponível para gastar
-- Tarefas simples com conclusão persistente
-- Cartões com limite, fechamento, vencimento, ciclo atual, compras manuais e parcelas distribuídas por fatura
-- Carteira de investimentos consolidada com patrimônio, resultado, rentabilidade, alocação por classe e exclusão de posições
-- Renda fixa organizada por tipo, emissor e vencimento: CDB, LCI, LCA, Tesouro Selic/IPCA/Prefixado, debêntures, CRI, CRA, poupança e outros
-- Relatórios por período, evolução mensal, comparação de entradas e saídas, ranking de gastos e exportação CSV local
-- Relatórios com gastos e receitas por categoria e mapa anual de gastos no estilo contribution graph
-- Orçamentos mensais por categoria, com consumo calculado a partir das despesas e indicador de limite
-- Assinaturas recorrentes com valor, dia de cobrança e categoria
-- Categorias e subcategorias de receitas e despesas, incluindo Bar e bebidas e Cafeterias, com criação pelo usuário durante o lançamento
-- Planejamento com salário identificado pelas receitas e distribuição ajustável entre essenciais, objetivos e livre
-- Metas financeiras com prazo opcional, valor inicial, aportes, conclusão e persistência local
-- Distribuição salarial persistida e normalizada para sempre totalizar 100%
-- Tema claro, escuro ou do sistema; ocultação de valores; busca local e atalhos de teclado
-- Transições suaves entre módulos, barras de progresso animadas e tela cheia com F11 ou pelo botão no topo
-- Dashboard integrado com orçamento usado, assinaturas, taxa de economia e atalhos contextuais
-- SQLite local, sem login, analytics ou telemetria
+| Área | O que oferece |
+|---|---|
+| Visão geral | Saldo consolidado, movimento mensal, orçamento, assinaturas, economia e ações rápidas |
+| Finanças | Histórico, busca, filtros, categorias, subcategorias, recorrência, parcelamento e baixa de pendências |
+| Contas | Saldo por conta, cadastro e identificação de instituições financeiras |
+| Cartões | Limite, fechamento, vencimento, ciclo, fatura atual e compras parceladas |
+| Orçamentos | Limites mensais por categoria e acompanhamento do consumo realizado |
+| Investimentos | Patrimônio, rentabilidade, resultado, alocação e organização de renda fixa |
+| Assinaturas | Compromissos mensais por valor, vencimento e categoria |
+| Planejamento | Salário identificado e distribuição ajustável entre essenciais, objetivos e livre |
+| Metas | Objetivo, prazo, valor acumulado, aportes e progresso |
+| Relatórios | Tendências, comparações, categorias, mapa anual e exportação CSV |
 
-## Tecnologias
+## Primeiros passos
 
-Flutter, Dart e SQLite (`sqlite3`). O acesso ao banco é isolado em `lib/database/`; a evolução para Drift está registrada no roadmap técnico.
+### Requisitos
 
-## Arquitetura
+- Windows 10 ou 11;
+- [Flutter](https://docs.flutter.dev/get-started/install/windows/desktop) com suporte a Windows Desktop;
+- toolchain de compilação Windows reconhecida pelo `flutter doctor`.
 
-`presentation → application → database/domain`. Widgets não executam SQL e os cálculos monetários usam centavos inteiros. Lançamentos pendentes permanecem no planejamento, mas não alteram o saldo realizado.
-
-Leia [a arquitetura](docs/architecture.md), [as regras financeiras](docs/financial_rules.md), [a base de pesquisa](docs/research_basis.md) e [a matriz de funcionalidades](docs/feature_matrix.md) antes de evoluir o projeto.
-
-## Instalação
-
-1. Instale o [Flutter](https://docs.flutter.dev/get-started/install/windows/desktop) com suporte a Windows Desktop.
-2. Gere o runner Windows ausente neste ambiente com `flutter create --platforms=windows .`.
-3. Execute `flutter pub get`.
-4. Rode `flutter run -d windows`.
-
-## Desenvolvimento
-
-Atalhos disponíveis: `Ctrl+K` para busca local, `Ctrl+N` para lançamento, `Ctrl+Shift+N` para tarefa, `Ctrl+,` para configurações e `F11` para tela cheia.
-
-## Testes
+### Executar localmente
 
 ```powershell
-flutter analyze
-flutter test
-flutter test integration_test
+git clone https://github.com/danielcdesk/Organiza.git
+cd Organiza
+flutter pub get
+flutter run -d windows
 ```
 
-## Build Windows
+### Gerar o executável
 
 ```powershell
 flutter build windows --release
 ```
 
-O build precisa ser executado em uma máquina com Flutter e as ferramentas Windows configuradas. Veja o estado de validação em [docs/known_good_state.md](docs/known_good_state.md).
+O resultado será criado em `build/windows/x64/runner/Release/`. O executável depende dos arquivos gerados ao lado dele; distribua a pasta `Release` completa.
 
-## Estrutura
+## Qualidade e testes
+
+```powershell
+dart analyze
+flutter test
+flutter test integration_test -d windows
+```
+
+Estado verificado da versão 0.2.0:
+
+- análise estática sem problemas;
+- 20 testes unitários e de widget aprovados;
+- fluxo integrado aprovado no Windows em 1366 × 768;
+- build Windows em modo release concluído;
+- migração incremental do schema 1 ao 8 coberta por teste;
+- capturas das áreas principais revisadas visualmente.
+
+Consulte o [estado conhecido como bom](docs/known_good_state.md) e a [estratégia de testes](docs/testing_strategy.md) para os contratos de regressão.
+
+## Arquitetura
+
+```text
+presentation  →  application  →  data/database
+       ↓               ↓              ↓
+    widgets       casos de uso      SQLite
+                       ↓
+                    domain
+```
+
+- Valores monetários são armazenados como centavos inteiros.
+- Widgets não executam SQL diretamente.
+- Lançamentos pendentes aparecem no planejamento, mas não alteram o saldo realizado.
+- Migrações preservam bases criadas pelas versões anteriores.
 
 ```text
 lib/
-  application/  # estado e casos de uso iniciais
-  database/     # schema, migrações e consultas SQLite
-  domain/       # entidades e regras financeiras puras
-  presentation/ # interface desktop
-  services/     # fronteiras de serviços, como backup
-docs/           # contratos técnicos e registro de qualidade
-test/           # regras puras
-integration_test/
+├── application/   # estado e casos de uso
+├── core/          # constantes compartilhadas
+├── data/          # repositório local
+├── database/      # schema, migrações e consultas SQLite
+├── domain/        # entidades e regras financeiras puras
+├── presentation/  # páginas, diálogos, tema e componentes
+└── services/      # exportação e fronteiras de backup
+
+docs/              # decisões, regras, qualidade e capturas
+integration_test/  # fluxo desktop completo
+test/              # regressões de domínio, banco e interface
+tooling/           # preparação reproduzível de ativos
+windows/           # runner nativo do Flutter
 ```
 
-## Privacidade
+## Atalhos
 
-Dados ficam no computador. Não envie banco de dados, backups, exportações, logs ou arquivos `.env` ao GitHub; as regras estão no `.gitignore`.
+| Atalho | Ação |
+|---|---|
+| `Ctrl + K` | Abrir a busca local |
+| `Ctrl + N` | Criar lançamento |
+| `Ctrl + Shift + N` | Criar tarefa |
+| `Ctrl + ,` | Abrir configurações |
+| `F11` | Alternar tela cheia |
+
+## Privacidade e segurança
+
+- Nenhum dado financeiro é enviado pelo aplicativo.
+- O cartão armazena somente nome, bandeira, limite, vencimento, fechamento e quatro últimos dígitos — nunca número completo ou CVV.
+- Bancos de dados, backups, exportações, arquivos `.env`, logs e artefatos de build estão protegidos pelas regras do `.gitignore`.
+- Não há recomendação de investimento, conexão com corretora ou execução de ordens.
+
+## Documentação
+
+- [Arquitetura](docs/architecture.md)
+- [Regras financeiras](docs/financial_rules.md)
+- [Matriz de funcionalidades](docs/feature_matrix.md)
+- [Base de pesquisa funcional](docs/research_basis.md)
+- [Registro de mudanças](docs/change_log.md)
+- [Base de conhecimento de erros](docs/error_knowledge_base.md)
 
 ## Roadmap
 
-Pagamento e histórico de faturas, edição de lançamentos/orçamentos, baixa em série, backup/restauração com fluxo de confirmação e migração do acesso SQLite para Drift. Android, iOS, sincronização bancária, importação de notas e cotações automáticas são futuras e opcionais.
+- pagamento e histórico definitivo de faturas;
+- edição de lançamentos e orçamentos;
+- baixa e alteração de séries recorrentes em lote;
+- backup e restauração com confirmação;
+- importação de extratos e notas;
+- versões móveis opcionais;
+- integração bancária e cotações somente mediante arquitetura explícita de consentimento e privacidade.
 
-Ferramentas de IA auxiliaram no desenvolvimento inicial; o produto não contém IA, LLM, analytics nem integração externa.
+## Observações
+
+Os nomes e logotipos de instituições financeiras são usados apenas para identificação visual e pertencem aos seus respectivos titulares. Este projeto não possui vínculo oficial com essas instituições.
+
+Ferramentas de IA auxiliaram no desenvolvimento inicial. O produto final não contém IA, LLM, analytics ou integração externa em tempo de execução.
