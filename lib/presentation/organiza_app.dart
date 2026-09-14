@@ -582,10 +582,16 @@ class _OrganizaShellState extends State<OrganizaShell> {
     }
   }
 
-  Future<void> _exportReport() async {
+  Future<void> _exportReport(DateTime month, bool includePending) async {
     try {
-      final file = await const ReportExportService()
-          .exportTransactions(widget.store.transactions);
+      final transactions = widget.store.transactions.where((item) =>
+          item.occurredOn.year == month.year &&
+          item.occurredOn.month == month.month &&
+          (includePending || item.isSettled));
+      final file = await const ReportExportService().exportTransactions(
+        transactions,
+        period: month,
+      );
       if (!mounted) return;
       _showError('Relatório salvo em ${file.path}');
     } on FileSystemException {

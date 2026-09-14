@@ -17,7 +17,7 @@ class ReportsPage extends StatefulWidget {
 
   final OrganizaStore store;
   final bool hideValues;
-  final Future<void> Function() onExport;
+  final Future<void> Function(DateTime month, bool includePending) onExport;
 
   @override
   State<ReportsPage> createState() => _ReportsPageState();
@@ -25,13 +25,62 @@ class ReportsPage extends StatefulWidget {
 
 class _ReportsPageState extends State<ReportsPage> {
   var _months = 6;
+  var _includePending = false;
+  late DateTime _selectedMonth;
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _selectedMonth = DateTime(now.year, now.month);
+  }
 
   @override
   Widget build(BuildContext context) {
-    final data = _monthlyData(widget.store.transactions, _months);
-    final incomes = data.fold(0, (total, item) => total + item.incomes);
-    final expenses = data.fold(0, (total, item) => total + item.expenses);
+    final previousMonth = DateTime(
+      _selectedMonth.year,
+      _selectedMonth.month - 1,
+    );
+    final data = _monthlyDataUntil(
+      widget.store.transactions,
+      _selectedMonth,
+      _months,
+      includePending: _includePending,
+    );
+    final monthTransactions = _transactionsForMonth(
+      widget.store.transactions,
+      _selectedMonth,
+    );
+    final previousTransactions = _transactionsForMonth(
+      widget.store.transactions,
+      previousMonth,
+    );
+    final visibleMonthTransactions = _visibleTransactions(
+      monthTransactions,
+      includePending: _includePending,
+    );
+    final visiblePreviousTransactions = _visibleTransactions(
+      previousTransactions,
+      includePending: _includePending,
+    );
+    final incomes = _typeTotal(
+      visibleMonthTransactions,
+      TransactionType.income,
+    );
+    final expenses = _typeTotal(
+      visibleMonthTransactions,
+      TransactionType.expense,
+    );
+    final previousIncomes = _typeTotal(
+      visiblePreviousTransactions,
+      TransactionType.income,
+    );
+    final previousExpenses = _typeTotal(
+      visiblePreviousTransactions,
+      TransactionType.expense,
+    );
     final balance = incomes - expenses;
+    final previousBalance = previousIncomes - previousExpenses;
     final hide = widget.hideValues;
     String money(int value) =>
         hide ? '••••••' : FinancialRules.formatBrl(value);
@@ -43,14 +92,29 @@ class _ReportsPageState extends State<ReportsPage> {
           eyebrow: 'Análise financeira',
           title: 'Relatórios',
           description:
-              'Compare seus meses e identifique mudanças no ritmo dos gastos.',
+              'Resumo realizado de ${_longMonth(_selectedMonth)} e contexto histórico.',
           actions: [
+            _MonthNavigator(
+              month: _selectedMonth,
+              canGoNext: _canGoNext,
+              onPrevious: () => _changeMonth(-1),
+              onNext: () => _changeMonth(1),
+              onSelect: _selectMonth,
+            ),
             OutlinedButton.icon(
-              onPressed: () => widget.onExport(),
+              onPressed: () => widget.onExport(
+                _selectedMonth,
+                _includePending,
+              ),
               icon: const Icon(Icons.file_download_outlined, size: 18),
-              label: const Text('Exportar CSV'),
+              label: const Text('Exportar mês'),
             ),
           ],
+        ),
+        const SizedBox(height: 14),
+        _ReportModeBar(
+          includePending: _includePending,
+          onChanged: (value) => setState(() => _includePending = value),
         ),
         const SizedBox(height: 26),
         LayoutBuilder(
@@ -60,17 +124,29 @@ class _ReportsPageState extends State<ReportsPage> {
             children: [
               _ReportMetric(
                 width: constraints.maxWidth,
-                label: 'Entradas no período',
+                label: 'Entradas do mês',
                 value: money(incomes),
                 icon: Icons.south_west_rounded,
                 color: const Color(0xFF258A5A),
+                detail: hide
+                    ? 'Comparação oculta'
+                    : _comparisonLabel(incomes, previousIncomes),
+                detailColor: _comparisonColor(incomes, previousIncomes),
               ),
               _ReportMetric(
                 width: constraints.maxWidth,
-                label: 'Saídas no período',
+                label: 'Saídas do mês',
                 value: money(expenses),
                 icon: Icons.north_east_rounded,
                 color: const Color(0xFFC94D4D),
+                detail: hide
+                    ? 'Comparação oculta'
+                    : _comparisonLabel(expenses, previousExpenses),
+                detailColor: _comparisonColor(
+                  expenses,
+                  previousExpenses,
+                  lowerIsBetter: true,
+                ),
               ),
               _ReportMetric(
                 width: constraints.maxWidth,
@@ -80,6 +156,10 @@ class _ReportsPageState extends State<ReportsPage> {
                 color: balance >= 0
                     ? const Color(0xFF258A5A)
                     : const Color(0xFFC94D4D),
+                detail: hide
+                    ? 'Comparação oculta'
+                    : _comparisonLabel(balance, previousBalance),
+                detailColor: _comparisonColor(balance, previousBalance),
               ),
             ],
           ),
@@ -87,7 +167,8 @@ class _ReportsPageState extends State<ReportsPage> {
         const SizedBox(height: 14),
         Panel(
           title: 'Evolução mensal',
-          subtitle: 'Resultado acumulado ao longo do período escolhido',
+          subtitle:
+              'Resultado acumulado até ${monthName(_selectedMonth.month).toLowerCase()}',
           trailing: SegmentedButton<int>(
             showSelectedIcon: false,
             segments: const [
@@ -110,7 +191,7 @@ class _ReportsPageState extends State<ReportsPage> {
             final comparison =
                 _IncomeExpensePanel(data: data, hideValues: hide);
             final ranking = _ExpenseRanking(
-              transactions: widget.store.transactions,
+              transactions: visibleMonthTransactions,
               hideValues: hide,
             );
             if (constraints.maxWidth < 920) {
@@ -134,22 +215,19 @@ class _ReportsPageState extends State<ReportsPage> {
         const SizedBox(height: 14),
         LayoutBuilder(
           builder: (context, constraints) {
-            final cutoff = DateTime(
-                DateTime.now().year, DateTime.now().month - _months + 1);
-            final scopedTransactions = widget.store.transactions
-                .where((item) => !item.occurredOn.isBefore(cutoff))
-                .toList();
             final expensesByCategory =
-                _byCategory(scopedTransactions, TransactionType.expense);
+                _byCategory(visibleMonthTransactions, TransactionType.expense);
             final incomesByCategory =
-                _byCategory(scopedTransactions, TransactionType.income);
+                _byCategory(visibleMonthTransactions, TransactionType.income);
             final expensePanel = _CategoryChart(
                 title: 'Gastos por categoria',
+                subtitle: 'Distribuição em ${_longMonth(_selectedMonth)}',
                 data: expensesByCategory,
                 color: const Color(0xFFC94D4D),
                 hideValues: hide);
             final incomePanel = _CategoryChart(
                 title: 'Receitas por categoria',
+                subtitle: 'Distribuição em ${_longMonth(_selectedMonth)}',
                 data: incomesByCategory,
                 color: const Color(0xFF258A5A),
                 hideValues: hide);
@@ -171,19 +249,43 @@ class _ReportsPageState extends State<ReportsPage> {
         _SpendingRoadmap(
             transactions: widget.store.transactions,
             subscriptions: widget.store.subscriptions,
-            hideValues: hide),
+            hideValues: hide,
+            year: _selectedMonth.year,
+            includePending: _includePending),
       ],
     );
+  }
+
+  bool get _canGoNext {
+    return _selectedMonth.isBefore(DateTime(2100, 12));
+  }
+
+  void _changeMonth(int offset) {
+    final next = DateTime(_selectedMonth.year, _selectedMonth.month + offset);
+    if (next.year < 2000 || next.year > 2100) return;
+    setState(() => _selectedMonth = next);
+  }
+
+  Future<void> _selectMonth() async {
+    final selected = await showDialog<DateTime>(
+      context: context,
+      builder: (_) => _MonthPickerDialog(initialMonth: _selectedMonth),
+    );
+    if (selected != null && mounted) {
+      setState(() => _selectedMonth = selected);
+    }
   }
 }
 
 class _CategoryChart extends StatelessWidget {
   const _CategoryChart(
       {required this.title,
+      required this.subtitle,
       required this.data,
       required this.color,
       required this.hideValues});
   final String title;
+  final String subtitle;
   final Map<String, int> data;
   final Color color;
   final bool hideValues;
@@ -194,9 +296,7 @@ class _CategoryChart extends StatelessWidget {
     final maximum = rows.isEmpty ? 1 : rows.first.value;
     return Panel(
       title: title,
-      subtitle: rows.isEmpty
-          ? 'Sem lançamentos categorizados'
-          : 'Distribuição no período',
+      subtitle: rows.isEmpty ? 'Sem lançamentos categorizados' : subtitle,
       child: rows.isEmpty
           ? const EmptyState(
               icon: Icons.donut_small_outlined,
@@ -239,20 +339,91 @@ class _CategoryChart extends StatelessWidget {
   }
 }
 
+class _ReportModeBar extends StatelessWidget {
+  const _ReportModeBar({
+    required this.includePending,
+    required this.onChanged,
+  });
+
+  final bool includePending;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Theme.of(context).dividerColor),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                Icons.fact_check_outlined,
+                size: 18,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    includePending ? 'Visão prevista' : 'Visão realizada',
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    includePending
+                        ? 'Inclui lançamentos pagos e pendentes do período.'
+                        : 'Considera somente valores já pagos ou recebidos.',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SegmentedButton<bool>(
+              showSelectedIcon: false,
+              segments: const [
+                ButtonSegment(value: false, label: Text('Realizado')),
+                ButtonSegment(value: true, label: Text('Com previsão')),
+              ],
+              selected: {includePending},
+              onSelectionChanged: (value) => onChanged(value.first),
+            ),
+          ],
+        ),
+      );
+}
+
 class _SpendingRoadmap extends StatelessWidget {
   const _SpendingRoadmap(
       {required this.transactions,
       required this.subscriptions,
-      required this.hideValues});
+      required this.hideValues,
+      required this.year,
+      required this.includePending});
   final List<TransactionRecord> transactions;
   final List<Subscription> subscriptions;
   final bool hideValues;
+  final int year;
+  final bool includePending;
 
   @override
   Widget build(BuildContext context) {
-    final now = DateTime.now();
-    final yearStart = DateTime(now.year);
-    final yearEnd = DateTime(now.year, 12, 31);
+    final yearStart = DateTime(year);
+    final yearEnd = DateTime(year, 12, 31);
     final gridStart = yearStart.subtract(Duration(days: yearStart.weekday - 1));
     final gridEnd = yearEnd.add(Duration(days: 7 - yearEnd.weekday));
     final days = List.generate(
@@ -262,27 +433,35 @@ class _SpendingRoadmap extends StatelessWidget {
     final totals = <DateTime, int>{};
     for (final item in transactions.where((item) =>
         item.type == TransactionType.expense &&
-        item.occurredOn.year == now.year)) {
+        item.occurredOn.year == year &&
+        (includePending || item.isSettled))) {
       final key = DateTime(
           item.occurredOn.year, item.occurredOn.month, item.occurredOn.day);
       totals.update(key, (value) => value + item.amountInCents,
           ifAbsent: () => item.amountInCents);
     }
-    for (final month in List.generate(12, (index) => index + 1)) {
-      final lastDay = DateTime(now.year, month + 1, 0).day;
-      for (final item in subscriptions.where((item) => item.isActive)) {
-        final day = math.min(item.billingDay, lastDay);
-        final key = DateTime(now.year, month, day);
-        totals.update(key, (value) => value + item.amountInCents,
-            ifAbsent: () => item.amountInCents);
+    if (includePending) {
+      for (final month in List.generate(12, (index) => index + 1)) {
+        final lastDay = DateTime(year, month + 1, 0).day;
+        for (final item in subscriptions.where((item) =>
+            item.isActive &&
+            (item.createdAt.year < year ||
+                (item.createdAt.year == year &&
+                    item.createdAt.month <= month)))) {
+          final day = math.min(item.billingDay, lastDay);
+          final key = DateTime(year, month, day);
+          totals.update(key, (value) => value + item.amountInCents,
+              ifAbsent: () => item.amountInCents);
+        }
       }
     }
     final maximum = totals.values.isEmpty ? 1 : totals.values.reduce(math.max);
     final weeks = days.length ~/ 7;
     return Panel(
       title: 'Mapa anual de gastos',
-      subtitle:
-          '${now.year} completo · lançamentos e cobranças recorrentes em cada dia',
+      subtitle: includePending
+          ? '$year completo · realizados, pendentes e assinaturas previstas'
+          : '$year completo · somente despesas efetivadas em cada dia',
       trailing: const StatusPill(label: '365 dias'),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
@@ -294,7 +473,7 @@ class _SpendingRoadmap extends StatelessWidget {
               child: SizedBox(
                 width: weeks * 13,
                 height: 14,
-                child: _MonthLabels(year: now.year, gridStart: gridStart),
+                child: _MonthLabels(year: year, gridStart: gridStart),
               ),
             ),
             Row(
@@ -318,7 +497,7 @@ class _SpendingRoadmap extends StatelessWidget {
                       child: Column(
                         children: List.generate(7, (weekday) {
                           final day = days[week * 7 + weekday];
-                          final inYear = day.year == now.year;
+                          final inYear = day.year == year;
                           final amount = totals[day] ?? 0;
                           final ratio = amount / maximum;
                           return Padding(
@@ -454,8 +633,7 @@ class _WeekdayLabel extends StatelessWidget {
 Map<String, int> _byCategory(
     List<TransactionRecord> transactions, TransactionType type) {
   final result = <String, int>{};
-  for (final item
-      in transactions.where((item) => item.type == type && item.isSettled)) {
+  for (final item in transactions.where((item) => item.type == type)) {
     result.update(item.category, (value) => value + item.amountInCents,
         ifAbsent: () => item.amountInCents);
   }
@@ -469,6 +647,8 @@ class _ReportMetric extends StatelessWidget {
     required this.value,
     required this.icon,
     required this.color,
+    required this.detail,
+    required this.detailColor,
   });
 
   final double width;
@@ -476,6 +656,8 @@ class _ReportMetric extends StatelessWidget {
   final String value;
   final IconData icon;
   final Color color;
+  final String detail;
+  final Color detailColor;
 
   @override
   Widget build(BuildContext context) {
@@ -486,7 +668,7 @@ class _ReportMetric extends StatelessWidget {
             : width;
     return SizedBox(
       width: itemWidth,
-      height: 118,
+      height: 136,
       child: Card(
         child: Padding(
           padding: const EdgeInsets.all(18),
@@ -502,6 +684,17 @@ class _ReportMetric extends StatelessWidget {
               const SizedBox(height: 4),
               Text(value,
                   style: TextStyle(fontWeight: FontWeight.w700, color: color)),
+              const SizedBox(height: 5),
+              Text(
+                detail,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: detailColor,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ],
           ),
         ),
@@ -782,19 +975,213 @@ class _MonthData {
   final int expenses;
 }
 
-List<_MonthData> _monthlyData(
-    List<TransactionRecord> transactions, int months) {
-  final now = DateTime.now();
+List<_MonthData> _monthlyDataUntil(
+  List<TransactionRecord> transactions,
+  DateTime endMonth,
+  int months, {
+  required bool includePending,
+}) {
   return List.generate(months, (index) {
-    final date = DateTime(now.year, now.month - months + index + 1);
-    final incomes =
-        FinancialRules.monthTotal(transactions, date, TransactionType.income);
-    final expenses =
-        FinancialRules.monthTotal(transactions, date, TransactionType.expense);
+    final date = DateTime(
+      endMonth.year,
+      endMonth.month - months + index + 1,
+    );
+    final monthTransactions = _visibleTransactions(
+      _transactionsForMonth(transactions, date),
+      includePending: includePending,
+    );
+    final incomes = _typeTotal(monthTransactions, TransactionType.income);
+    final expenses = _typeTotal(monthTransactions, TransactionType.expense);
     return _MonthData(
       label: monthName(date.month).substring(0, 3),
       incomes: incomes,
       expenses: expenses,
     );
   });
+}
+
+List<TransactionRecord> _transactionsForMonth(
+  List<TransactionRecord> transactions,
+  DateTime month,
+) =>
+    transactions
+        .where((item) =>
+            item.occurredOn.year == month.year &&
+            item.occurredOn.month == month.month)
+        .toList();
+
+List<TransactionRecord> _visibleTransactions(
+  List<TransactionRecord> transactions, {
+  required bool includePending,
+}) =>
+    includePending
+        ? transactions
+        : transactions.where((item) => item.isSettled).toList();
+
+int _typeTotal(
+  Iterable<TransactionRecord> transactions,
+  TransactionType type,
+) =>
+    transactions
+        .where((item) => item.type == type)
+        .fold(0, (total, item) => total + item.amountInCents);
+
+String _longMonth(DateTime month) =>
+    '${monthName(month.month)} de ${month.year}';
+
+String _comparisonLabel(int current, int previous) {
+  if (previous == 0) {
+    return current == 0
+        ? 'Sem movimento nos dois meses'
+        : 'Primeiro valor no período';
+  }
+  final percentage = ((current - previous) / previous.abs() * 100).round();
+  if (percentage == 0) return 'Estável em relação ao mês anterior';
+  final arrow = percentage > 0 ? '↑' : '↓';
+  return '$arrow ${percentage.abs()}% vs. mês anterior';
+}
+
+Color _comparisonColor(
+  int current,
+  int previous, {
+  bool lowerIsBetter = false,
+}) {
+  if (current == previous) return const Color(0xFF6F7378);
+  final improved = lowerIsBetter ? current < previous : current > previous;
+  return improved ? const Color(0xFF258A5A) : const Color(0xFFC94D4D);
+}
+
+class _MonthNavigator extends StatelessWidget {
+  const _MonthNavigator({
+    required this.month,
+    required this.canGoNext,
+    required this.onPrevious,
+    required this.onNext,
+    required this.onSelect,
+  });
+
+  final DateTime month;
+  final bool canGoNext;
+  final VoidCallback onPrevious;
+  final VoidCallback onNext;
+  final VoidCallback onSelect;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        height: 40,
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainerHigh,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Theme.of(context).dividerColor),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              onPressed: onPrevious,
+              tooltip: 'Mês anterior',
+              icon: const Icon(Icons.chevron_left_rounded, size: 20),
+            ),
+            TextButton.icon(
+              onPressed: onSelect,
+              icon: const Icon(Icons.calendar_month_outlined, size: 17),
+              label: Text(_longMonth(month)),
+            ),
+            IconButton(
+              onPressed: canGoNext ? onNext : null,
+              tooltip: 'Próximo mês',
+              icon: const Icon(Icons.chevron_right_rounded, size: 20),
+            ),
+          ],
+        ),
+      );
+}
+
+class _MonthPickerDialog extends StatefulWidget {
+  const _MonthPickerDialog({required this.initialMonth});
+
+  final DateTime initialMonth;
+
+  @override
+  State<_MonthPickerDialog> createState() => _MonthPickerDialogState();
+}
+
+class _MonthPickerDialogState extends State<_MonthPickerDialog> {
+  late int _year;
+
+  @override
+  void initState() {
+    super.initState();
+    _year = widget.initialMonth.year;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Escolher período'),
+      content: SizedBox(
+        width: 420,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                IconButton(
+                  onPressed:
+                      _year > 2000 ? () => setState(() => _year--) : null,
+                  tooltip: 'Ano anterior',
+                  icon: const Icon(Icons.chevron_left_rounded),
+                ),
+                Expanded(
+                  child: Text(
+                    '$_year',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                ),
+                IconButton(
+                  onPressed:
+                      _year < 2100 ? () => setState(() => _year++) : null,
+                  tooltip: 'Próximo ano',
+                  icon: const Icon(Icons.chevron_right_rounded),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                childAspectRatio: 2.4,
+                crossAxisSpacing: 8,
+                mainAxisSpacing: 8,
+              ),
+              itemCount: 12,
+              itemBuilder: (context, index) {
+                final month = DateTime(_year, index + 1);
+                final isSelected = month.year == widget.initialMonth.year &&
+                    month.month == widget.initialMonth.month;
+                return FilledButton.tonal(
+                  onPressed: () => Navigator.pop(context, month),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: isSelected
+                        ? Theme.of(context).colorScheme.primaryContainer
+                        : null,
+                  ),
+                  child: Text(monthName(month.month).substring(0, 3)),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+      ],
+    );
+  }
 }

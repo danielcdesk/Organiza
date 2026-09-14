@@ -13,7 +13,8 @@
 | Instituição visual da conta, com ativos locais | Sim | Sim | Sim | Sim | 2026-09-14 |
 | Investimentos manuais e rentabilidade | Sim | Sim | Sim | Sim | 2026-09-14 |
 | Alocação por classe e renda fixa por tipo/emissor/vencimento | Sim | Sim | Sim | Sim | 2026-09-14 |
-| Relatórios por período e exportação CSV local | Sim | Sim | Sim | Sim | 2026-09-11 |
+| Relatórios por mês e exportação CSV local | Sim | Sim | Sim | Sim | 2026-09-14 |
+| Seletor mensal, comparação anterior e modo previsto | Sim | Sim | Sim | Sim | 2026-09-14 |
 | Orçamentos mensais por categoria | Sim | Sim | Sim | Sim | 2026-09-11 |
 | Assinaturas recorrentes | Sim | Sim | Sim | Sim | 2026-09-11 |
 | Categorias e subcategorias personalizadas | Sim | Sim | Sim | Sim | 2026-09-14 |

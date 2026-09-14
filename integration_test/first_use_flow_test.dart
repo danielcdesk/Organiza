@@ -8,6 +8,7 @@ import 'package:integration_test/integration_test.dart';
 import 'package:organiza/application/organiza_store.dart';
 import 'package:organiza/domain/models.dart';
 import 'package:organiza/presentation/organiza_app.dart';
+import 'package:organiza/presentation/shared_widgets.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -145,7 +146,30 @@ void main() {
 
     await tester.tap(find.text('Relatórios').first);
     await tester.pumpAndSettle();
+    final now = DateTime.now();
+    final currentMonthLabel = '${monthName(now.month)} de ${now.year}';
+    final previous = DateTime(now.year, now.month - 1);
+    final previousMonthLabel =
+        '${monthName(previous.month)} de ${previous.year}';
     expect(find.text('Evolução mensal'), findsOneWidget);
+    expect(find.text(currentMonthLabel), findsOneWidget);
+    expect(find.text('Visão realizada'), findsOneWidget);
+    await tester.tap(find.byTooltip('Mês anterior'));
+    await tester.pumpAndSettle();
+    expect(find.text(previousMonthLabel), findsOneWidget);
+    await tester.tap(find.byTooltip('Próximo mês'));
+    await tester.pumpAndSettle();
+    expect(find.text(currentMonthLabel), findsOneWidget);
+    await tester.tap(find.text('Com previsão'));
+    await tester.pumpAndSettle();
+    expect(find.text('Visão prevista'), findsOneWidget);
+    await tester.tap(find.text('Realizado'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(currentMonthLabel));
+    await tester.pumpAndSettle();
+    expect(find.text('Escolher período'), findsOneWidget);
+    await tester.tap(find.text('Cancelar'));
+    await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     await _saveScreenshot(
       screenshotKey,

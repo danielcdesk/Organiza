@@ -1,6 +1,6 @@
 # Estado conhecido como bom
 
-## Baseline 2026-09-14 — Organiza 0.2 local integrado
+## Baseline 2026-09-14 — Organiza 0.3 local integrado
 
 Branch de publicação: `main`.
 
@@ -25,6 +25,8 @@ Funcionando:
 - categorias e subcategorias persistidas e personalizáveis;
 - lançamentos únicos, recorrentes e parcelados, com estado pago/pendente;
 - relatórios por período com evolução, comparação, ranking de gastos e exportação CSV local;
+- relatórios mensais com navegação anterior/próximo, escolha direta de mês e ano, comparação com o mês anterior e alternância entre realizado e previsto;
+- exportação CSV limitada ao período e modo selecionados, com codificação compatível com Excel no Windows;
 - orçamentos mensais por categoria com cálculo de consumo;
 - assinaturas recorrentes com valor, dia e categoria;
 - planejamento dinâmico com salário identificado pelas receitas e distribuição ajustável;

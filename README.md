@@ -13,7 +13,7 @@
   <img alt="Dart" src="https://img.shields.io/badge/Dart-3.x-0175C2?logo=dart&logoColor=white">
   <img alt="Windows" src="https://img.shields.io/badge/Windows-10%2F11-0078D4?logo=windows11&logoColor=white">
   <img alt="SQLite" src="https://img.shields.io/badge/SQLite-local-003B57?logo=sqlite&logoColor=white">
-  <img alt="Versão" src="https://img.shields.io/badge/versao-0.2.0-F0643B">
+  <img alt="Versão" src="https://img.shields.io/badge/versao-0.3.0-F0643B">
   <img alt="Desenvolvido com apoio de IA" src="https://img.shields.io/badge/desenvolvimento-assistido%20por%20IA-6E56CF?logo=openai&logoColor=white">
 </p>
 
@@ -86,7 +86,7 @@ O **Organiza** reúne contas, lançamentos, cartões, orçamentos, assinaturas, 
 | 🔁 Assinaturas | Compromissos mensais por valor, vencimento e categoria |
 | 🗂️ Planejamento | Salário identificado e distribuição ajustável entre essenciais, objetivos e livre |
 | 🏁 Metas | Objetivo, prazo, valor acumulado, aportes e progresso |
-| 📉 Relatórios | Tendências, comparações, categorias, mapa anual e exportação CSV |
+| 📉 Relatórios | Mês selecionável, realizado versus previsto, tendências, categorias, mapa anual e exportação CSV |
 
 ## 🚀 Primeiros passos
 
@@ -121,7 +121,7 @@ flutter test
 flutter test integration_test -d windows
 ```
 
-Estado verificado da versão 0.2.0:
+Estado verificado da versão 0.3.0:
 
 - análise estática sem problemas;
 - 20 testes unitários e de widget aprovados;

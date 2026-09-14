@@ -1,5 +1,14 @@
 # Registro de mudanças
 
+## 2026-09-14 — Organiza 0.3, Relatórios mensais
+
+- Relatórios passaram a abrir no mês atual e permitem navegar por setas ou selecionar diretamente qualquer mês entre 2000 e 2100.
+- Cards de entradas, saídas e resultado representam apenas o mês escolhido e mostram a variação em relação ao mês anterior.
+- O usuário pode alternar entre visão realizada, que considera somente valores pagos/recebidos, e visão prevista, que inclui pendências.
+- Evolução de 3, 6 ou 12 meses termina no período selecionado; ranking e gráficos por categoria respeitam o mesmo contexto.
+- O mapa anual acompanha o ano escolhido e diferencia a leitura realizada da previsão com assinaturas.
+- A exportação CSV agora contém somente o mês e modo ativos, inclui categoria, subcategoria, status e forma do lançamento e usa UTF-8 compatível com Excel.
+
 ## 2026-09-14 — Organiza 0.2, lançamentos planejados e carteira consolidada
 
 - Contas e seletores de transação passaram a usar os ícones locais fornecidos para Nubank, Inter, Caixa, Itaú, Banco do Brasil, Bradesco e Santander.
