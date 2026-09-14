@@ -13,16 +13,20 @@
   <img alt="Dart" src="https://img.shields.io/badge/Dart-3.x-0175C2?logo=dart&logoColor=white">
   <img alt="Windows" src="https://img.shields.io/badge/Windows-10%2F11-0078D4?logo=windows11&logoColor=white">
   <img alt="SQLite" src="https://img.shields.io/badge/SQLite-local-003B57?logo=sqlite&logoColor=white">
-  <img alt="Versão" src="https://img.shields.io/badge/versão-0.2.0-F0643B">
+  <img alt="Versão" src="https://img.shields.io/badge/versao-0.2.0-F0643B">
+  <img alt="Desenvolvido com apoio de IA" src="https://img.shields.io/badge/desenvolvimento-assistido%20por%20IA-6E56CF?logo=openai&logoColor=white">
 </p>
 
-## Sobre o projeto
+## 🧭 Sobre o projeto
 
 O **Organiza** reúne contas, lançamentos, cartões, orçamentos, assinaturas, investimentos, planejamento salarial, metas e relatórios em uma experiência desktop única. O aplicativo foi desenhado para tornar a situação financeira compreensível em poucos segundos, sem depender de login, nuvem ou serviços bancários externos.
 
 > **Local-first:** os dados financeiros permanecem no computador do usuário, em uma base SQLite local. O aplicativo não inclui telemetria, analytics ou sincronização automática.
 
-## Destaques
+> [!IMPORTANT]
+> **Transparência sobre IA:** este projeto foi desenvolvido com apoio de ferramentas de inteligência artificial na pesquisa, concepção visual, implementação, testes e documentação. A direção do produto e a publicação são humanas. O aplicativo distribuído não incorpora modelos de IA e não envia dados financeiros para serviços de IA.
+
+## ✨ Destaques
 
 - **Fluxo financeiro real e planejado:** receitas, despesas e transferências, com lançamentos únicos, recorrentes ou parcelados e controle de pago/pendente.
 - **Organização flexível:** categorias e subcategorias personalizáveis, filtros, busca e identificação visual das contas bancárias.
@@ -31,7 +35,7 @@ O **Organiza** reúne contas, lançamentos, cartões, orçamentos, assinaturas, 
 - **Análise visual:** evolução mensal, entradas versus saídas, distribuição por categoria, ranking de gastos, exportação CSV e mapa anual.
 - **Experiência desktop:** temas claro e escuro, ocultação de valores, animações sutis, atalhos de teclado e tela cheia.
 
-## Visão do produto
+## 🖥️ Visão do produto
 
 <p align="center">
   <img src="docs/screenshots/dashboard.png" width="900" alt="Dashboard financeiro do Organiza">
@@ -69,30 +73,30 @@ O **Organiza** reúne contas, lançamentos, cartões, orçamentos, assinaturas, 
   </p>
 </details>
 
-## Módulos
+## 🧩 Módulos
 
 | Área | O que oferece |
 |---|---|
-| Visão geral | Saldo consolidado, movimento mensal, orçamento, assinaturas, economia e ações rápidas |
-| Finanças | Histórico, busca, filtros, categorias, subcategorias, recorrência, parcelamento e baixa de pendências |
-| Contas | Saldo por conta, cadastro e identificação de instituições financeiras |
-| Cartões | Limite, fechamento, vencimento, ciclo, fatura atual e compras parceladas |
-| Orçamentos | Limites mensais por categoria e acompanhamento do consumo realizado |
-| Investimentos | Patrimônio, rentabilidade, resultado, alocação e organização de renda fixa |
-| Assinaturas | Compromissos mensais por valor, vencimento e categoria |
-| Planejamento | Salário identificado e distribuição ajustável entre essenciais, objetivos e livre |
-| Metas | Objetivo, prazo, valor acumulado, aportes e progresso |
-| Relatórios | Tendências, comparações, categorias, mapa anual e exportação CSV |
+| 📊 Visão geral | Saldo consolidado, movimento mensal, orçamento, assinaturas, economia e ações rápidas |
+| 💸 Finanças | Histórico, busca, filtros, categorias, subcategorias, recorrência, parcelamento e baixa de pendências |
+| 🏦 Contas | Saldo por conta, cadastro e identificação de instituições financeiras |
+| 💳 Cartões | Limite, fechamento, vencimento, ciclo, fatura atual e compras parceladas |
+| 🎯 Orçamentos | Limites mensais por categoria e acompanhamento do consumo realizado |
+| 📈 Investimentos | Patrimônio, rentabilidade, resultado, alocação e organização de renda fixa |
+| 🔁 Assinaturas | Compromissos mensais por valor, vencimento e categoria |
+| 🗂️ Planejamento | Salário identificado e distribuição ajustável entre essenciais, objetivos e livre |
+| 🏁 Metas | Objetivo, prazo, valor acumulado, aportes e progresso |
+| 📉 Relatórios | Tendências, comparações, categorias, mapa anual e exportação CSV |
 
-## Primeiros passos
+## 🚀 Primeiros passos
 
-### Requisitos
+### ✅ Requisitos
 
 - Windows 10 ou 11;
 - [Flutter](https://docs.flutter.dev/get-started/install/windows/desktop) com suporte a Windows Desktop;
 - toolchain de compilação Windows reconhecida pelo `flutter doctor`.
 
-### Executar localmente
+### ▶️ Executar localmente
 
 ```powershell
 git clone https://github.com/danielcdesk/Organiza.git
@@ -101,7 +105,7 @@ flutter pub get
 flutter run -d windows
 ```
 
-### Gerar o executável
+### 📦 Gerar o executável
 
 ```powershell
 flutter build windows --release
@@ -109,7 +113,7 @@ flutter build windows --release
 
 O resultado será criado em `build/windows/x64/runner/Release/`. O executável depende dos arquivos gerados ao lado dele; distribua a pasta `Release` completa.
 
-## Qualidade e testes
+## 🧪 Qualidade e testes
 
 ```powershell
 dart analyze
@@ -128,7 +132,7 @@ Estado verificado da versão 0.2.0:
 
 Consulte o [estado conhecido como bom](docs/known_good_state.md) e a [estratégia de testes](docs/testing_strategy.md) para os contratos de regressão.
 
-## Arquitetura
+## 🏗️ Arquitetura
 
 ```text
 presentation  →  application  →  data/database
@@ -160,7 +164,7 @@ tooling/           # preparação reproduzível de ativos
 windows/           # runner nativo do Flutter
 ```
 
-## Atalhos
+## ⌨️ Atalhos
 
 | Atalho | Ação |
 |---|---|
@@ -170,14 +174,14 @@ windows/           # runner nativo do Flutter
 | `Ctrl + ,` | Abrir configurações |
 | `F11` | Alternar tela cheia |
 
-## Privacidade e segurança
+## 🔐 Privacidade e segurança
 
 - Nenhum dado financeiro é enviado pelo aplicativo.
 - O cartão armazena somente nome, bandeira, limite, vencimento, fechamento e quatro últimos dígitos — nunca número completo ou CVV.
 - Bancos de dados, backups, exportações, arquivos `.env`, logs e artefatos de build estão protegidos pelas regras do `.gitignore`.
 - Não há recomendação de investimento, conexão com corretora ou execução de ordens.
 
-## Documentação
+## 📚 Documentação
 
 - [Arquitetura](docs/architecture.md)
 - [Regras financeiras](docs/financial_rules.md)
@@ -186,7 +190,7 @@ windows/           # runner nativo do Flutter
 - [Registro de mudanças](docs/change_log.md)
 - [Base de conhecimento de erros](docs/error_knowledge_base.md)
 
-## Roadmap
+## 🗺️ Roadmap
 
 - pagamento e histórico definitivo de faturas;
 - edição de lançamentos e orçamentos;
@@ -196,8 +200,8 @@ windows/           # runner nativo do Flutter
 - versões móveis opcionais;
 - integração bancária e cotações somente mediante arquitetura explícita de consentimento e privacidade.
 
-## Observações
+## ⚖️ Avisos e transparência
 
 Os nomes e logotipos de instituições financeiras são usados apenas para identificação visual e pertencem aos seus respectivos titulares. Este projeto não possui vínculo oficial com essas instituições.
 
-Ferramentas de IA auxiliaram no desenvolvimento inicial. O produto final não contém IA, LLM, analytics ou integração externa em tempo de execução.
+O uso de IA neste projeto está declarado de forma intencional: ferramentas de inteligência artificial participaram do processo de desenvolvimento, revisão e documentação. O produto final, porém, não contém IA, LLM, analytics ou integração externa em tempo de execução.
