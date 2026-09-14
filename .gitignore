@@ -1,0 +1,27 @@
+# Flutter and Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+build/
+
+# Native tool output
+windows/flutter/ephemeral/
+
+# Local user data: never commit databases, exports, backups, or logs
+*.db
+*.db-shm
+*.db-wal
+*.organiza
+backups/
+exports/
+logs/
+
+# Secrets and IDEs
+.env
+.env.*
+!.env.example
+.idea/
+.vscode/
+*.iml

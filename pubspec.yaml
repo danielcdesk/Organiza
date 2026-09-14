@@ -1,0 +1,29 @@
+name: organiza
+description: Organizador pessoal local-first para Windows.
+publish_to: none
+version: 0.2.0+2
+
+environment:
+  sdk: '>=3.4.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  sqlite3: ^3.5.2
+  path: ^1.9.0
+  path_provider: ^2.1.4
+  uuid: ^4.5.0
+  window_manager: ^0.5.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/branding/organiza-app-icon.png
+    - assets/banks/
