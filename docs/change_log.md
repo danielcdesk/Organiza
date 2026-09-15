@@ -1,5 +1,13 @@
 # Registro de mudanças
 
+## 2026-09-15 — Organiza 0.4, tarefas e lista de compras
+
+- Tarefas podem ser excluídas pelo Planejamento ou pelo Dashboard, sempre com confirmação.
+- Criada a área Lista de desejos na navegação lateral, com cadastro de item, quantidade, preço unitário estimado opcional, prioridade e estado comprado.
+- A lista mostra total estimado dos itens pendentes, filtros por estado e exclusão confirmada.
+- Itens da lista não afetam o saldo, orçamentos ou relatórios; após a compra, o usuário registra a despesa real em Finanças.
+- O schema local passou para a versão 9, preservando os dados anteriores; novas regressões cobrem exclusão de tarefas, persistência da lista e isolamento do saldo.
+
 ## 2026-09-14 — Organiza 0.3, Relatórios mensais
 
 - Relatórios passaram a abrir no mês atual e permitem navegar por setas ou selecionar diretamente qualquer mês entre 2000 e 2100.

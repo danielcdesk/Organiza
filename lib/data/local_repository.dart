@@ -15,6 +15,7 @@ class LocalRepository {
   List<Account> loadAccounts() => _database.loadAccounts();
   List<TransactionRecord> loadTransactions() => _database.loadTransactions();
   List<TaskItem> loadTasks() => _database.loadTasks();
+  List<ShoppingItem> loadShoppingItems() => _database.loadShoppingItems();
   List<CreditCard> loadCreditCards() => _database.loadCreditCards();
   List<CardPurchase> loadCardPurchases() => _database.loadCardPurchases();
   List<InvestmentPosition> loadInvestments() => _database.loadInvestments();
@@ -31,6 +32,12 @@ class LocalRepository {
       _database.insertTransaction(item);
   void insertTask(TaskItem item) => _database.insertTask(item);
   void setTaskDone(String id, bool value) => _database.setTaskDone(id, value);
+  void deleteTask(String id) => _database.deleteTask(id);
+  void insertShoppingItem(ShoppingItem item) =>
+      _database.insertShoppingItem(item);
+  void setShoppingItemPurchased(String id, bool value) =>
+      _database.setShoppingItemPurchased(id, value);
+  void deleteShoppingItem(String id) => _database.deleteShoppingItem(id);
   void insertCreditCard(CreditCard item) => _database.insertCreditCard(item);
   void insertCardPurchase(CardPurchase item) =>
       _database.insertCardPurchase(item);

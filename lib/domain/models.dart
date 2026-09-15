@@ -81,6 +81,30 @@ class TaskItem {
   final DateTime createdAt;
 }
 
+enum ShoppingPriority { low, normal, high }
+
+class ShoppingItem {
+  const ShoppingItem({
+    required this.id,
+    required this.name,
+    required this.quantity,
+    required this.createdAt,
+    this.estimatedUnitPriceInCents,
+    this.priority = ShoppingPriority.normal,
+    this.isPurchased = false,
+  });
+
+  final String id;
+  final String name;
+  final int quantity;
+  final int? estimatedUnitPriceInCents;
+  final ShoppingPriority priority;
+  final bool isPurchased;
+  final DateTime createdAt;
+
+  int get estimatedTotalInCents => quantity * (estimatedUnitPriceInCents ?? 0);
+}
+
 enum CardBrand { visa, mastercard, elo, amex, other }
 
 class CreditCard {

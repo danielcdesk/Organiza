@@ -43,6 +43,12 @@ void main() {
       category: 'Alimentação',
     );
     store.addTask('Revisar o orçamento de setembro');
+    store.addShoppingItem(
+      name: 'Notebook para estudos',
+      quantity: 1,
+      estimatedUnitPriceInCents: 350000,
+      priority: ShoppingPriority.high,
+    );
     store.addCreditCard(
       name: 'Cartão principal',
       brand: CardBrand.mastercard,
@@ -212,11 +218,47 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Salário identificado no mês'), findsOneWidget);
     expect(find.text('Distribuição sugerida'), findsOneWidget);
+    expect(find.byTooltip('Excluir tarefa'), findsWidgets);
     expect(tester.takeException(), isNull);
     await _saveScreenshot(
       screenshotKey,
       File('${output.path}/organiza-planning.png'),
     );
+    await tester.scrollUntilVisible(
+      find.byTooltip('Excluir tarefa').last,
+      460,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Excluir tarefa').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Excluir tarefa?'), findsOneWidget);
+    await tester.tap(find.text('Excluir'));
+    await tester.pumpAndSettle();
+    expect(store.tasks, isEmpty);
+
+    await tester.tap(find.text('Lista de desejos').first);
+    await tester.pumpAndSettle();
+    expect(find.text('Notebook para estudos'), findsOneWidget);
+    expect(find.text('Valor estimado'), findsOneWidget);
+    expect(find.byTooltip('Excluir item'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await _saveScreenshot(
+      screenshotKey,
+      File('${output.path}/organiza-shopping.png'),
+    );
+    await tester.tap(find.text('Adicionar item'));
+    await tester.pumpAndSettle();
+    expect(find.text('Preço por unidade (R\$)'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.tap(find.text('Cancelar'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Excluir item'));
+    await tester.pumpAndSettle();
+    expect(find.text('Excluir item?'), findsOneWidget);
+    await tester.tap(find.text('Cancelar'));
+    await tester.pumpAndSettle();
+    expect(store.shoppingItems, hasLength(1));
 
     await tester.tap(find.text('Metas').first);
     await tester.pumpAndSettle();

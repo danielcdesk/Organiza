@@ -7,6 +7,8 @@
 | Transferência | Sim | Sim | Sim | Sim | 2026-09-10 |
 | Persistência SQLite | Sim | Sim | Sim | Sim | 2026-09-10 |
 | Tarefas | Sim | Sim | Sim | Sim | 2026-09-10 |
+| Exclusão de tarefa com confirmação | Sim | Sim | Sim | Sim | 2026-09-15 |
+| Lista de desejos/compras local | Sim | Sim | Sim | Sim | 2026-09-15 |
 | Cadastrar cartão | Sim | Sim | Sim | Sim | 2026-09-10 |
 | Compra no cartão | Sim | Sim | Sim | Sim | 2026-09-10 |
 | Ciclo, fatura atual e limite | Sim | Sim | Sim | Sim | 2026-09-10 |
@@ -28,7 +30,7 @@
 | Parcelas distribuídas entre faturas | Sim | Sim | Sim | Sim | 2026-09-11 |
 | Mapa anual de gastos | Sim | Sim | Sim | Sim | 2026-09-11 |
 | Metas financeiras e aportes | Sim | Sim | Sim | Sim | 2026-09-11 |
-| Migração schema 1 → 8 | Sim | Sim | Sim | Sim | 2026-09-14 |
+| Migração schema 1 → 9 | Sim | Sim | Sim | Sim | 2026-09-15 |
 | Pagamento e histórico de faturas | Não | Não | Não | Não | — |
 | Backup JSON | Serviço inicial | Não executado | Não | Não | 2026-09-10 |
 | Build Windows | Sim | — | Sim | Sim | 2026-09-14 |

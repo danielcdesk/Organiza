@@ -306,10 +306,16 @@ class AccountsPage extends StatelessWidget {
 }
 
 class PlanningPage extends StatefulWidget {
-  const PlanningPage({super.key, required this.store, required this.onAdd});
+  const PlanningPage({
+    super.key,
+    required this.store,
+    required this.onAdd,
+    required this.onDeleteTask,
+  });
 
   final OrganizaStore store;
   final VoidCallback onAdd;
+  final Future<void> Function(String id) onDeleteTask;
 
   @override
   State<PlanningPage> createState() => _PlanningPageState();
@@ -436,6 +442,14 @@ class _PlanningPageState extends State<PlanningPage> {
                                               .onSurfaceVariant
                                           : null)),
                               controlAffinity: ListTileControlAffinity.leading,
+                              secondary: IconButton(
+                                onPressed: () => widget.onDeleteTask(task.id),
+                                tooltip: 'Excluir tarefa',
+                                icon: const Icon(
+                                  Icons.delete_outline_rounded,
+                                  size: 18,
+                                ),
+                              ),
                             ))
                         .toList(),
                   ),

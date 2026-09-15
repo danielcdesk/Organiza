@@ -1,6 +1,6 @@
 # Estado conhecido como bom
 
-## Baseline 2026-09-14 — Organiza 0.3 local integrado
+## Baseline 2026-09-15 — Organiza 0.4 local integrado
 
 Branch de publicação: `main`.
 
@@ -9,7 +9,7 @@ Funcionando:
 - criação de contas;
 - criação de receita, despesa e transferência;
 - cálculo de saldo por conta e consolidado;
-- persistência SQLite com schema versão 8 e migração incremental;
+- persistência SQLite com schema versão 9 e migração incremental;
 - criação e conclusão de tarefas;
 - atalhos e navegação de desktop.
 - dashboard responsivo em 1366×768 com saldo consolidado, resumo mensal e menor repetição visual;
@@ -19,7 +19,7 @@ Funcionando:
 - registro de compras no cartão;
 - cálculo do ciclo atual, fatura em aberto, limite disponível e percentual usado;
 - formatação monetária brasileira com separadores de milhar;
-- migração incremental do schema 1 para o schema 8;
+- migração incremental do schema 1 para o schema 9;
 - seleção de instituição visual para contas, incluindo Nubank, Inter, Caixa, Itaú, Banco do Brasil, Bradesco, Santander e banco genérico;
 - investimentos manuais com posição, saldo atual, rentabilidade, alocação e detalhes de renda fixa;
 - categorias e subcategorias persistidas e personalizáveis;
@@ -40,12 +40,14 @@ Funcionando:
 - parcelas distribuídas por fatura e saldo parcelado considerado no limite;
 - mapa anual de gastos com todos os dias do ano;
 - metas financeiras com aportes e conclusão;
+- exclusão de tarefas com confirmação no Planejamento e no Dashboard;
+- lista de desejos/compras local com preço estimado, quantidade, prioridade, baixa e exclusão, sem alterar o saldo;
 - ícone próprio no executável e na navegação;
 
 Testes:
 
 - `flutter analyze`: sem problemas;
-- `flutter test`: 20 testes aprovados;
+- `flutter test`: 22 testes aprovados;
 - `flutter test integration_test -d windows`: 1 fluxo aprovado em 1366×768 por Dashboard, Contas, Investimentos, Orçamentos, Relatórios, Cartões, Assinaturas, Planejamento e Metas;
 - `flutter build windows --release`: concluído;
 - capturas do dashboard e de Cartões revisadas visualmente.
@@ -56,7 +58,7 @@ Contrato de regressão:
 - valores financeiros devem continuar em centavos inteiros;
 - nenhum dado pessoal pode sair do computador;
 - não remover a validação de origem/destino em transferências.
-- o schema 1 deve migrar para o schema 8 sem excluir contas, transações ou tarefas;
+- o schema 1 deve migrar para o schema 9 sem excluir contas, transações ou tarefas;
 - lançamentos pendentes não podem alterar saldo, totais realizados ou orçamento consumido;
 - o parcelamento deve preservar exatamente o total digitado, inclusive quando houver resto em centavos;
 - cartão nunca deve armazenar número completo, CVV ou senha;

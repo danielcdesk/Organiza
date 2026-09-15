@@ -13,6 +13,7 @@ class OrganizaStore extends ChangeNotifier {
   List<Account> accounts = [];
   List<TransactionRecord> transactions = [];
   List<TaskItem> tasks = [];
+  List<ShoppingItem> shoppingItems = [];
   List<CreditCard> creditCards = [];
   List<CardPurchase> cardPurchases = [];
   List<InvestmentPosition> investments = [];
@@ -39,6 +40,7 @@ class OrganizaStore extends ChangeNotifier {
     accounts = _repository.loadAccounts();
     transactions = _repository.loadTransactions();
     tasks = _repository.loadTasks();
+    shoppingItems = _repository.loadShoppingItems();
     creditCards = _repository.loadCreditCards();
     cardPurchases = _repository.loadCardPurchases();
     investments = _repository.loadInvestments();
@@ -146,6 +148,57 @@ class OrganizaStore extends ChangeNotifier {
 
   void toggleTask(TaskItem task, bool value) {
     _repository.setTaskDone(task.id, value);
+    reload();
+  }
+
+  void deleteTask(String id) {
+    if (tasks.every((task) => task.id != id)) {
+      throw ArgumentError('Tarefa não encontrada.');
+    }
+    _repository.deleteTask(id);
+    reload();
+  }
+
+  void addShoppingItem({
+    required String name,
+    required int quantity,
+    int? estimatedUnitPriceInCents,
+    ShoppingPriority priority = ShoppingPriority.normal,
+  }) {
+    final cleanName = name.trim();
+    if (cleanName.isEmpty) throw ArgumentError('Informe o nome do item.');
+    if (quantity < 1 || quantity > 9999) {
+      throw ArgumentError('A quantidade deve ficar entre 1 e 9999.');
+    }
+    if (estimatedUnitPriceInCents != null &&
+        (estimatedUnitPriceInCents < 0 ||
+            estimatedUnitPriceInCents >= 100000000000)) {
+      throw ArgumentError('Informe um valor estimado válido.');
+    }
+    _repository.insertShoppingItem(ShoppingItem(
+      id: _id(),
+      name: cleanName,
+      quantity: quantity,
+      estimatedUnitPriceInCents: estimatedUnitPriceInCents,
+      priority: priority,
+      createdAt: DateTime.now(),
+    ));
+    reload();
+  }
+
+  void setShoppingItemPurchased(String id, bool value) {
+    if (shoppingItems.every((item) => item.id != id)) {
+      throw ArgumentError('Item não encontrado.');
+    }
+    _repository.setShoppingItemPurchased(id, value);
+    reload();
+  }
+
+  void deleteShoppingItem(String id) {
+    if (shoppingItems.every((item) => item.id != id)) {
+      throw ArgumentError('Item não encontrado.');
+    }
+    _repository.deleteShoppingItem(id);
     reload();
   }
 

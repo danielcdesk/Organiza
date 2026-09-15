@@ -3,8 +3,7 @@ import 'package:organiza/database/app_database.dart';
 import 'package:organiza/domain/models.dart';
 
 void main() {
-  test('migração 1 para 8 preserva dados e habilita organização financeira',
-      () {
+  test('migração 1 para 9 preserva dados e habilita lista de compras', () {
     final database = AppDatabase.openInMemoryFromVersion1ForTest();
     addTearDown(database.close);
     final now = DateTime(2026, 9, 10);
@@ -70,7 +69,7 @@ void main() {
       createdAt: now,
     ));
 
-    expect(database.schemaVersion, 8);
+    expect(database.schemaVersion, 9);
     expect(database.loadAccounts().single.name, 'Principal');
     expect(
         database.loadAccounts().single.institution, AccountInstitution.generic);
@@ -90,5 +89,6 @@ void main() {
           .any((item) => item.name == 'Cafeterias'),
       isTrue,
     );
+    expect(database.loadShoppingItems(), isEmpty);
   });
 }

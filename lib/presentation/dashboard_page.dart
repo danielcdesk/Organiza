@@ -13,6 +13,7 @@ class DashboardPage extends StatelessWidget {
     required this.hideValues,
     required this.onNewTransaction,
     required this.onNewTask,
+    required this.onDeleteTask,
     required this.onOpenCards,
     required this.onOpenBudgets,
     required this.onOpenSubscriptions,
@@ -22,6 +23,7 @@ class DashboardPage extends StatelessWidget {
   final bool hideValues;
   final VoidCallback onNewTransaction;
   final VoidCallback onNewTask;
+  final Future<void> Function(String id) onDeleteTask;
   final VoidCallback onOpenCards;
   final VoidCallback onOpenBudgets;
   final VoidCallback onOpenSubscriptions;
@@ -125,7 +127,11 @@ class DashboardPage extends StatelessWidget {
                 hideValues: hideValues,
                 onOpenCards: onOpenCards,
               );
-              final tasks = _TasksPanel(store: store, onAdd: onNewTask);
+              final tasks = _TasksPanel(
+                store: store,
+                onAdd: onNewTask,
+                onDeleteTask: onDeleteTask,
+              );
               if (constraints.maxWidth < 1000) {
                 return Column(
                     children: [cards, const SizedBox(height: 14), tasks]);
@@ -582,10 +588,15 @@ class _CardSnapshot extends StatelessWidget {
 }
 
 class _TasksPanel extends StatelessWidget {
-  const _TasksPanel({required this.store, required this.onAdd});
+  const _TasksPanel({
+    required this.store,
+    required this.onAdd,
+    required this.onDeleteTask,
+  });
 
   final OrganizaStore store;
   final VoidCallback onAdd;
+  final Future<void> Function(String id) onDeleteTask;
 
   @override
   Widget build(BuildContext context) {
@@ -613,6 +624,11 @@ class _TasksPanel extends StatelessWidget {
                   },
                   title: Text(task.title),
                   controlAffinity: ListTileControlAffinity.leading,
+                  secondary: IconButton(
+                    onPressed: () => onDeleteTask(task.id),
+                    tooltip: 'Excluir tarefa',
+                    icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                  ),
                 );
               }).toList(),
             ),

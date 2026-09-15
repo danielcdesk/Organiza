@@ -17,6 +17,7 @@ import 'goals_page.dart';
 import 'organiza_theme.dart';
 import 'reports_page.dart';
 import 'shared_widgets.dart';
+import 'shopping_page.dart';
 import '../services/report_export_service.dart';
 
 class OrganizaApp extends StatefulWidget {
@@ -77,6 +78,7 @@ class _OrganizaShellState extends State<OrganizaShell> {
     _PageDefinition('Relatórios', Icons.bar_chart_rounded),
     _PageDefinition('Configurações', Icons.tune_rounded),
     _PageDefinition('Assinaturas', Icons.autorenew_rounded),
+    _PageDefinition('Lista de desejos', Icons.shopping_bag_outlined),
   ];
 
   @override
@@ -209,6 +211,7 @@ class _OrganizaShellState extends State<OrganizaShell> {
             hideValues: _hideValues,
             onNewTransaction: _openTransactionDialog,
             onNewTask: _openTaskDialog,
+            onDeleteTask: _deleteTask,
             onOpenCards: () => setState(() => _page = 3),
             onOpenBudgets: () => setState(() => _page = 4),
             onOpenSubscriptions: () => setState(() => _page = 10),
@@ -242,7 +245,11 @@ class _OrganizaShellState extends State<OrganizaShell> {
             onAdd: _openInvestmentDialog,
             onDelete: _deleteInvestment,
           ),
-        6 => PlanningPage(store: widget.store, onAdd: _openTaskDialog),
+        6 => PlanningPage(
+            store: widget.store,
+            onAdd: _openTaskDialog,
+            onDeleteTask: _deleteTask,
+          ),
         7 => GoalsPage(
             store: widget.store,
             hideValues: _hideValues,
@@ -260,6 +267,12 @@ class _OrganizaShellState extends State<OrganizaShell> {
             store: widget.store,
             onAdd: _openSubscriptionDialog,
             onDelete: _deleteSubscription),
+        11 => ShoppingPage(
+            store: widget.store,
+            hideValues: _hideValues,
+            onAdd: _openShoppingDialog,
+            onDelete: _deleteShoppingItem,
+          ),
         _ => ComingSoonPage(title: _pages[_page].label),
       };
 
@@ -417,6 +430,41 @@ class _OrganizaShellState extends State<OrganizaShell> {
       _showError(
           error.message?.toString() ?? 'Não foi possível salvar a tarefa.');
     }
+  }
+
+  Future<void> _deleteTask(String id) async {
+    final confirmed = await _confirmDelete(
+      title: 'Excluir tarefa?',
+      message: 'A tarefa será removida da sua lista local.',
+    );
+    if (confirmed) widget.store.deleteTask(id);
+  }
+
+  Future<void> _openShoppingDialog() async {
+    final value = await showDialog<ShoppingInput>(
+      context: context,
+      builder: (_) => const ShoppingDialog(),
+    );
+    if (value == null || !mounted) return;
+    try {
+      widget.store.addShoppingItem(
+        name: value.name,
+        quantity: value.quantity,
+        estimatedUnitPriceInCents: value.estimatedUnitPriceInCents,
+        priority: value.priority,
+      );
+    } on ArgumentError catch (error) {
+      _showError(
+          error.message?.toString() ?? 'Não foi possível salvar o item.');
+    }
+  }
+
+  Future<void> _deleteShoppingItem(String id) async {
+    final confirmed = await _confirmDelete(
+      title: 'Excluir item?',
+      message: 'O item será removido da lista de desejos/compras.',
+    );
+    if (confirmed) widget.store.deleteShoppingItem(id);
   }
 
   Future<void> _openFinancialGoalDialog() async {
@@ -692,7 +740,7 @@ class _Sidebar extends StatelessWidget {
               _label('FINANÇAS'),
               _section(context, [1, 2, 3, 4, 5, 10]),
               _label('ORGANIZAÇÃO'),
-              _section(context, [6, 7]),
+              _section(context, [6, 7, 11]),
               _label('ANÁLISE'),
               _section(context, [8]),
               const Spacer(),

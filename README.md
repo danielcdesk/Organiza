@@ -13,7 +13,7 @@
   <img alt="Dart" src="https://img.shields.io/badge/Dart-3.x-0175C2?logo=dart&logoColor=white">
   <img alt="Windows" src="https://img.shields.io/badge/Windows-10%2F11-0078D4?logo=windows11&logoColor=white">
   <img alt="SQLite" src="https://img.shields.io/badge/SQLite-local-003B57?logo=sqlite&logoColor=white">
-  <img alt="Versão" src="https://img.shields.io/badge/versao-0.3.0-F0643B">
+  <img alt="Versão" src="https://img.shields.io/badge/versao-0.4.0-F0643B">
   <img alt="Desenvolvido com apoio de IA" src="https://img.shields.io/badge/desenvolvimento-assistido%20por%20IA-6E56CF?logo=openai&logoColor=white">
 </p>
 
@@ -34,6 +34,7 @@ O **Organiza** reúne contas, lançamentos, cartões, orçamentos, assinaturas, 
 - **Patrimônio e objetivos:** carteira de investimentos por classe, renda fixa por tipo/emissor/vencimento, planejamento salarial e metas com aportes.
 - **Análise visual:** evolução mensal, entradas versus saídas, distribuição por categoria, ranking de gastos, exportação CSV e mapa anual.
 - **Experiência desktop:** temas claro e escuro, ocultação de valores, animações sutis, atalhos de teclado e tela cheia.
+- **Compras conscientes:** lista de desejos com quantidade, prioridade, valor estimado, itens comprados e exclusão; tarefas também podem ser excluídas com confirmação.
 
 ## 🖥️ Visão do produto
 
@@ -70,6 +71,7 @@ O **Organiza** reúne contas, lançamentos, cartões, orçamentos, assinaturas, 
     <img src="docs/screenshots/planning.png" width="49%" alt="Planejamento salarial">
     <img src="docs/screenshots/goals.png" width="49%" alt="Metas financeiras">
     <img src="docs/screenshots/reports-roadmap.png" width="49%" alt="Mapa anual de gastos">
+    <img src="docs/screenshots/shopping.png" width="49%" alt="Lista de desejos e compras">
   </p>
 </details>
 
@@ -86,6 +88,7 @@ O **Organiza** reúne contas, lançamentos, cartões, orçamentos, assinaturas, 
 | 🔁 Assinaturas | Compromissos mensais por valor, vencimento e categoria |
 | 🗂️ Planejamento | Salário identificado e distribuição ajustável entre essenciais, objetivos e livre |
 | 🏁 Metas | Objetivo, prazo, valor acumulado, aportes e progresso |
+| 🛍️ Lista de desejos | Planejamento de compras sem alterar o saldo financeiro |
 | 📉 Relatórios | Mês selecionável, realizado versus previsto, tendências, categorias, mapa anual e exportação CSV |
 
 ## 🚀 Primeiros passos
@@ -121,13 +124,13 @@ flutter test
 flutter test integration_test -d windows
 ```
 
-Estado verificado da versão 0.3.0:
+Estado verificado da versão 0.4.0:
 
 - análise estática sem problemas;
-- 20 testes unitários e de widget aprovados;
+- 22 testes unitários e de widget aprovados;
 - fluxo integrado aprovado no Windows em 1366 × 768;
 - build Windows em modo release concluído;
-- migração incremental do schema 1 ao 8 coberta por teste;
+- migração incremental do schema 1 ao 9 coberta por teste;
 - capturas das áreas principais revisadas visualmente.
 
 Consulte o [estado conhecido como bom](docs/known_good_state.md) e a [estratégia de testes](docs/testing_strategy.md) para os contratos de regressão.

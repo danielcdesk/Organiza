@@ -11,7 +11,7 @@ class AppDatabase {
   AppDatabase._(this._database);
 
   final Database _database;
-  static const _schemaVersion = 8;
+  static const _schemaVersion = 9;
 
   static Future<AppDatabase> open() async {
     final appDirectory = await getApplicationSupportDirectory();
@@ -252,6 +252,22 @@ class AppDatabase {
       _seedDefaultCategories();
       _database.execute('PRAGMA user_version = 8');
     }
+    if (current < 9) {
+      _database.execute('''
+        CREATE TABLE shopping_items (
+          id TEXT PRIMARY KEY NOT NULL,
+          name TEXT NOT NULL,
+          quantity INTEGER NOT NULL CHECK(quantity BETWEEN 1 AND 9999),
+          estimated_unit_price_cents INTEGER CHECK(estimated_unit_price_cents >= 0),
+          priority TEXT NOT NULL DEFAULT 'normal' CHECK(priority IN ('low', 'normal', 'high')),
+          is_purchased INTEGER NOT NULL DEFAULT 0 CHECK(is_purchased IN (0, 1)),
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX idx_shopping_items_state_priority
+          ON shopping_items(is_purchased, priority, created_at DESC);
+      ''');
+      _database.execute('PRAGMA user_version = 9');
+    }
   }
 
   void _seedDefaultCategories() {
@@ -402,6 +418,21 @@ class AppDatabase {
                 ? null
                 : DateTime.parse(row['due_on'] as String),
             isDone: (row['is_done'] as int) == 1,
+            createdAt: DateTime.parse(row['created_at'] as String),
+          ))
+      .toList();
+
+  List<ShoppingItem> loadShoppingItems() => _database
+      .select(
+          'SELECT * FROM shopping_items ORDER BY is_purchased ASC, created_at DESC')
+      .map((row) => ShoppingItem(
+            id: row['id'] as String,
+            name: row['name'] as String,
+            quantity: row['quantity'] as int,
+            estimatedUnitPriceInCents:
+                row['estimated_unit_price_cents'] as int?,
+            priority: ShoppingPriority.values.byName(row['priority'] as String),
+            isPurchased: (row['is_purchased'] as int) == 1,
             createdAt: DateTime.parse(row['created_at'] as String),
           ))
       .toList();
@@ -582,6 +613,32 @@ class AppDatabase {
         'UPDATE tasks SET is_done = ? WHERE id = ?',
         [value ? 1 : 0, id],
       );
+
+  void deleteTask(String id) =>
+      _database.execute('DELETE FROM tasks WHERE id = ?', [id]);
+
+  void insertShoppingItem(ShoppingItem item) => _database.execute(
+        '''INSERT INTO shopping_items(
+          id, name, quantity, estimated_unit_price_cents, priority, is_purchased, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)''',
+        [
+          item.id,
+          item.name,
+          item.quantity,
+          item.estimatedUnitPriceInCents,
+          item.priority.name,
+          item.isPurchased ? 1 : 0,
+          item.createdAt.toIso8601String(),
+        ],
+      );
+
+  void setShoppingItemPurchased(String id, bool value) => _database.execute(
+        'UPDATE shopping_items SET is_purchased = ? WHERE id = ?',
+        [value ? 1 : 0, id],
+      );
+
+  void deleteShoppingItem(String id) =>
+      _database.execute('DELETE FROM shopping_items WHERE id = ?', [id]);
 
   void insertCreditCard(CreditCard card) => _database.execute(
         '''INSERT INTO credit_cards(

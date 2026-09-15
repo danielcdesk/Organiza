@@ -147,4 +147,45 @@ void main() {
     );
     expect(store.balance, 500000);
   });
+
+  test('exclui tarefa sem afetar as demais', () {
+    final store = OrganizaStore.inMemory();
+    addTearDown(store.dispose);
+    store.addTask('Comprar material');
+    store.addTask('Revisar orçamento');
+    final removed = store.tasks.firstWhere(
+      (item) => item.title == 'Comprar material',
+    );
+
+    store.deleteTask(removed.id);
+
+    expect(store.tasks.map((item) => item.title), ['Revisar orçamento']);
+    expect(() => store.deleteTask(removed.id), throwsArgumentError);
+  });
+
+  test('lista de compras persiste quantidade, prioridade, baixa e exclusão',
+      () {
+    final store = OrganizaStore.inMemory();
+    addTearDown(store.dispose);
+    store.addAccount('Principal', 100000);
+    store.addShoppingItem(
+      name: 'Fones',
+      quantity: 2,
+      estimatedUnitPriceInCents: 12500,
+      priority: ShoppingPriority.high,
+    );
+    final item = store.shoppingItems.single;
+    expect(item.estimatedTotalInCents, 25000);
+    expect(item.priority, ShoppingPriority.high);
+    expect(store.balance, 100000);
+
+    store.setShoppingItemPurchased(item.id, true);
+    expect(store.shoppingItems.single.isPurchased, isTrue);
+    expect(store.balance, 100000);
+
+    store.deleteShoppingItem(item.id);
+    expect(store.shoppingItems, isEmpty);
+    expect(() => store.addShoppingItem(name: '', quantity: 1),
+        throwsArgumentError);
+  });
 }
