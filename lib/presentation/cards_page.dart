@@ -39,7 +39,7 @@ class _CardsPageState extends State<CardsPage> {
   Widget build(BuildContext context) {
     final card = _selectedCard;
     return ListView(
-      padding: const EdgeInsets.fromLTRB(30, 28, 30, 42),
+      padding: pagePadding(context),
       children: [
         PageHeading(
           eyebrow: 'Limites e faturas',

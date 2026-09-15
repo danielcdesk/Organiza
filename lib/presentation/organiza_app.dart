@@ -127,6 +127,7 @@ class _OrganizaShellState extends State<OrganizaShell> {
             autofocus: true,
             child: LayoutBuilder(
               builder: (context, constraints) {
+                if (constraints.maxWidth < 600) return _buildMobileShell();
                 final compact = constraints.maxWidth < 1040;
                 return Scaffold(
                   body: Padding(
@@ -204,6 +205,82 @@ class _OrganizaShellState extends State<OrganizaShell> {
           ),
         ),
       );
+
+  Widget _buildMobileShell() {
+    const primaryPages = [0, 1, 6, 8];
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(_pages[_page].label),
+        actions: [
+          IconButton(
+            tooltip: 'Buscar',
+            onPressed: _openSearch,
+            icon: const Icon(Icons.search_rounded),
+          ),
+          IconButton(
+            tooltip: _hideValues ? 'Mostrar valores' : 'Ocultar valores',
+            onPressed: () => setState(() => _hideValues = !_hideValues),
+            icon: Icon(_hideValues
+                ? Icons.visibility_off_outlined
+                : Icons.visibility_outlined),
+          ),
+        ],
+      ),
+      drawer: Drawer(
+        child: SafeArea(
+          child: Column(
+            children: [
+              const ListTile(
+                title: Text('Organiza', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
+                subtitle: Text('Seu espaço financeiro'),
+              ),
+              const Divider(),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: _pages.length,
+                  itemBuilder: (context, index) => ListTile(
+                    leading: Icon(_pages[index].icon),
+                    title: Text(_pages[index].label),
+                    selected: index == _page,
+                    selectedTileColor: Theme.of(context).colorScheme.primaryContainer,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    onTap: () {
+                      Navigator.pop(context);
+                      setState(() => _page = index);
+                    },
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      body: SafeArea(
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 220),
+          child: KeyedSubtree(key: ValueKey(_page), child: _buildPage()),
+        ),
+      ),
+      floatingActionButton: _page == 0 || _page == 1
+          ? FloatingActionButton(
+              tooltip: 'Nova transação',
+              onPressed: _openTransactionDialog,
+              child: const Icon(Icons.add_rounded),
+            )
+          : null,
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: primaryPages.contains(_page) ? primaryPages.indexOf(_page) : 0,
+        onDestinationSelected: (index) => setState(() => _page = primaryPages[index]),
+        destinations: [
+          for (final index in primaryPages)
+            NavigationDestination(
+              icon: Icon(_pages[index].icon),
+              label: _pages[index].label == 'Visão geral' ? 'Início' : _pages[index].label,
+            ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildPage() => switch (_page) {
         0 => DashboardPage(

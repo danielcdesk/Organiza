@@ -20,7 +20,7 @@ class SubscriptionsPage extends StatelessWidget {
     final active = store.subscriptions.where((item) => item.isActive).toList();
     final total = active.fold(0, (sum, item) => sum + item.amountInCents);
     return ListView(
-      padding: const EdgeInsets.fromLTRB(34, 30, 34, 44),
+      padding: pagePadding(context),
       children: [
         PageHeading(
           eyebrow: 'Recorrências',

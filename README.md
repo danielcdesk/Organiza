@@ -5,23 +5,24 @@
 <h1 align="center">Organiza</h1>
 
 <p align="center">
-  Controle financeiro pessoal para Windows, privado por padrão e funcional sem internet.
+  Controle financeiro pessoal para Windows e Android, privado por padrão e funcional sem internet.
 </p>
 
 <p align="center">
-  <img alt="Flutter" src="https://img.shields.io/badge/Flutter-desktop-02569B?logo=flutter&logoColor=white">
+  <img alt="Flutter" src="https://img.shields.io/badge/Flutter-multiplataforma-02569B?logo=flutter&logoColor=white">
   <img alt="Dart" src="https://img.shields.io/badge/Dart-3.x-0175C2?logo=dart&logoColor=white">
   <img alt="Windows" src="https://img.shields.io/badge/Windows-10%2F11-0078D4?logo=windows11&logoColor=white">
+  <img alt="Android" src="https://img.shields.io/badge/Android-APK-3DDC84?logo=android&logoColor=white">
   <img alt="SQLite" src="https://img.shields.io/badge/SQLite-local-003B57?logo=sqlite&logoColor=white">
-  <img alt="Versão" src="https://img.shields.io/badge/versao-0.4.0-F0643B">
+  <img alt="Versão" src="https://img.shields.io/badge/versao-0.5.0-F0643B">
   <img alt="Desenvolvido com apoio de IA" src="https://img.shields.io/badge/desenvolvimento-assistido%20por%20IA-6E56CF?logo=openai&logoColor=white">
 </p>
 
 ## 🧭 Sobre o projeto
 
-O **Organiza** reúne contas, lançamentos, cartões, orçamentos, assinaturas, investimentos, planejamento salarial, metas e relatórios em uma experiência desktop única. O aplicativo foi desenhado para tornar a situação financeira compreensível em poucos segundos, sem depender de login, nuvem ou serviços bancários externos.
+O **Organiza** reúne contas, lançamentos, cartões, orçamentos, assinaturas, investimentos, planejamento salarial, metas e relatórios em uma experiência adaptada ao desktop e ao celular. O aplicativo foi desenhado para tornar a situação financeira compreensível em poucos segundos, sem depender de login, nuvem ou serviços bancários externos.
 
-> **Local-first:** os dados financeiros permanecem no computador do usuário, em uma base SQLite local. O aplicativo não inclui telemetria, analytics ou sincronização automática.
+> **Local-first:** os dados financeiros permanecem no próprio dispositivo, em uma base SQLite local. O aplicativo não inclui telemetria, analytics ou sincronização automática. Os dados do Windows e do Android são separados; instalar o app no celular não transfere automaticamente a base do computador.
 
 > [!IMPORTANT]
 > **Transparência sobre IA:** este projeto foi desenvolvido com apoio de ferramentas de inteligência artificial na pesquisa, concepção visual, implementação, testes e documentação. A direção do produto e a publicação são humanas. O aplicativo distribuído não incorpora modelos de IA e não envia dados financeiros para serviços de IA.
@@ -93,11 +94,18 @@ O **Organiza** reúne contas, lançamentos, cartões, orçamentos, assinaturas, 
 
 ## 🚀 Primeiros passos
 
-### ✅ Requisitos
+### ✅ Android: instalar o aplicativo
+
+Baixe o arquivo `Organiza-Android-0.5.0.apk` disponibilizado com esta versão, copie-o para o celular e abra-o pelo gerenciador de arquivos. O Android pode pedir autorização para instalar apps dessa origem. Após a instalação, abra **Organiza**; não é necessário criar conta nem ter internet. Atualizações devem usar APKs assinados com a mesma chave de release.
+
+O APK contém todos os módulos, com menu lateral para navegação completa e barra inferior para Início, Finanças, Planejamento e Relatórios. Esta versão foi compilada para Android; **não há pacote iOS**, pois a compilação e assinatura para iPhone exigem macOS e a toolchain da Apple.
+
+### ✅ Requisitos para desenvolver
 
 - Windows 10 ou 11;
 - [Flutter](https://docs.flutter.dev/get-started/install/windows/desktop) com suporte a Windows Desktop;
 - toolchain de compilação Windows reconhecida pelo `flutter doctor`.
+- Para compilar Android: JDK 17, Android SDK e licenças aceitas no `flutter doctor`.
 
 ### ▶️ Executar localmente
 
@@ -108,6 +116,8 @@ flutter pub get
 flutter run -d windows
 ```
 
+Para iniciar no Android, conecte um aparelho com depuração USB e use `flutter run -d <id-do-dispositivo>`.
+
 ### 📦 Gerar o executável
 
 ```powershell
@@ -115,6 +125,8 @@ flutter build windows --release
 ```
 
 O resultado será criado em `build/windows/x64/runner/Release/`. O executável depende dos arquivos gerados ao lado dele; distribua a pasta `Release` completa.
+
+Para gerar um APK de release, configure `ORGANIZA_KEYSTORE_PATH` e `ORGANIZA_SIGNING_PASSWORD` no ambiente com sua própria chave privada e execute `flutter build apk --release`. A chave de assinatura **não deve ser enviada ao GitHub**. Sem essas variáveis, o projeto não assina automaticamente o APK de release.
 
 ## 🧪 Qualidade e testes
 
@@ -124,7 +136,7 @@ flutter test
 flutter test integration_test -d windows
 ```
 
-Estado verificado da versão 0.4.0:
+Estado verificado da versão 0.4.0 (Windows):
 
 - análise estática sem problemas;
 - 22 testes unitários e de widget aprovados;
@@ -132,6 +144,8 @@ Estado verificado da versão 0.4.0:
 - build Windows em modo release concluído;
 - migração incremental do schema 1 ao 9 coberta por teste;
 - capturas das áreas principais revisadas visualmente.
+
+Estado verificado da versão 0.5.0 (Android): análise estática, 23 testes Flutter, navegação/diálogo em viewport de 390 × 844 e APK universal de release assinado. Não havia aparelho ou emulador Android conectado nesta validação; a instalação e o uso em dispositivo físico ainda precisam ser conferidos.
 
 Consulte o [estado conhecido como bom](docs/known_good_state.md) e a [estratégia de testes](docs/testing_strategy.md) para os contratos de regressão.
 

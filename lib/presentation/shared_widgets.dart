@@ -4,6 +4,11 @@ import '../domain/financial_rules.dart';
 import '../domain/models.dart';
 import 'organiza_theme.dart';
 
+EdgeInsets pagePadding(BuildContext context) =>
+    MediaQuery.sizeOf(context).width < 600
+        ? const EdgeInsets.fromLTRB(16, 18, 16, 32)
+        : const EdgeInsets.fromLTRB(34, 30, 34, 44);
+
 class PageHeading extends StatelessWidget {
   const PageHeading({
     super.key,
@@ -78,32 +83,40 @@ class Panel extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(title,
-                            style: Theme.of(context).textTheme.titleMedium),
-                        if (subtitle != null) ...[
-                          const SizedBox(height: 3),
-                          Text(
-                            subtitle!,
-                            style: TextStyle(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurfaceVariant,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
+              LayoutBuilder(builder: (context, constraints) {
+                final heading = Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: Theme.of(context).textTheme.titleMedium),
+                    if (subtitle != null) ...[
+                      const SizedBox(height: 3),
+                      Text(subtitle!, style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        fontSize: 13,
+                      )),
+                    ],
+                  ],
+                );
+                if (constraints.maxWidth < 400) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      heading,
+                      if (trailing != null) ...[
+                        const SizedBox(height: 12),
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: trailing!,
+                        ),
                       ],
-                    ),
-                  ),
+                    ],
+                  );
+                }
+                return Row(children: [
+                  Expanded(child: heading),
                   if (trailing != null) trailing!,
-                ],
-              ),
+                ]);
+              }),
               const SizedBox(height: 17),
               child,
             ],

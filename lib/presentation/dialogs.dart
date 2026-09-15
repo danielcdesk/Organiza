@@ -239,6 +239,7 @@ class _TransactionDialogState extends State<TransactionDialog> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 DropdownButtonFormField<TransactionType>(
+                  isExpanded: true,
                   initialValue: _type,
                   decoration: const InputDecoration(labelText: 'Tipo'),
                   items: TransactionType.values.map((value) {
@@ -263,6 +264,7 @@ class _TransactionDialogState extends State<TransactionDialog> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
+                  isExpanded: true,
                   initialValue: _accountId,
                   decoration: const InputDecoration(labelText: 'Conta'),
                   items: widget.accounts
@@ -279,6 +281,7 @@ class _TransactionDialogState extends State<TransactionDialog> {
                 if (_type == TransactionType.transfer) ...[
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
+                    isExpanded: true,
                     initialValue: _destinationId,
                     decoration:
                         const InputDecoration(labelText: 'Conta de destino'),
@@ -301,6 +304,7 @@ class _TransactionDialogState extends State<TransactionDialog> {
                 Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
                   Expanded(
                     child: DropdownButtonFormField<String>(
+                      isExpanded: true,
                       key: ValueKey('${_type.name}-$_category'),
                       initialValue: _category,
                       decoration: const InputDecoration(labelText: 'Categoria'),
@@ -330,6 +334,7 @@ class _TransactionDialogState extends State<TransactionDialog> {
                 Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
                   Expanded(
                     child: DropdownButtonFormField<String>(
+                      isExpanded: true,
                       key: ValueKey('subcategory-$_category-$_subcategory'),
                       initialValue: _subcategory,
                       decoration:
@@ -366,6 +371,7 @@ class _TransactionDialogState extends State<TransactionDialog> {
                 const SizedBox(height: 12),
                 if (_type != TransactionType.transfer) ...[
                   DropdownButtonFormField<TransactionScheduleType>(
+                    isExpanded: true,
                     initialValue: _scheduleType,
                     decoration:
                         const InputDecoration(labelText: 'Tipo de lançamento'),
@@ -550,13 +556,14 @@ class _AccountOption extends StatelessWidget {
   final Account account;
 
   @override
-  Widget build(BuildContext context) => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
+  Widget build(BuildContext context) => SizedBox(
+        width: MediaQuery.sizeOf(context).width < 600 ? 130 : 220,
+        child: Row(children: [
           InstitutionMark(institution: account.institution, size: 25),
           const SizedBox(width: 9),
-          Text(account.name),
-        ],
+          Expanded(child: Text(account.name,
+              maxLines: 1, overflow: TextOverflow.ellipsis)),
+        ]),
       );
 }
 

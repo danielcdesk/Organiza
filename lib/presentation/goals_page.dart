@@ -32,7 +32,7 @@ class GoalsPage extends StatelessWidget {
         hideValues ? '••••••' : FinancialRules.formatBrl(cents);
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(34, 30, 34, 44),
+      padding: pagePadding(context),
       children: [
         PageHeading(
           eyebrow: 'Planos que cabem na vida real',

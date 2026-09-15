@@ -31,7 +31,7 @@ class BudgetsPage extends StatelessWidget {
             sum + FinancialRules.budgetSpent(item, store.transactions));
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(34, 30, 34, 44),
+      padding: pagePadding(context),
       children: [
         PageHeading(
           eyebrow: 'Planejamento mensal',

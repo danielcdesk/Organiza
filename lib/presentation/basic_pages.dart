@@ -702,7 +702,7 @@ class _Page extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ListView(
-        padding: const EdgeInsets.fromLTRB(28, 26, 28, 40),
+        padding: pagePadding(context),
         children: [heading, const SizedBox(height: 24), content],
       );
 }

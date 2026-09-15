@@ -33,7 +33,12 @@ class DashboardPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ListView(
-        padding: const EdgeInsets.fromLTRB(30, 28, 30, 42),
+        padding: EdgeInsets.fromLTRB(
+          MediaQuery.sizeOf(context).width < 600 ? 16 : 30,
+          MediaQuery.sizeOf(context).width < 600 ? 18 : 28,
+          MediaQuery.sizeOf(context).width < 600 ? 16 : 30,
+          42,
+        ),
         children: [
           PageHeading(
             eyebrow:
@@ -370,7 +375,7 @@ class _MonthlySummary extends StatelessWidget {
           children: [
             Text('Movimento no mês',
                 style: Theme.of(context).textTheme.titleMedium),
-            const Spacer(),
+            const SizedBox(height: 18),
             Row(
               children: [
                 Expanded(

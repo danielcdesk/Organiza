@@ -34,7 +34,7 @@ class InvestmentsPage extends StatelessWidget {
         hideValues ? '••••••' : FinancialRules.formatBrl(value);
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(34, 30, 34, 44),
+      padding: pagePadding(context),
       children: [
         PageHeading(
           eyebrow: 'Patrimônio e alocação',

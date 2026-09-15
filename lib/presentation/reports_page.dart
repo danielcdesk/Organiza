@@ -86,7 +86,7 @@ class _ReportsPageState extends State<ReportsPage> {
         hide ? '••••••' : FinancialRules.formatBrl(value);
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(34, 30, 34, 44),
+      padding: pagePadding(context),
       children: [
         PageHeading(
           eyebrow: 'Análise financeira',
@@ -356,8 +356,8 @@ class _ReportModeBar extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: Theme.of(context).dividerColor),
         ),
-        child: Row(
-          children: [
+        child: LayoutBuilder(builder: (context, constraints) {
+          final heading = Row(children: [
             Container(
               width: 34,
               height: 34,
@@ -393,7 +393,8 @@ class _ReportModeBar extends StatelessWidget {
                 ],
               ),
             ),
-            SegmentedButton<bool>(
+          ]);
+          final selector = SegmentedButton<bool>(
               showSelectedIcon: false,
               segments: const [
                 ButtonSegment(value: false, label: Text('Realizado')),
@@ -401,9 +402,20 @@ class _ReportModeBar extends StatelessWidget {
               ],
               selected: {includePending},
               onSelectionChanged: (value) => onChanged(value.first),
-            ),
-          ],
-        ),
+          );
+          if (constraints.maxWidth < 650) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                heading,
+                const SizedBox(height: 12),
+                SingleChildScrollView(
+                    scrollDirection: Axis.horizontal, child: selector),
+              ],
+            );
+          }
+          return Row(children: [Expanded(child: heading), selector]);
+        }),
       );
 }
 
@@ -1082,11 +1094,17 @@ class _MonthNavigator extends StatelessWidget {
               tooltip: 'Mês anterior',
               icon: const Icon(Icons.chevron_left_rounded, size: 20),
             ),
-            TextButton.icon(
-              onPressed: onSelect,
-              icon: const Icon(Icons.calendar_month_outlined, size: 17),
-              label: Text(_longMonth(month)),
-            ),
+            MediaQuery.sizeOf(context).width < 600
+                ? TextButton(
+                    onPressed: onSelect,
+                    child: Text(_longMonth(month),
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                  )
+                : TextButton.icon(
+                    onPressed: onSelect,
+                    icon: const Icon(Icons.calendar_month_outlined, size: 17),
+                    label: Text(_longMonth(month)),
+                  ),
             IconButton(
               onPressed: canGoNext ? onNext : null,
               tooltip: 'Próximo mês',
