@@ -96,7 +96,7 @@ O **Organiza** reúne contas, lançamentos, cartões, orçamentos, assinaturas, 
 
 ### ✅ Android: instalar o aplicativo
 
-Baixe o arquivo `Organiza-Android-0.5.0.apk` disponibilizado com esta versão, copie-o para o celular e abra-o pelo gerenciador de arquivos. O Android pode pedir autorização para instalar apps dessa origem. Após a instalação, abra **Organiza**; não é necessário criar conta nem ter internet. Atualizações devem usar APKs assinados com a mesma chave de release.
+[Baixe o APK Android 0.5.0](https://github.com/danielcdesk/Organiza/releases/download/v0.5.0/Organiza-Android-0.5.0.apk), copie-o para o celular e abra-o pelo gerenciador de arquivos. O Android pode pedir autorização para instalar apps dessa origem. Após a instalação, abra **Organiza**; não é necessário criar conta nem ter internet. Atualizações devem usar APKs assinados com a mesma chave de release.
 
 O APK contém todos os módulos, com menu lateral para navegação completa e barra inferior para Início, Finanças, Planejamento e Relatórios. Esta versão foi compilada para Android; **não há pacote iOS**, pois a compilação e assinatura para iPhone exigem macOS e a toolchain da Apple.
 
