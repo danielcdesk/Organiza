@@ -4,6 +4,7 @@ import '../application/organiza_store.dart';
 import '../domain/financial_rules.dart';
 import '../domain/models.dart';
 import 'dialogs.dart';
+import 'budgets_page.dart';
 import 'shared_widgets.dart';
 
 class TransactionsPage extends StatefulWidget {
@@ -250,12 +251,14 @@ class AccountsPage extends StatelessWidget {
     required this.hideValues,
     required this.onAdd,
     required this.onDelete,
+    required this.onEditBalance,
   });
 
   final OrganizaStore store;
   final bool hideValues;
   final VoidCallback onAdd;
   final ValueChanged<String> onDelete;
+  final ValueChanged<String> onEditBalance;
 
   @override
   Widget build(BuildContext context) => _Page(
@@ -292,11 +295,17 @@ class AccountsPage extends StatelessWidget {
                               FinancialRules.accountBalance(
                                   account, store.transactions),
                             ),
-                      trailing: IconButton(
-                        tooltip: 'Excluir conta',
-                        onPressed: () => onDelete(account.id),
-                        icon:
-                            const Icon(Icons.delete_outline_rounded, size: 18),
+                      trailing: PopupMenuButton<String>(
+                        tooltip: 'Ações da conta',
+                        onSelected: (action) => action == 'balance'
+                            ? onEditBalance(account.id)
+                            : onDelete(account.id),
+                        itemBuilder: (_) => const [
+                          PopupMenuItem(
+                              value: 'balance', child: Text('Editar saldo')),
+                          PopupMenuItem(
+                              value: 'delete', child: Text('Excluir conta')),
+                        ],
                       ),
                     );
                   }).toList(),
@@ -311,11 +320,19 @@ class PlanningPage extends StatefulWidget {
     required this.store,
     required this.onAdd,
     required this.onDeleteTask,
+    required this.onAddBudget,
+    required this.onDeleteBudget,
+    required this.onCancelSalary,
+    this.budgetFirst = false,
   });
 
   final OrganizaStore store;
   final VoidCallback onAdd;
   final Future<void> Function(String id) onDeleteTask;
+  final VoidCallback onAddBudget;
+  final ValueChanged<String> onDeleteBudget;
+  final ValueChanged<String> onCancelSalary;
+  final bool budgetFirst;
 
   @override
   State<PlanningPage> createState() => _PlanningPageState();
@@ -339,12 +356,12 @@ class _PlanningPageState extends State<PlanningPage> {
   Widget build(BuildContext context) {
     final store = widget.store;
     final pending = store.tasks.where((task) => !task.isDone).length;
-    final salary = store.incomes;
+    final salary = store.salaryThisMonth;
     return _Page(
       heading: PageHeading(
         eyebrow: 'ORGANIZAÇÃO',
-        title: 'Planejamento',
-        description: 'Veja seu salário e transforme o mês em decisões simples.',
+        title: 'Planejamento e orçamento',
+        description: 'Distribua o salário e acompanhe limites por categoria.',
         actions: [
           OutlinedButton.icon(
             onPressed: _openSalaryDialog,
@@ -356,6 +373,13 @@ class _PlanningPageState extends State<PlanningPage> {
       ),
       content: Column(
         children: [
+          if (widget.budgetFirst) ...[
+            BudgetSection(
+                store: store,
+                onAdd: widget.onAddBudget,
+                onDelete: widget.onDeleteBudget),
+            const SizedBox(height: 20),
+          ],
           Card(
             child: Padding(
               padding: const EdgeInsets.all(22),
@@ -375,7 +399,7 @@ class _PlanningPageState extends State<PlanningPage> {
                         Text(FinancialRules.formatBrl(salary),
                             style: Theme.of(context).textTheme.headlineSmall),
                         const SizedBox(height: 6),
-                        Text('Baseado nas receitas registradas',
+                        Text('Somente receitas na categoria Salário',
                             style: TextStyle(
                                 fontSize: 12,
                                 color: Theme.of(context)
@@ -386,7 +410,7 @@ class _PlanningPageState extends State<PlanningPage> {
                   ),
                   FilledButton.icon(
                       onPressed: _openSalaryDialog,
-                      icon: const Icon(Icons.auto_awesome_outlined, size: 17),
+                      icon: const Icon(Icons.tune_rounded, size: 17),
                       label: const Text('Distribuir')),
                 ],
               ),
@@ -410,6 +434,29 @@ class _PlanningPageState extends State<PlanningPage> {
             ),
           ),
           const SizedBox(height: 14),
+          if (store.salarySchedules.isNotEmpty) ...[
+            Panel(
+                title: 'Salários programados',
+                subtitle:
+                    'Uma movimentação aparece somente no dia de pagamento',
+                child: Column(
+                    children: store.salarySchedules
+                        .map((schedule) => DataListRow(
+                            icon: Icons.event_repeat_rounded,
+                            title: schedule.description,
+                            subtitle:
+                                'Todo dia ${schedule.paymentDay} · confirme o recebimento em Finanças',
+                            value: FinancialRules.formatBrl(
+                                schedule.amountInCents),
+                            trailing: IconButton(
+                                tooltip: 'Cancelar salário recorrente',
+                                onPressed: () =>
+                                    widget.onCancelSalary(schedule.id),
+                                icon:
+                                    const Icon(Icons.close_rounded, size: 18))))
+                        .toList())),
+            const SizedBox(height: 14),
+          ],
           Panel(
             title: 'Tarefas',
             subtitle: '$pending pendente${pending == 1 ? '' : 's'}',
@@ -454,6 +501,13 @@ class _PlanningPageState extends State<PlanningPage> {
                         .toList(),
                   ),
           ),
+          if (!widget.budgetFirst) ...[
+            const SizedBox(height: 24),
+            BudgetSection(
+                store: store,
+                onAdd: widget.onAddBudget,
+                onDelete: widget.onDeleteBudget),
+          ],
         ],
       ),
     );
@@ -462,8 +516,8 @@ class _PlanningPageState extends State<PlanningPage> {
   Future<void> _openSalaryDialog() async {
     final values = await showDialog<List<int>>(
         context: context,
-        builder: (_) => _SalaryDialog(salary: widget.store.incomes));
-    if (values == null || !mounted || widget.store.incomes == 0) return;
+        builder: (_) => _SalaryDialog(salary: widget.store.salaryThisMonth));
+    if (values == null || !mounted || widget.store.salaryThisMonth == 0) return;
     final total = values.fold(0, (a, b) => a + b);
     if (total == 0) return;
     setState(() {
@@ -610,9 +664,28 @@ class _SalaryDialogState extends State<_SalaryDialog> {
 }
 
 class SettingsPage extends StatelessWidget {
-  const SettingsPage({super.key, required this.onThemeChanged});
+  const SettingsPage(
+      {super.key,
+      required this.onThemeChanged,
+      required this.quickPages,
+      required this.onQuickPagesChanged});
 
   final ValueChanged<ThemeMode> onThemeChanged;
+  final List<int> quickPages;
+  final ValueChanged<List<int>> onQuickPagesChanged;
+  static const _quickLabels = <int, String>{
+    0: 'Início',
+    1: 'Finanças',
+    2: 'Contas',
+    3: 'Cartões',
+    4: 'Orçamento',
+    5: 'Investimentos',
+    6: 'Planejamento',
+    7: 'Metas',
+    8: 'Relatórios',
+    10: 'Assinaturas',
+    11: 'Lista de desejos'
+  };
 
   @override
   Widget build(BuildContext context) => _Page(
@@ -650,6 +723,40 @@ class SettingsPage extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 14),
+            if (MediaQuery.sizeOf(context).width < 600) ...[
+              Panel(
+                  title: 'Acesso rápido no celular',
+                  subtitle:
+                      'Escolha quatro áreas para a barra inferior. O botão Nova transação permanece no centro.',
+                  child: Column(
+                      children: List.generate(
+                          4,
+                          (slot) => Padding(
+                                padding: const EdgeInsets.only(bottom: 9),
+                                child: DropdownButtonFormField<int>(
+                                    isExpanded: true,
+                                    key: ValueKey(
+                                        'quick-$slot-${quickPages[slot]}'),
+                                    initialValue: quickPages[slot],
+                                    decoration: InputDecoration(
+                                        labelText: 'Atalho ${slot + 1}'),
+                                    items: _quickLabels.entries
+                                        .where((entry) =>
+                                            entry.key == quickPages[slot] ||
+                                            !quickPages.contains(entry.key))
+                                        .map((entry) => DropdownMenuItem(
+                                            value: entry.key,
+                                            child: Text(entry.value)))
+                                        .toList(),
+                                    onChanged: (value) {
+                                      if (value == null) return;
+                                      final next = List<int>.of(quickPages);
+                                      next[slot] = value;
+                                      onQuickPagesChanged(next);
+                                    }),
+                              )))),
+              const SizedBox(height: 14),
+            ],
             const Panel(
               title: 'Privacidade',
               child: DataListRow(

@@ -18,6 +18,66 @@ class AccountDialog extends StatefulWidget {
   State<AccountDialog> createState() => _AccountDialogState();
 }
 
+class AccountBalanceDialog extends StatefulWidget {
+  const AccountBalanceDialog(
+      {super.key, required this.name, required this.currentCents});
+  final String name;
+  final int currentCents;
+  @override
+  State<AccountBalanceDialog> createState() => _AccountBalanceDialogState();
+}
+
+class _AccountBalanceDialogState extends State<AccountBalanceDialog> {
+  late final TextEditingController _value;
+  String? _error;
+  @override
+  void initState() {
+    super.initState();
+    _value =
+        TextEditingController(text: _investmentMoneyInput(widget.currentCents));
+  }
+
+  @override
+  void dispose() {
+    _value.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+          title: Text('Ajustar saldo · ${widget.name}'),
+          content: SizedBox(
+              width: 380,
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                const Text(
+                    'O saldo atual será ajustado sem apagar suas movimentações.'),
+                const SizedBox(height: 16),
+                TextField(
+                    controller: _value,
+                    autofocus: true,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(
+                        labelText: 'Novo saldo atual (R\$)')),
+                _DialogError(_error),
+              ])),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancelar')),
+            FilledButton(
+                onPressed: () {
+                  final cents = parseMoney(_value.text);
+                  if (cents == null || cents < 0) {
+                    setState(() => _error = 'Informe um saldo válido.');
+                    return;
+                  }
+                  Navigator.pop(context, cents);
+                },
+                child: const Text('Salvar saldo'))
+          ]);
+}
+
 class _AccountDialogState extends State<AccountDialog> {
   final _name = TextEditingController();
   final _balance = TextEditingController(text: '0,00');
@@ -299,7 +359,8 @@ class _TransactionDialogState extends State<TransactionDialog> {
                 const SizedBox(height: 12),
                 TextField(
                     controller: _description,
-                    decoration: const InputDecoration(labelText: 'Descrição')),
+                    decoration: const InputDecoration(
+                        labelText: 'Descrição (opcional)')),
                 const SizedBox(height: 12),
                 Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
                   Expanded(
@@ -317,6 +378,12 @@ class _TransactionDialogState extends State<TransactionDialog> {
                       onChanged: (value) => setState(() {
                         _category = value!;
                         _subcategory = _subcategoriesFor(_category).first;
+                        if (_type == TransactionType.income &&
+                            _category.toLowerCase() == 'salário' &&
+                            _scheduleType ==
+                                TransactionScheduleType.installment) {
+                          _scheduleType = TransactionScheduleType.single;
+                        }
                       }),
                     ),
                   ),
@@ -371,25 +438,31 @@ class _TransactionDialogState extends State<TransactionDialog> {
                 const SizedBox(height: 12),
                 if (_type != TransactionType.transfer) ...[
                   DropdownButtonFormField<TransactionScheduleType>(
+                    key: ValueKey(
+                        'schedule-${_type.name}-$_category-${_scheduleType.name}'),
                     isExpanded: true,
                     initialValue: _scheduleType,
                     decoration:
                         const InputDecoration(labelText: 'Tipo de lançamento'),
-                    items: const [
+                    items: [
                       DropdownMenuItem(
                           value: TransactionScheduleType.single,
                           child: Text('Único')),
                       DropdownMenuItem(
                           value: TransactionScheduleType.recurring,
                           child: Text('Recorrente mensal')),
-                      DropdownMenuItem(
-                          value: TransactionScheduleType.installment,
-                          child: Text('Parcelado')),
+                      if (!(_type == TransactionType.income &&
+                          _category.toLowerCase() == 'salário'))
+                        DropdownMenuItem(
+                            value: TransactionScheduleType.installment,
+                            child: Text('Parcelado')),
                     ],
                     onChanged: (value) =>
                         setState(() => _scheduleType = value!),
                   ),
-                  if (_scheduleType != TransactionScheduleType.single) ...[
+                  if (_scheduleType != TransactionScheduleType.single &&
+                      !(_type == TransactionType.income &&
+                          _category.toLowerCase() == 'salário')) ...[
                     const SizedBox(height: 12),
                     TextField(
                       controller: _repeatCount,
@@ -435,11 +508,14 @@ class _TransactionDialogState extends State<TransactionDialog> {
     final cents = parseMoney(_amount.text);
     final invalidTransfer =
         _type == TransactionType.transfer && _destinationId == null;
-    final count = _scheduleType == TransactionScheduleType.single
-        ? 1
-        : int.tryParse(_repeatCount.text);
-    if (_description.text.trim().isEmpty ||
-        cents == null ||
+    final salaryRecurring = _type == TransactionType.income &&
+        _category.toLowerCase() == 'salário' &&
+        _scheduleType == TransactionScheduleType.recurring;
+    final count =
+        _scheduleType == TransactionScheduleType.single || salaryRecurring
+            ? 1
+            : int.tryParse(_repeatCount.text);
+    if (cents == null ||
         cents <= 0 ||
         invalidTransfer ||
         count == null ||
@@ -447,7 +523,7 @@ class _TransactionDialogState extends State<TransactionDialog> {
         count > 60) {
       setState(() => _error = invalidTransfer
           ? 'Escolha uma conta de destino diferente.'
-          : 'Preencha a descrição e informe um valor maior que zero.');
+          : 'Informe um valor maior que zero.');
       return;
     }
     Navigator.pop(
@@ -561,8 +637,9 @@ class _AccountOption extends StatelessWidget {
         child: Row(children: [
           InstitutionMark(institution: account.institution, size: 25),
           const SizedBox(width: 9),
-          Expanded(child: Text(account.name,
-              maxLines: 1, overflow: TextOverflow.ellipsis)),
+          Expanded(
+              child: Text(account.name,
+                  maxLines: 1, overflow: TextOverflow.ellipsis)),
         ]),
       );
 }
@@ -958,6 +1035,9 @@ class InvestmentInput {
     required this.fixedIncomeType,
     required this.institutionName,
     required this.maturityDate,
+    required this.quotedRateBasisPoints,
+    required this.quotedRatePeriod,
+    this.yieldPaymentDay,
   });
 
   final String name;
@@ -967,10 +1047,15 @@ class InvestmentInput {
   final FixedIncomeType? fixedIncomeType;
   final String? institutionName;
   final DateTime? maturityDate;
+  final int? quotedRateBasisPoints;
+  final InvestmentRatePeriod? quotedRatePeriod;
+  final int? yieldPaymentDay;
 }
 
 class InvestmentDialog extends StatefulWidget {
-  const InvestmentDialog({super.key});
+  const InvestmentDialog({super.key, this.position});
+
+  final InvestmentPosition? position;
 
   @override
   State<InvestmentDialog> createState() => _InvestmentDialogState();
@@ -981,10 +1066,39 @@ class _InvestmentDialogState extends State<InvestmentDialog> {
   final _invested = TextEditingController();
   final _current = TextEditingController();
   final _institution = TextEditingController();
+  final _quotedRate = TextEditingController();
+  final _yieldDay = TextEditingController();
   var _type = InvestmentType.fixedIncome;
   var _fixedIncomeType = FixedIncomeType.cdb;
+  var _ratePeriod = InvestmentRatePeriod.annual;
   DateTime? _maturityDate;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    final position = widget.position;
+    if (position == null) return;
+    _name.text = position.name;
+    _invested.text = _investmentMoneyInput(position.investedAmountInCents);
+    _current.text = _investmentMoneyInput(position.currentValueInCents);
+    _institution.text = position.institutionName ?? '';
+    _type = position.type;
+    _fixedIncomeType = position.fixedIncomeType ?? FixedIncomeType.cdb;
+    _maturityDate = position.maturityDate;
+    if (position.yieldPaymentDay != null) {
+      _yieldDay.text = position.yieldPaymentDay.toString();
+    }
+    _ratePeriod = position.quotedRatePeriod ??
+        (position.fixedIncomeType == FixedIncomeType.savings
+            ? InvestmentRatePeriod.monthly
+            : InvestmentRatePeriod.annual);
+    if (position.quotedRateBasisPoints != null) {
+      _quotedRate.text = (position.quotedRateBasisPoints! / 100)
+          .toStringAsFixed(2)
+          .replaceAll('.', ',');
+    }
+  }
 
   @override
   void dispose() {
@@ -992,130 +1106,203 @@ class _InvestmentDialogState extends State<InvestmentDialog> {
     _invested.dispose();
     _current.dispose();
     _institution.dispose();
+    _quotedRate.dispose();
+    _yieldDay.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-        title: const Text('Novo investimento'),
+        title: Text(widget.position == null
+            ? 'Novo investimento'
+            : 'Editar investimento'),
         content: SizedBox(
           width: 460,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              DropdownButtonFormField<InvestmentType>(
-                initialValue: _type,
-                decoration: const InputDecoration(labelText: 'Categoria'),
-                items: InvestmentType.values
-                    .map(
-                      (type) => DropdownMenuItem(
-                        value: type,
-                        child: Row(
-                          children: [
-                            Icon(investmentTypeIcon(type), size: 19),
-                            const SizedBox(width: 10),
-                            Text(investmentTypeName(type)),
-                          ],
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+                maxHeight: MediaQuery.sizeOf(context).height * .68),
+            child: SingleChildScrollView(
+                child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<InvestmentType>(
+                  isExpanded: true,
+                  initialValue: _type,
+                  decoration: const InputDecoration(labelText: 'Categoria'),
+                  items: InvestmentType.values
+                      .map(
+                        (type) => DropdownMenuItem(
+                          value: type,
+                          child: Row(
+                            children: [
+                              Icon(investmentTypeIcon(type), size: 19),
+                              const SizedBox(width: 10),
+                              Text(investmentTypeName(type)),
+                            ],
+                          ),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) => setState(() => _type = value!),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _name,
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Nome ou código do ativo',
+                    hintText: 'Ex.: Tesouro Selic 2029 ou IVVB11',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                if (_type == InvestmentType.fixedIncome) ...[
+                  DropdownButtonFormField<FixedIncomeType>(
+                    isExpanded: true,
+                    initialValue: _fixedIncomeType,
+                    decoration:
+                        const InputDecoration(labelText: 'Tipo de renda fixa'),
+                    items: FixedIncomeType.values
+                        .map((type) => DropdownMenuItem(
+                            value: type,
+                            child: Text(fixedIncomeTypeName(type))))
+                        .toList(),
+                    onChanged: (value) => setState(() {
+                      _fixedIncomeType = value!;
+                      if (value == FixedIncomeType.savings) {
+                        _ratePeriod = InvestmentRatePeriod.monthly;
+                        if (_name.text.trim().isEmpty) _name.text = 'Poupança';
+                      }
+                    }),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _institution,
+                        decoration: const InputDecoration(
+                          labelText: 'Instituição ou emissor',
+                          hintText: 'Opcional',
                         ),
                       ),
-                    )
-                    .toList(),
-                onChanged: (value) => setState(() => _type = value!),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _name,
-                autofocus: true,
-                decoration: const InputDecoration(
-                  labelText: 'Nome ou código do ativo',
-                  hintText: 'Ex.: Tesouro Selic 2029 ou IVVB11',
-                ),
-              ),
-              const SizedBox(height: 12),
-              if (_type == InvestmentType.fixedIncome) ...[
-                DropdownButtonFormField<FixedIncomeType>(
-                  initialValue: _fixedIncomeType,
-                  decoration:
-                      const InputDecoration(labelText: 'Tipo de renda fixa'),
-                  items: FixedIncomeType.values
-                      .map((type) => DropdownMenuItem(
-                          value: type, child: Text(fixedIncomeTypeName(type))))
-                      .toList(),
-                  onChanged: (value) =>
-                      setState(() => _fixedIncomeType = value!),
-                ),
-                const SizedBox(height: 12),
-                Row(children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _institution,
-                      decoration: const InputDecoration(
-                        labelText: 'Instituição ou emissor',
-                        hintText: 'Opcional',
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _pickMaturity,
+                        icon: const Icon(Icons.event_outlined, size: 17),
+                        label: Text(_maturityDate == null
+                            ? 'Vencimento'
+                            : shortDate(_maturityDate!)),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _pickMaturity,
-                      icon: const Icon(Icons.event_outlined, size: 17),
-                      label: Text(_maturityDate == null
-                          ? 'Vencimento'
-                          : shortDate(_maturityDate!)),
-                    ),
-                  ),
-                ]),
-                const SizedBox(height: 12),
-              ],
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _invested,
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
-                      decoration:
-                          const InputDecoration(labelText: 'Total investido'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextField(
-                      controller: _current,
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
-                      decoration: const InputDecoration(
-                        labelText: 'Saldo atual',
-                        hintText: 'Opcional',
-                      ),
-                    ),
-                  ),
+                  ]),
+                  const SizedBox(height: 12),
                 ],
-              ),
-              _DialogError(_error),
-            ],
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _invested,
+                        keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true),
+                        decoration: const InputDecoration(
+                            labelText: 'Total aplicado (R\$)'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextField(
+                        controller: _current,
+                        keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true),
+                        decoration: const InputDecoration(
+                          labelText: 'Valor atual (R\$)',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _quotedRate,
+                  keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true, signed: true),
+                  decoration: const InputDecoration(
+                    labelText: 'Rentabilidade informada (%)',
+                    hintText: 'Ex.: 0,5',
+                    helperText: 'Opcional; não altera o valor atual',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<InvestmentRatePeriod>(
+                  isExpanded: true,
+                  initialValue: _ratePeriod,
+                  decoration:
+                      const InputDecoration(labelText: 'Período da taxa'),
+                  items: const [
+                    DropdownMenuItem(
+                        value: InvestmentRatePeriod.monthly,
+                        child: Text('Ao mês')),
+                    DropdownMenuItem(
+                        value: InvestmentRatePeriod.annual,
+                        child: Text('Ao ano')),
+                  ],
+                  onChanged: (value) => setState(() => _ratePeriod = value!),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _yieldDay,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  decoration: const InputDecoration(
+                    labelText: 'Dia do crédito do rendimento (opcional)',
+                    hintText: 'Ex.: 10',
+                    helperText: 'Para créditos mensais; informe de 1 a 31',
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'O resultado acumulado é calculado pelo valor atual menos o total aplicado. A taxa informada é exibida separadamente.',
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant),
+                ),
+                _DialogError(_error),
+              ],
+            )),
           ),
         ),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context),
               child: const Text('Cancelar')),
-          FilledButton(onPressed: _submit, child: const Text('Salvar ativo')),
+          FilledButton(
+              onPressed: _submit,
+              child: Text(widget.position == null
+                  ? 'Salvar ativo'
+                  : 'Salvar alterações')),
         ],
       );
 
   void _submit() {
     final invested = parseMoney(_invested.text);
-    final current =
-        _current.text.trim().isEmpty ? invested : parseMoney(_current.text);
+    final current = parseMoney(_current.text);
+    final quotedRate = _quotedRate.text.trim().isEmpty
+        ? null
+        : parseInvestmentRateBasisPoints(_quotedRate.text);
+    final yieldDay = _yieldDay.text.trim().isEmpty
+        ? null
+        : int.tryParse(_yieldDay.text.trim());
     if (_name.text.trim().isEmpty ||
         invested == null ||
         invested <= 0 ||
         current == null ||
-        current < 0) {
+        current < 0 ||
+        (_quotedRate.text.trim().isNotEmpty && quotedRate == null) ||
+        (_yieldDay.text.trim().isNotEmpty &&
+            (yieldDay == null || yieldDay < 1 || yieldDay > 31))) {
       setState(() => _error =
-          'Informe o ativo, o total investido e um saldo atual válido.');
+          'Informe o ativo, o total aplicado, o valor atual e uma taxa válida.');
       return;
     }
     Navigator.pop(
@@ -1131,6 +1318,9 @@ class _InvestmentDialogState extends State<InvestmentDialog> {
             _institution.text.trim().isEmpty ? null : _institution.text.trim(),
         maturityDate:
             _type == InvestmentType.fixedIncome ? _maturityDate : null,
+        quotedRateBasisPoints: quotedRate,
+        quotedRatePeriod: quotedRate == null ? null : _ratePeriod,
+        yieldPaymentDay: yieldDay,
       ),
     );
   }
@@ -1145,6 +1335,16 @@ class _InvestmentDialogState extends State<InvestmentDialog> {
     );
     if (value != null && mounted) setState(() => _maturityDate = value);
   }
+}
+
+String _investmentMoneyInput(int cents) =>
+    (cents / 100).toStringAsFixed(2).replaceAll('.', ',');
+
+int? parseInvestmentRateBasisPoints(String raw) {
+  final value =
+      double.tryParse(raw.trim().replaceAll('%', '').replaceAll(',', '.'));
+  if (value == null || value < -100 || value > 1000) return null;
+  return (value * 100).round();
 }
 
 class BudgetInput {
@@ -1166,9 +1366,11 @@ class SubscriptionInput {
 }
 
 class SubscriptionDialog extends StatefulWidget {
-  const SubscriptionDialog({super.key, required this.categories});
+  const SubscriptionDialog(
+      {super.key, required this.categories, this.subscription});
 
   final List<String> categories;
+  final Subscription? subscription;
 
   @override
   State<SubscriptionDialog> createState() => _SubscriptionDialogState();
@@ -1184,8 +1386,17 @@ class _SubscriptionDialogState extends State<SubscriptionDialog> {
   @override
   void initState() {
     super.initState();
-    _category =
-        widget.categories.contains('Lazer') ? 'Lazer' : widget.categories.first;
+    final item = widget.subscription;
+    _category = item != null && widget.categories.contains(item.category)
+        ? item.category
+        : widget.categories.contains('Lazer')
+            ? 'Lazer'
+            : widget.categories.first;
+    if (item != null) {
+      _name.text = item.name;
+      _amount.text = _investmentMoneyInput(item.amountInCents);
+      _day.text = item.billingDay.toString();
+    }
   }
 
   @override
@@ -1198,7 +1409,9 @@ class _SubscriptionDialogState extends State<SubscriptionDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-        title: const Text('Nova assinatura'),
+        title: Text(widget.subscription == null
+            ? 'Nova assinatura'
+            : 'Editar assinatura'),
         content: SizedBox(
           width: 430,
           child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -1269,9 +1482,12 @@ class _SubscriptionDialogState extends State<SubscriptionDialog> {
 }
 
 class BudgetDialog extends StatefulWidget {
-  const BudgetDialog({super.key, required this.categories});
+  const BudgetDialog(
+      {super.key, required this.categories, required this.onCreateCategory});
 
   final List<String> categories;
+  final FinanceCategory Function(String name, TransactionType type)
+      onCreateCategory;
 
   @override
   State<BudgetDialog> createState() => _BudgetDialogState();
@@ -1279,13 +1495,15 @@ class BudgetDialog extends StatefulWidget {
 
 class _BudgetDialogState extends State<BudgetDialog> {
   late String _category;
+  late List<String> _categories;
   final _limit = TextEditingController();
   String? _error;
 
   @override
   void initState() {
     super.initState();
-    _category = widget.categories.first;
+    _categories = List.of(widget.categories);
+    _category = _categories.first;
   }
 
   @override
@@ -1302,17 +1520,25 @@ class _BudgetDialogState extends State<BudgetDialog> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              DropdownButtonFormField<String>(
-                initialValue: _category,
-                decoration: const InputDecoration(labelText: 'Categoria'),
-                items: widget.categories
-                    .map((value) => DropdownMenuItem(
-                          value: value,
-                          child: Text(value),
-                        ))
-                    .toList(),
-                onChanged: (value) => setState(() => _category = value!),
-              ),
+              Row(children: [
+                Expanded(
+                    child: DropdownButtonFormField<String>(
+                  key: ValueKey(_category),
+                  initialValue: _category,
+                  decoration: const InputDecoration(labelText: 'Categoria'),
+                  items: _categories
+                      .map((value) => DropdownMenuItem(
+                            value: value,
+                            child: Text(value),
+                          ))
+                      .toList(),
+                  onChanged: (value) => setState(() => _category = value!),
+                )),
+                IconButton.filledTonal(
+                    tooltip: 'Criar categoria de orçamento',
+                    onPressed: _createCategory,
+                    icon: const Icon(Icons.add_rounded))
+              ]),
               const SizedBox(height: 12),
               TextField(
                 controller: _limit,
@@ -1346,6 +1572,23 @@ class _BudgetDialogState extends State<BudgetDialog> {
     Navigator.pop(
         context, BudgetInput(category: _category, limitInCents: limit));
   }
+
+  Future<void> _createCategory() async {
+    final name = await showDialog<String>(
+        context: context,
+        builder: (_) => const _NameDialog(
+            title: 'Nova categoria', label: 'Nome da categoria'));
+    if (name == null || !mounted) return;
+    try {
+      final category = widget.onCreateCategory(name, TransactionType.expense);
+      setState(() {
+        _categories.add(category.name);
+        _category = category.name;
+      });
+    } on ArgumentError catch (error) {
+      setState(() => _error = error.message?.toString());
+    }
+  }
 }
 
 class TaskDialog extends StatefulWidget {
@@ -1362,6 +1605,7 @@ class FinancialGoalInput {
     required this.initialSavedInCents,
     required this.deadline,
     required this.iconKey,
+    required this.category,
   });
 
   final String name;
@@ -1369,10 +1613,14 @@ class FinancialGoalInput {
   final int initialSavedInCents;
   final DateTime? deadline;
   final String iconKey;
+  final String category;
 }
 
 class FinancialGoalDialog extends StatefulWidget {
-  const FinancialGoalDialog({super.key});
+  const FinancialGoalDialog(
+      {super.key, required this.categories, required this.onCreateCategory});
+  final List<String> categories;
+  final void Function(String name) onCreateCategory;
 
   @override
   State<FinancialGoalDialog> createState() => _FinancialGoalDialogState();
@@ -1384,7 +1632,16 @@ class _FinancialGoalDialogState extends State<FinancialGoalDialog> {
   final _initial = TextEditingController(text: '0,00');
   DateTime? _deadline;
   var _iconKey = 'savings';
+  late List<String> _categories;
+  late String _category;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _categories = List.of(widget.categories);
+    _category = _categories.contains('Reserva') ? 'Reserva' : _categories.first;
+  }
 
   @override
   void dispose() {
@@ -1431,6 +1688,25 @@ class _FinancialGoalDialogState extends State<FinancialGoalDialog> {
                         const InputDecoration(labelText: 'Já guardado (R\$)'),
                   ),
                 ),
+              ]),
+              const SizedBox(height: 12),
+              Row(children: [
+                Expanded(
+                    child: DropdownButtonFormField<String>(
+                  key: ValueKey(_category),
+                  initialValue: _category,
+                  decoration:
+                      const InputDecoration(labelText: 'Categoria da meta'),
+                  items: _categories
+                      .map((value) =>
+                          DropdownMenuItem(value: value, child: Text(value)))
+                      .toList(),
+                  onChanged: (value) => setState(() => _category = value!),
+                )),
+                IconButton.filledTonal(
+                    tooltip: 'Criar categoria de meta',
+                    onPressed: _createCategory,
+                    icon: const Icon(Icons.add_rounded))
               ]),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
@@ -1502,8 +1778,26 @@ class _FinancialGoalDialogState extends State<FinancialGoalDialog> {
         initialSavedInCents: initial,
         deadline: _deadline,
         iconKey: _iconKey,
+        category: _category,
       ),
     );
+  }
+
+  Future<void> _createCategory() async {
+    final name = await showDialog<String>(
+        context: context,
+        builder: (_) => const _NameDialog(
+            title: 'Nova categoria de meta', label: 'Nome da categoria'));
+    if (name == null || !mounted) return;
+    try {
+      widget.onCreateCategory(name);
+      setState(() {
+        _categories.add(name.trim());
+        _category = name.trim();
+      });
+    } on ArgumentError catch (error) {
+      setState(() => _error = error.message?.toString());
+    }
   }
 }
 

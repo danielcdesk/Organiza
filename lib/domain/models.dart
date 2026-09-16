@@ -153,6 +153,8 @@ class CardPurchase {
 
 enum InvestmentType { fixedIncome, stock, fund, etf, crypto, other }
 
+enum InvestmentRatePeriod { monthly, annual }
+
 enum FixedIncomeType {
   cdb,
   lci,
@@ -178,6 +180,9 @@ class InvestmentPosition {
     this.fixedIncomeType,
     this.institutionName,
     this.maturityDate,
+    this.quotedRateBasisPoints,
+    this.quotedRatePeriod,
+    this.yieldPaymentDay,
   });
 
   final String id;
@@ -189,6 +194,34 @@ class InvestmentPosition {
   final FixedIncomeType? fixedIncomeType;
   final String? institutionName;
   final DateTime? maturityDate;
+
+  /// Taxa informada pelo usuário, em centésimos de ponto percentual.
+  /// Não é o retorno realizado nem uma cotação automática.
+  final int? quotedRateBasisPoints;
+  final InvestmentRatePeriod? quotedRatePeriod;
+
+  /// Dia mensal informado para crédito de rendimento; não altera o saldo.
+  final int? yieldPaymentDay;
+}
+
+class SalarySchedule {
+  const SalarySchedule(
+      {required this.id,
+      required this.accountId,
+      required this.amountInCents,
+      required this.description,
+      required this.subcategory,
+      required this.firstDueOn,
+      required this.paymentDay,
+      required this.createdAt});
+  final String id;
+  final String accountId;
+  final int amountInCents;
+  final String description;
+  final String subcategory;
+  final DateTime firstDueOn;
+  final int paymentDay;
+  final DateTime createdAt;
 }
 
 class FinanceCategory {
@@ -288,6 +321,7 @@ class FinancialGoal {
     required this.createdAt,
     this.deadline,
     this.iconKey = 'savings',
+    this.category = 'Reserva',
   });
 
   final String id;
@@ -296,5 +330,6 @@ class FinancialGoal {
   final int savedInCents;
   final DateTime? deadline;
   final String iconKey;
+  final String category;
   final DateTime createdAt;
 }

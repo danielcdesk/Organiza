@@ -60,6 +60,16 @@
 
 **Regressão:** o teste integrado navega por Relatórios em 1366×768 e verifica exceções de renderização.
 
+## ERR-006 — APK release após teste de integração Android
+
+**Data:** 2026-09-16
+
+**Sintoma:** `flutter build apk --release --no-pub` falhou em `compileReleaseJavaWithJavac` porque o `GeneratedPluginRegistrant.java` gerado referenciava `IntegrationTestPlugin`, ausente da variante de release.
+
+**Correção aplicada:** executar `flutter build apk --release` sem `--no-pub` para atualizar a resolução e o registro de plugins para o build; o APK resultante foi verificado com `apksigner` e `aapt`.
+
+**Regressão:** após rodar testes de integração, não reutilizar um registrador de plugins potencialmente obsoleto com `--no-pub` ao compilar o APK final. Não editar manualmente o arquivo gerado.
+
 Para os próximos erros, use este formato:
 
 ```markdown

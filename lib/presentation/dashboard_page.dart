@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../application/organiza_store.dart';
 import '../domain/credit_card_rules.dart';
 import '../domain/financial_rules.dart';
+import '../domain/models.dart';
 import 'organiza_theme.dart';
 import 'shared_widgets.dart';
 
@@ -98,6 +99,8 @@ class DashboardPage extends StatelessWidget {
             onOpenSubscriptions: onOpenSubscriptions,
           ),
           const SizedBox(height: 14),
+          _PaymentCalendar(store: store, hideValues: hideValues),
+          const SizedBox(height: 14),
           LayoutBuilder(
             builder: (context, constraints) {
               final transactions = _TransactionsPanel(
@@ -153,6 +156,162 @@ class DashboardPage extends StatelessWidget {
           ),
         ],
       );
+}
+
+class _PaymentCalendar extends StatefulWidget {
+  const _PaymentCalendar({required this.store, required this.hideValues});
+  final OrganizaStore store;
+  final bool hideValues;
+  @override
+  State<_PaymentCalendar> createState() => _PaymentCalendarState();
+}
+
+class _PaymentCalendarState extends State<_PaymentCalendar> {
+  late DateTime _month = DateTime(DateTime.now().year, DateTime.now().month);
+  late int _day = DateTime.now().day;
+
+  List<(String, int, IconData)> _events(int day) {
+    final last = DateTime(_month.year, _month.month + 1, 0).day;
+    final events = <(String, int, IconData)>[];
+    for (final item
+        in widget.store.subscriptions.where((item) => item.isActive)) {
+      if (item.billingDay.clamp(1, last) == day) {
+        events.add((item.name, item.amountInCents, Icons.autorenew_rounded));
+      }
+    }
+    for (final card in widget.store.creditCards) {
+      if (card.dueDay.clamp(1, last) == day) {
+        events.add(('Fatura · ${card.name}', 0, Icons.credit_card_outlined));
+      }
+    }
+    for (final item in widget.store.transactions.where((item) =>
+        item.type == TransactionType.expense &&
+        item.occurredOn.year == _month.year &&
+        item.occurredOn.month == _month.month &&
+        (!item.isSettled ||
+            item.scheduleType != TransactionScheduleType.single ||
+            const ['Contas e serviços', 'Moradia', 'Impostos e taxas']
+                .contains(item.category)))) {
+      if (item.occurredOn.day == day) {
+        events.add((
+          item.description,
+          item.amountInCents,
+          Icons.receipt_long_outlined
+        ));
+      }
+    }
+    return events;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final firstOffset = DateTime(_month.year, _month.month, 1).weekday - 1;
+    final days = DateTime(_month.year, _month.month + 1, 0).day;
+    final count = ((firstOffset + days + 6) ~/ 7) * 7;
+    final selected = _events(_day);
+    final color = Theme.of(context).colorScheme.primary;
+    return Panel(
+        title: 'Calendário de pagamentos',
+        subtitle: 'Contas, assinaturas e vencimentos de cartões',
+        trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+          IconButton(
+              tooltip: 'Mês anterior',
+              icon: const Icon(Icons.chevron_left_rounded),
+              onPressed: () => setState(() {
+                    _month = DateTime(_month.year, _month.month - 1);
+                    _day = 1;
+                  })),
+          Text('${monthName(_month.month)} ${_month.year}',
+              style: const TextStyle(fontWeight: FontWeight.w700)),
+          IconButton(
+              tooltip: 'Próximo mês',
+              icon: const Icon(Icons.chevron_right_rounded),
+              onPressed: () => setState(() {
+                    _month = DateTime(_month.year, _month.month + 1);
+                    _day = 1;
+                  })),
+        ]),
+        child: Column(children: [
+          Row(children: [
+            for (final label in const ['S', 'T', 'Q', 'Q', 'S', 'S', 'D'])
+              Expanded(
+                  child: Center(
+                      child: Text(label,
+                          style: TextStyle(
+                              fontSize: 11,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant))))
+          ]),
+          const SizedBox(height: 7),
+          LayoutBuilder(
+              builder: (context, constraints) => GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: count,
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 7,
+                      mainAxisExtent: constraints.maxWidth < 500 ? 42 : 50),
+                  itemBuilder: (context, index) {
+                    final day = index - firstOffset + 1;
+                    if (day < 1 || day > days) return const SizedBox.shrink();
+                    final hasEvent = _events(day).isNotEmpty;
+                    final active = day == _day;
+                    return Semantics(
+                        label: 'Dia $day${hasEvent ? ', com pagamentos' : ''}',
+                        button: true,
+                        child: InkWell(
+                            onTap: () => setState(() => _day = day),
+                            borderRadius: BorderRadius.circular(10),
+                            child: Container(
+                                margin: const EdgeInsets.all(2),
+                                decoration: BoxDecoration(
+                                    color: active
+                                        ? color.withValues(alpha: .13)
+                                        : null,
+                                    borderRadius: BorderRadius.circular(10)),
+                                child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text('$day',
+                                          style: TextStyle(
+                                              fontWeight: active
+                                                  ? FontWeight.w800
+                                                  : FontWeight.w500,
+                                              color: active ? color : null)),
+                                      if (hasEvent)
+                                        Container(
+                                            width: 5,
+                                            height: 5,
+                                            decoration: BoxDecoration(
+                                                color: color,
+                                                shape: BoxShape.circle))
+                                    ]))));
+                  })),
+          const SizedBox(height: 12),
+          Align(
+              alignment: Alignment.centerLeft,
+              child: Text('Dia $_day',
+                  style: const TextStyle(fontWeight: FontWeight.w700))),
+          const SizedBox(height: 6),
+          if (selected.isEmpty)
+            const Align(
+                alignment: Alignment.centerLeft,
+                child: Text('Nenhum pagamento previsto para este dia.'))
+          else
+            for (final (title, amount, icon) in selected)
+              ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(icon, size: 19),
+                  title: Text(title),
+                  trailing: Text(amount == 0
+                      ? 'Vencimento'
+                      : widget.hideValues
+                          ? '••••••'
+                          : FinancialRules.formatBrl(amount))),
+        ]));
+  }
 }
 
 class _CommitmentsStrip extends StatelessWidget {

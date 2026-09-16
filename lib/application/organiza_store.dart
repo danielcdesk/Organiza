@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
@@ -10,6 +12,18 @@ class OrganizaStore extends ChangeNotifier {
 
   final LocalRepository _repository;
   final _uuid = const Uuid();
+  Timer? _salaryRefreshTimer;
+
+  void _scheduleNextDayRefresh() {
+    _salaryRefreshTimer?.cancel();
+    final now = DateTime.now();
+    final next = DateTime(now.year, now.month, now.day + 1, 0, 1);
+    _salaryRefreshTimer = Timer(next.difference(now), () {
+      reload();
+      _scheduleNextDayRefresh();
+    });
+  }
+
   List<Account> accounts = [];
   List<TransactionRecord> transactions = [];
   List<TaskItem> tasks = [];
@@ -22,11 +36,15 @@ class OrganizaStore extends ChangeNotifier {
   List<FinancialGoal> financialGoals = [];
   List<FinanceCategory> financeCategories = [];
   List<FinanceSubcategory> financeSubcategories = [];
+  List<SalarySchedule> salarySchedules = [];
+  List<String> goalCategories = [];
+  List<int> mobileQuickPages = [0, 1, 6, 8];
   SalaryAllocation salaryAllocation = SalaryAllocation.defaults;
 
   static Future<OrganizaStore> create() async {
     final store = OrganizaStore._(await LocalRepository.open());
     store.reload();
+    store._scheduleNextDayRefresh();
     return store;
   }
 
@@ -39,6 +57,8 @@ class OrganizaStore extends ChangeNotifier {
   void reload() {
     accounts = _repository.loadAccounts();
     transactions = _repository.loadTransactions();
+    salarySchedules = _repository.loadSalarySchedules();
+    _materializeDueSalaries();
     tasks = _repository.loadTasks();
     shoppingItems = _repository.loadShoppingItems();
     creditCards = _repository.loadCreditCards();
@@ -50,6 +70,8 @@ class OrganizaStore extends ChangeNotifier {
     financialGoals = _repository.loadFinancialGoals();
     financeCategories = _repository.loadFinanceCategories();
     financeSubcategories = _repository.loadFinanceSubcategories();
+    goalCategories = _repository.loadGoalCategories();
+    mobileQuickPages = _repository.loadMobileQuickPages();
     notifyListeners();
   }
 
@@ -59,6 +81,63 @@ class OrganizaStore extends ChangeNotifier {
   int get expenses => FinancialRules.monthTotal(
       transactions, DateTime.now(), TransactionType.expense);
   int get availableToSpend => balance;
+  int get salaryThisMonth {
+    final now = DateTime.now();
+    final recorded = transactions
+        .where((item) =>
+            item.type == TransactionType.income &&
+            item.category.toLowerCase() == 'salário' &&
+            item.occurredOn.year == now.year &&
+            item.occurredOn.month == now.month)
+        .fold(0, (sum, item) => sum + item.amountInCents);
+    final expected = salarySchedules
+        .where((schedule) =>
+            !DateTime(schedule.firstDueOn.year, schedule.firstDueOn.month)
+                .isAfter(DateTime(now.year, now.month)) &&
+            !transactions.any((item) =>
+                item.seriesId == schedule.id &&
+                item.occurredOn.year == now.year &&
+                item.occurredOn.month == now.month))
+        .fold(0, (sum, schedule) => sum + schedule.amountInCents);
+    return recorded + expected;
+  }
+
+  void _materializeDueSalaries() {
+    final today = _dateOnly(DateTime.now());
+    var inserted = false;
+    for (final schedule in salarySchedules) {
+      for (var month = 0; month < 1200; month++) {
+        final calendarMonth = DateTime(
+            schedule.firstDueOn.year, schedule.firstDueOn.month + month);
+        final last =
+            DateTime(calendarMonth.year, calendarMonth.month + 1, 0).day;
+        final due = DateTime(calendarMonth.year, calendarMonth.month,
+            schedule.paymentDay.clamp(1, last));
+        if (_dateOnly(due).isAfter(today)) break;
+        final exists = transactions.any((item) =>
+            item.seriesId == schedule.id &&
+            item.occurredOn.year == due.year &&
+            item.occurredOn.month == due.month);
+        if (exists) continue;
+        _repository.insertTransaction(TransactionRecord(
+          id: _id(),
+          accountId: schedule.accountId,
+          type: TransactionType.income,
+          amountInCents: schedule.amountInCents,
+          description: schedule.description,
+          category: 'Salário',
+          subcategory: schedule.subcategory,
+          occurredOn: due,
+          createdAt: DateTime.now(),
+          scheduleType: TransactionScheduleType.recurring,
+          seriesId: schedule.id,
+          isSettled: false,
+        ));
+        inserted = true;
+      }
+    }
+    if (inserted) transactions = _repository.loadTransactions();
+  }
 
   void addAccount(
     String name,
@@ -77,6 +156,18 @@ class OrganizaStore extends ChangeNotifier {
     reload();
   }
 
+  void setAccountCurrentBalance(String id, int targetCents) {
+    final account = accounts.where((item) => item.id == id).firstOrNull;
+    if (account == null) throw ArgumentError('Conta não encontrada.');
+    if (targetCents < 0 || targetCents >= 100000000000) {
+      throw ArgumentError('Informe um saldo válido.');
+    }
+    final actual = FinancialRules.accountBalance(account, transactions);
+    _repository.updateAccountOpeningBalance(
+        id, account.openingBalanceInCents + targetCents - actual);
+    reload();
+  }
+
   void addTransaction({
     required String accountId,
     required TransactionType type,
@@ -92,9 +183,6 @@ class OrganizaStore extends ChangeNotifier {
     if (!FinancialRules.isValidAmount(amountInCents)) {
       throw ArgumentError('Informe um valor válido.');
     }
-    if (description.trim().isEmpty) {
-      throw ArgumentError('Informe uma descrição.');
-    }
     if (type == TransactionType.transfer &&
         (destinationAccountId == null || destinationAccountId == accountId)) {
       throw ArgumentError('Escolha uma conta de destino diferente.');
@@ -103,13 +191,45 @@ class OrganizaStore extends ChangeNotifier {
         scheduleType != TransactionScheduleType.single) {
       throw ArgumentError('Transferências agendadas ainda não são permitidas.');
     }
-    if (scheduleType != TransactionScheduleType.single &&
+    final recurringSalary = type == TransactionType.income &&
+        category.trim().toLowerCase() == 'salário' &&
+        scheduleType == TransactionScheduleType.recurring;
+    if (!recurringSalary &&
+        scheduleType != TransactionScheduleType.single &&
         (repeatCount < 2 || repeatCount > 60)) {
       throw ArgumentError('Use entre 2 e 60 repetições.');
     }
     final count =
         scheduleType == TransactionScheduleType.single ? 1 : repeatCount;
     final baseDate = occurredOn ?? DateTime.now();
+    final cleanDescription = description.trim().isEmpty
+        ? (type == TransactionType.transfer
+            ? 'Transferência'
+            : subcategory.trim().isNotEmpty && subcategory != 'Geral'
+                ? subcategory.trim()
+                : category.trim().isEmpty
+                    ? 'Outros'
+                    : category.trim())
+        : description.trim();
+    if (recurringSalary) {
+      final now = DateTime.now();
+      final startMonth = baseDate.isBefore(DateTime(now.year, now.month))
+          ? DateTime(now.year, now.month)
+          : DateTime(baseDate.year, baseDate.month);
+      final last = DateTime(startMonth.year, startMonth.month + 1, 0).day;
+      _repository.insertSalarySchedule(SalarySchedule(
+          id: _id(),
+          accountId: accountId,
+          amountInCents: amountInCents,
+          description: cleanDescription,
+          subcategory: subcategory,
+          firstDueOn: DateTime(
+              startMonth.year, startMonth.month, baseDate.day.clamp(1, last)),
+          paymentDay: baseDate.day,
+          createdAt: DateTime.now()));
+      reload();
+      return;
+    }
     final seriesId = count == 1 ? null : _id();
     for (var index = 0; index < count; index++) {
       final value = scheduleType == TransactionScheduleType.installment
@@ -122,7 +242,7 @@ class OrganizaStore extends ChangeNotifier {
         destinationAccountId: destinationAccountId,
         type: type,
         amountInCents: value,
-        description: description.trim(),
+        description: cleanDescription,
         category: category.trim().isEmpty ? 'Outros' : category.trim(),
         subcategory: subcategory.trim().isEmpty ? 'Geral' : subcategory.trim(),
         occurredOn: date,
@@ -275,6 +395,9 @@ class OrganizaStore extends ChangeNotifier {
     FixedIncomeType? fixedIncomeType,
     String? institutionName,
     DateTime? maturityDate,
+    int? quotedRateBasisPoints,
+    InvestmentRatePeriod? quotedRatePeriod,
+    int? yieldPaymentDay,
   }) {
     final cleanName = name.trim();
     if (cleanName.isEmpty) throw ArgumentError('Informe o nome do ativo.');
@@ -284,6 +407,8 @@ class OrganizaStore extends ChangeNotifier {
     if (currentValueInCents < 0 || currentValueInCents >= 100000000000) {
       throw ArgumentError('Informe um saldo atual válido.');
     }
+    _validateQuotedRate(quotedRateBasisPoints, quotedRatePeriod);
+    _validateYieldDay(yieldPaymentDay);
     _repository.insertInvestment(InvestmentPosition(
       id: _id(),
       name: cleanName,
@@ -296,9 +421,71 @@ class OrganizaStore extends ChangeNotifier {
           ? null
           : institutionName?.trim(),
       maturityDate: type == InvestmentType.fixedIncome ? maturityDate : null,
+      quotedRateBasisPoints: quotedRateBasisPoints,
+      quotedRatePeriod: quotedRatePeriod,
+      yieldPaymentDay: yieldPaymentDay,
       createdAt: DateTime.now(),
     ));
     reload();
+  }
+
+  void updateInvestment({
+    required String id,
+    required String name,
+    required InvestmentType type,
+    required int investedAmountInCents,
+    required int currentValueInCents,
+    FixedIncomeType? fixedIncomeType,
+    String? institutionName,
+    DateTime? maturityDate,
+    int? quotedRateBasisPoints,
+    InvestmentRatePeriod? quotedRatePeriod,
+    int? yieldPaymentDay,
+  }) {
+    final previous = investments.where((item) => item.id == id).firstOrNull;
+    if (previous == null) throw ArgumentError('Investimento não encontrado.');
+    final cleanName = name.trim();
+    if (cleanName.isEmpty) throw ArgumentError('Informe o nome do ativo.');
+    if (!FinancialRules.isValidAmount(investedAmountInCents)) {
+      throw ArgumentError('Informe um valor investido válido.');
+    }
+    if (currentValueInCents < 0 || currentValueInCents >= 100000000000) {
+      throw ArgumentError('Informe um saldo atual válido.');
+    }
+    _validateQuotedRate(quotedRateBasisPoints, quotedRatePeriod);
+    _validateYieldDay(yieldPaymentDay);
+    _repository.updateInvestment(InvestmentPosition(
+      id: id,
+      name: cleanName,
+      type: type,
+      investedAmountInCents: investedAmountInCents,
+      currentValueInCents: currentValueInCents,
+      fixedIncomeType:
+          type == InvestmentType.fixedIncome ? fixedIncomeType : null,
+      institutionName: institutionName?.trim().isEmpty == true
+          ? null
+          : institutionName?.trim(),
+      maturityDate: type == InvestmentType.fixedIncome ? maturityDate : null,
+      quotedRateBasisPoints: quotedRateBasisPoints,
+      quotedRatePeriod: quotedRatePeriod,
+      yieldPaymentDay: yieldPaymentDay,
+      createdAt: previous.createdAt,
+    ));
+    reload();
+  }
+
+  void _validateQuotedRate(int? basisPoints, InvestmentRatePeriod? period) {
+    if ((basisPoints == null) != (period == null) ||
+        (basisPoints != null &&
+            (basisPoints < -10000 || basisPoints > 100000))) {
+      throw ArgumentError('Informe uma taxa entre -100% e 1000% e o período.');
+    }
+  }
+
+  void _validateYieldDay(int? day) {
+    if (day != null && (day < 1 || day > 31)) {
+      throw ArgumentError('O dia do rendimento deve estar entre 1 e 31.');
+    }
   }
 
   void addBudget({
@@ -340,6 +527,9 @@ class OrganizaStore extends ChangeNotifier {
       throw ArgumentError(
           'Remova ou mova as transações desta conta antes de excluí-la.');
     }
+    if (salarySchedules.any((item) => item.accountId == accountId)) {
+      throw ArgumentError('Exclua o salário recorrente desta conta antes.');
+    }
     _repository.deleteAccount(accountId);
     reload();
   }
@@ -370,7 +560,21 @@ class OrganizaStore extends ChangeNotifier {
   }
 
   void deleteTransaction(String id) {
+    final item = transactions.where((entry) => entry.id == id).firstOrNull;
+    if (item?.category.toLowerCase() == 'salário' &&
+        item?.seriesId != null &&
+        salarySchedules.any((entry) => entry.id == item!.seriesId)) {
+      _repository.deleteSalarySchedule(item!.seriesId!);
+    }
     _repository.deleteTransaction(id);
+    reload();
+  }
+
+  void cancelSalarySchedule(String id) {
+    if (salarySchedules.every((item) => item.id != id)) {
+      throw ArgumentError('Salário recorrente não encontrado.');
+    }
+    _repository.deleteSalarySchedule(id);
     reload();
   }
 
@@ -390,6 +594,7 @@ class OrganizaStore extends ChangeNotifier {
     required int initialSavedInCents,
     DateTime? deadline,
     String iconKey = 'savings',
+    String category = 'Reserva',
   }) {
     final cleanName = name.trim();
     if (cleanName.isEmpty) throw ArgumentError('Informe o nome da meta.');
@@ -406,8 +611,63 @@ class OrganizaStore extends ChangeNotifier {
       savedInCents: initialSavedInCents,
       deadline: deadline,
       iconKey: iconKey,
+      category: category,
       createdAt: DateTime.now(),
     ));
+    reload();
+  }
+
+  void addGoalCategory(String name) {
+    final clean = name.trim();
+    if (clean.isEmpty) throw ArgumentError('Informe uma categoria.');
+    if (goalCategories
+        .any((item) => item.toLowerCase() == clean.toLowerCase())) {
+      throw ArgumentError('Essa categoria já existe.');
+    }
+    _repository.insertGoalCategory(clean);
+    reload();
+  }
+
+  void updateMobileQuickPages(List<int> pages) {
+    if (pages.length != 4 ||
+        pages.toSet().length != 4 ||
+        pages.any((item) => item < 0 || item > 11 || item == 9)) {
+      throw ArgumentError('Escolha quatro atalhos diferentes.');
+    }
+    _repository.saveMobileQuickPages(pages);
+    reload();
+  }
+
+  void updateSubscription(
+      {required String id,
+      required String name,
+      required int amountInCents,
+      required int billingDay,
+      required String category}) {
+    final previous = subscriptions.where((item) => item.id == id).firstOrNull;
+    if (previous == null) throw ArgumentError('Assinatura não encontrada.');
+    if (name.trim().isEmpty ||
+        !FinancialRules.isValidAmount(amountInCents) ||
+        billingDay < 1 ||
+        billingDay > 31) {
+      throw ArgumentError('Informe nome, valor e dia de cobrança válidos.');
+    }
+    _repository.updateSubscription(Subscription(
+        id: id,
+        name: name.trim(),
+        amountInCents: amountInCents,
+        billingDay: billingDay,
+        category: category,
+        createdAt: previous.createdAt,
+        isActive: previous.isActive));
+    reload();
+  }
+
+  void setSubscriptionActive(String id, bool active) {
+    if (subscriptions.every((item) => item.id != id)) {
+      throw ArgumentError('Assinatura não encontrada.');
+    }
+    _repository.setSubscriptionActive(id, active);
     reload();
   }
 
@@ -529,6 +789,7 @@ class OrganizaStore extends ChangeNotifier {
 
   @override
   void dispose() {
+    _salaryRefreshTimer?.cancel();
     _repository.close();
     super.dispose();
   }

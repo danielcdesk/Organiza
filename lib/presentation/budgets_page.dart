@@ -18,6 +18,25 @@ class BudgetsPage extends StatelessWidget {
   final ValueChanged<String> onDelete;
 
   @override
+  Widget build(BuildContext context) => ListView(
+        padding: pagePadding(context),
+        children: [
+          BudgetSection(store: store, onAdd: onAdd, onDelete: onDelete)
+        ],
+      );
+}
+
+class BudgetSection extends StatelessWidget {
+  const BudgetSection(
+      {super.key,
+      required this.store,
+      required this.onAdd,
+      required this.onDelete});
+  final OrganizaStore store;
+  final VoidCallback onAdd;
+  final ValueChanged<String> onDelete;
+
+  @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
     final monthBudgets = store.budgets
@@ -30,12 +49,12 @@ class BudgetsPage extends StatelessWidget {
         (sum, item) =>
             sum + FinancialRules.budgetSpent(item, store.transactions));
 
-    return ListView(
-      padding: pagePadding(context),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         PageHeading(
           eyebrow: 'Planejamento mensal',
-          title: 'Orçamentos',
+          title: 'Orçamento',
           description:
               'Defina limites simples por categoria e acompanhe o ritmo dos seus gastos.',
           actions: [

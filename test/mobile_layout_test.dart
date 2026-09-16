@@ -24,9 +24,19 @@ void main() {
     );
     store.addTask('Revisar orçamento');
     store.addShoppingItem(
-      name: 'Fones', quantity: 1,
+      name: 'Fones',
+      quantity: 1,
       estimatedUnitPriceInCents: 25000,
       priority: ShoppingPriority.normal,
+    );
+    store.addInvestment(
+      name: 'Poupança',
+      type: InvestmentType.fixedIncome,
+      investedAmountInCents: 100000,
+      currentValueInCents: 100500,
+      fixedIncomeType: FixedIncomeType.savings,
+      quotedRateBasisPoints: 50,
+      quotedRatePeriod: InvestmentRatePeriod.monthly,
     );
     await tester.pumpWidget(
       OrganizaApp(store: store),
@@ -36,20 +46,44 @@ void main() {
     expect(find.text('Resumo financeiro'), findsOneWidget);
 
     for (final label in [
-      'Contas', 'Cartões', 'Orçamentos', 'Investimentos', 'Metas',
-      'Configurações', 'Assinaturas', 'Lista de desejos',
+      'Contas',
+      'Cartões',
+      'Orçamento',
+      'Investimentos',
+      'Metas',
+      'Configurações',
+      'Assinaturas',
+      'Lista de desejos',
     ]) {
       await tester.tap(find.byTooltip('Open navigation menu'));
       await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(find.text(label).last, 60,
-          scrollable: find.byType(Scrollable).first);
-      await tester.tap(find.text(label).last);
+      final drawerItem =
+          find.descendant(of: find.byType(Drawer), matching: find.text(label));
+      await tester.ensureVisible(drawerItem);
+      await tester.pumpAndSettle();
+      await tester.tap(drawerItem);
       await tester.pumpAndSettle();
       expect(find.byType(NavigationBar), findsOneWidget);
       expect(tester.takeException(), isNull, reason: label);
+      expect(find.text(label), findsWidgets);
+      if (label == 'Investimentos') {
+        await tester.scrollUntilVisible(find.text('Valor atual'), 160,
+            scrollable: find.byType(Scrollable).first);
+        expect(find.text('Valor atual'), findsWidgets);
+        await tester.ensureVisible(find.byTooltip('Ações de Poupança'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byTooltip('Ações de Poupança'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Editar posição'));
+        await tester.pumpAndSettle();
+        expect(find.text('Editar investimento'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+        await tester.tap(find.text('Cancelar'));
+        await tester.pumpAndSettle();
+      }
     }
 
-    for (final label in ['Finanças', 'Planejamento', 'Relatórios']) {
+    for (final label in ['Finanças', 'Planejar', 'Relatórios']) {
       await tester.tap(find.descendant(
           of: find.byType(NavigationBar), matching: find.text(label)));
       await tester.pumpAndSettle();
@@ -59,7 +93,27 @@ void main() {
         of: find.byType(NavigationBar), matching: find.text('Início')));
     await tester.pumpAndSettle();
     expect(find.text('Resumo financeiro'), findsOneWidget);
-    await tester.tap(find.byTooltip('Nova transação'));
+    await tester.tap(find.byTooltip('Open navigation menu'));
+    await tester.pumpAndSettle();
+    final settings = find.descendant(
+        of: find.byType(Drawer), matching: find.text('Configurações'));
+    await tester.ensureVisible(settings);
+    await tester.pumpAndSettle();
+    await tester.tap(settings);
+    await tester.pumpAndSettle();
+    await tester.drag(find.byType(ListView).first, const Offset(0, -500));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('quick-3-8')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Metas').last);
+    await tester.pumpAndSettle();
+    expect(store.mobileQuickPages, [0, 1, 6, 7]);
+    expect(
+        find.descendant(
+            of: find.byType(NavigationBar), matching: find.text('Metas')),
+        findsOneWidget);
+    await tester.tap(find.descendant(
+        of: find.byType(NavigationBar), matching: find.text('Nova')));
     await tester.pumpAndSettle();
     expect(find.text('Nova transação'), findsWidgets);
     expect(tester.takeException(), isNull);

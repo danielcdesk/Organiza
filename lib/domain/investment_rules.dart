@@ -18,6 +18,14 @@ class InvestmentRules {
     return profit(positions) / invested;
   }
 
+  /// Variação simples acumulada entre o total aplicado e o valor atual.
+  /// Não é taxa mensal/anual nem considera datas de aportes e resgates.
+  static double positionReturnRate(InvestmentPosition position) =>
+      position.investedAmountInCents == 0
+          ? 0
+          : (position.currentValueInCents - position.investedAmountInCents) /
+              position.investedAmountInCents;
+
   static double positionShare(
     InvestmentPosition position,
     Iterable<InvestmentPosition> positions,

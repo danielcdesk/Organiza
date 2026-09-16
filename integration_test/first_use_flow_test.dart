@@ -33,7 +33,7 @@ void main() {
       type: TransactionType.income,
       amountInCents: 320000,
       description: 'Salário',
-      category: 'Outros',
+      category: 'Salário',
     );
     store.addTransaction(
       accountId: accountId,
@@ -70,6 +70,9 @@ void main() {
       investedAmountInCents: 100000,
       currentValueInCents: 102400,
       fixedIncomeType: FixedIncomeType.treasurySelic,
+      quotedRateBasisPoints: 1250,
+      quotedRatePeriod: InvestmentRatePeriod.annual,
+      yieldPaymentDay: 10,
       institutionName: 'Tesouro Direto',
       maturityDate: DateTime(2029, 3, 1),
     );
@@ -96,6 +99,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Resumo financeiro'), findsOneWidget);
+    expect(find.text('Calendário de pagamentos'), findsOneWidget);
     expect(tester.takeException(), isNull);
     final output = Directory('build/qa')..createSync(recursive: true);
     await _saveScreenshot(
@@ -130,19 +134,30 @@ void main() {
       screenshotKey,
       File('${output.path}/organiza-accounts.png'),
     );
+    await tester.tap(find.byTooltip('Ações da conta'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Editar saldo'));
+    await tester.pumpAndSettle();
+    expect(find.text('Ajustar saldo · Conta principal'), findsOneWidget);
+    await tester.enterText(find.byType(TextField).last, '1.000,00');
+    await tester.tap(find.text('Salvar saldo'));
+    await tester.pumpAndSettle();
+    expect(store.balance, 100000);
 
     await tester.tap(find.text('Investimentos').first);
     await tester.pumpAndSettle();
     expect(find.text('Tesouro Selic 2029'), findsWidgets);
+    expect(find.text('Taxa informada: 12,50% ao ano'), findsOneWidget);
+    expect(find.textContaining('Rendimento: dia 10'), findsWidgets);
     expect(tester.takeException(), isNull);
     await _saveScreenshot(
       screenshotKey,
       File('${output.path}/organiza-investments.png'),
     );
 
-    await tester.tap(find.text('Orçamentos').first);
+    await tester.tap(find.text('Orçamento').first);
     await tester.pumpAndSettle();
-    expect(find.text('Orçamentos'), findsWidgets);
+    expect(find.text('Planejamento e orçamento'), findsOneWidget);
     expect(find.text('Alimentação'), findsWidgets);
     expect(tester.takeException(), isNull);
     await _saveScreenshot(
@@ -182,6 +197,22 @@ void main() {
       File('${output.path}/organiza-reports.png'),
     );
     await tester.scrollUntilVisible(
+      find.text('Gastos por categoria'),
+      450,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.pumpAndSettle();
+    final piePanel = find
+        .ancestor(
+            of: find.text('Gastos por categoria'), matching: find.byType(Panel))
+        .first;
+    await tester.tap(
+        find.descendant(of: piePanel, matching: find.text('Alimentação')).last);
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    await _saveScreenshot(
+        screenshotKey, File('${output.path}/organiza-reports-categories.png'));
+    await tester.scrollUntilVisible(
       find.text('Mapa anual de gastos'),
       520,
       scrollable: find.byType(Scrollable).last,
@@ -213,11 +244,22 @@ void main() {
       screenshotKey,
       File('${output.path}/organiza-subscriptions.png'),
     );
+    await tester.tap(find.byTooltip('Ações da assinatura'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Pausar'));
+    await tester.pumpAndSettle();
+    expect(store.subscriptions.single.isActive, isFalse);
+    await tester.tap(find.byTooltip('Ações da assinatura'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Reativar'));
+    await tester.pumpAndSettle();
+    expect(store.subscriptions.single.isActive, isTrue);
 
     await tester.tap(find.text('Planejamento').first);
     await tester.pumpAndSettle();
     expect(find.text('Salário identificado no mês'), findsOneWidget);
     expect(find.text('Distribuição sugerida'), findsOneWidget);
+    expect(find.text('R\$ 3.200,00'), findsWidgets);
     expect(find.byTooltip('Excluir tarefa'), findsWidgets);
     expect(tester.takeException(), isNull);
     await _saveScreenshot(
@@ -269,6 +311,41 @@ void main() {
       screenshotKey,
       File('${output.path}/organiza-goals.png'),
     );
+  });
+
+  testWidgets('layout compacto exibe nova transação e navegação agrupada',
+      (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final store = OrganizaStore.inMemory();
+    addTearDown(store.dispose);
+    store.addAccount('Conta principal', 485000,
+        institution: AccountInstitution.nubank);
+    store.addSubscription(
+        name: 'Streaming',
+        amountInCents: 3990,
+        billingDay: 15,
+        category: 'Lazer');
+    final screenshotKey = GlobalKey();
+    await tester.pumpWidget(
+        RepaintBoundary(key: screenshotKey, child: OrganizaApp(store: store)));
+    await tester.pumpAndSettle();
+    expect(
+        find.descendant(
+            of: find.byType(NavigationBar), matching: find.text('Nova')),
+        findsOneWidget);
+    expect(tester.takeException(), isNull);
+    final output = Directory('build/qa')..createSync(recursive: true);
+    await _saveScreenshot(
+        screenshotKey, File('${output.path}/organiza-mobile-dashboard.png'));
+    await tester.tap(find.byTooltip('Open navigation menu'));
+    await tester.pumpAndSettle();
+    expect(find.text('ORGANIZAÇÃO'), findsOneWidget);
+    expect(find.text('Orçamento'), findsOneWidget);
+    await _saveScreenshot(
+        screenshotKey, File('${output.path}/organiza-mobile-drawer.png'));
   });
 }
 

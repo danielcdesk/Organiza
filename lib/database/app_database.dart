@@ -11,7 +11,7 @@ class AppDatabase {
   AppDatabase._(this._database);
 
   final Database _database;
-  static const _schemaVersion = 9;
+  static const _schemaVersion = 11;
 
   static Future<AppDatabase> open() async {
     final appDirectory = await getApplicationSupportDirectory();
@@ -268,6 +268,39 @@ class AppDatabase {
       ''');
       _database.execute('PRAGMA user_version = 9');
     }
+    if (current < 10) {
+      _database.execute('''
+        ALTER TABLE investments ADD COLUMN quoted_rate_bps INTEGER
+          CHECK(quoted_rate_bps BETWEEN -10000 AND 100000);
+        ALTER TABLE investments ADD COLUMN quoted_rate_period TEXT
+          CHECK(quoted_rate_period IN ('monthly', 'annual'));
+      ''');
+      _database.execute('PRAGMA user_version = 10');
+    }
+    if (current < 11) {
+      _database.execute('''
+        ALTER TABLE investments ADD COLUMN yield_payment_day INTEGER
+          CHECK(yield_payment_day BETWEEN 1 AND 31);
+        CREATE TABLE salary_schedules (
+          id TEXT PRIMARY KEY NOT NULL,
+          account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE RESTRICT,
+          amount_cents INTEGER NOT NULL CHECK(amount_cents > 0),
+          description TEXT NOT NULL,
+          subcategory TEXT NOT NULL,
+          first_due_on TEXT NOT NULL,
+          payment_day INTEGER NOT NULL CHECK(payment_day BETWEEN 1 AND 31),
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX idx_salary_series_month ON transactions(series_id, occurred_on);
+        CREATE TABLE app_settings (key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL);
+        ALTER TABLE financial_goals ADD COLUMN category TEXT NOT NULL DEFAULT 'Reserva';
+        CREATE TABLE goal_categories (name TEXT PRIMARY KEY NOT NULL);
+        INSERT INTO goal_categories(name) VALUES
+          ('Reserva'), ('Casa'), ('Viagem'), ('Estudos'), ('Veículo'), ('Outros');
+      ''');
+      _seedDefaultCategories();
+      _database.execute('PRAGMA user_version = 11');
+    }
   }
 
   void _seedDefaultCategories() {
@@ -328,6 +361,42 @@ class AppDatabase {
         'Outros',
         TransactionType.expense,
         ['Geral', 'Presentes', 'Imprevistos']
+      ),
+      (
+        'expense_pets',
+        'Pets',
+        TransactionType.expense,
+        ['Ração', 'Veterinário', 'Higiene']
+      ),
+      (
+        'expense_clothing',
+        'Vestuário',
+        TransactionType.expense,
+        ['Roupas', 'Calçados', 'Acessórios']
+      ),
+      (
+        'expense_taxes',
+        'Impostos e taxas',
+        TransactionType.expense,
+        ['IPTU', 'IPVA', 'Tarifas bancárias']
+      ),
+      (
+        'expense_family',
+        'Família',
+        TransactionType.expense,
+        ['Filhos', 'Cuidados', 'Apoio familiar']
+      ),
+      (
+        'expense_donations',
+        'Doações',
+        TransactionType.expense,
+        ['Instituições', 'Pessoas']
+      ),
+      (
+        'expense_work',
+        'Trabalho',
+        TransactionType.expense,
+        ['Equipamentos', 'Software', 'Deslocamento']
       ),
       (
         'income_salary',
@@ -482,6 +551,12 @@ class AppDatabase {
             maturityDate: row['maturity_date'] == null
                 ? null
                 : DateTime.parse(row['maturity_date'] as String),
+            quotedRateBasisPoints: row['quoted_rate_bps'] as int?,
+            quotedRatePeriod: row['quoted_rate_period'] == null
+                ? null
+                : InvestmentRatePeriod.values
+                    .byName(row['quoted_rate_period'] as String),
+            yieldPaymentDay: row['yield_payment_day'] as int?,
             createdAt: DateTime.parse(row['created_at'] as String),
           ))
       .toList();
@@ -535,9 +610,68 @@ class AppDatabase {
                 ? null
                 : DateTime.parse(row['deadline'] as String),
             iconKey: row['icon_key'] as String,
+            category: row['category'] as String,
             createdAt: DateTime.parse(row['created_at'] as String),
           ))
       .toList();
+
+  List<String> loadGoalCategories() => _database
+      .select('SELECT name FROM goal_categories ORDER BY name COLLATE NOCASE')
+      .map((row) => row['name'] as String)
+      .toList();
+
+  List<int> loadMobileQuickPages() {
+    final rows = _database.select(
+        "SELECT value FROM app_settings WHERE key = 'mobile_quick_pages'");
+    if (rows.isEmpty) return [0, 1, 6, 8];
+    final parsed =
+        (rows.first['value'] as String).split(',').map(int.tryParse).toList();
+    if (parsed.length != 4 ||
+        parsed.contains(null) ||
+        parsed.toSet().length != 4 ||
+        parsed.any((value) => value! < 0 || value > 11 || value == 9)) {
+      return [0, 1, 6, 8];
+    }
+    return parsed.cast<int>();
+  }
+
+  void saveMobileQuickPages(List<int> pages) => _database.execute(
+      "INSERT OR REPLACE INTO app_settings(key, value) VALUES ('mobile_quick_pages', ?)",
+      [pages.join(',')]);
+
+  List<SalarySchedule> loadSalarySchedules() => _database
+      .select('SELECT * FROM salary_schedules ORDER BY created_at')
+      .map((row) => SalarySchedule(
+            id: row['id'] as String,
+            accountId: row['account_id'] as String,
+            amountInCents: row['amount_cents'] as int,
+            description: row['description'] as String,
+            subcategory: row['subcategory'] as String,
+            firstDueOn: DateTime.parse(row['first_due_on'] as String),
+            paymentDay: row['payment_day'] as int,
+            createdAt: DateTime.parse(row['created_at'] as String),
+          ))
+      .toList();
+
+  void insertSalarySchedule(SalarySchedule item) =>
+      _database.execute('''INSERT INTO salary_schedules
+      (id, account_id, amount_cents, description, subcategory, first_due_on, payment_day, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)''', [
+        item.id,
+        item.accountId,
+        item.amountInCents,
+        item.description,
+        item.subcategory,
+        item.firstDueOn.toIso8601String(),
+        item.paymentDay,
+        item.createdAt.toIso8601String()
+      ]);
+
+  void deleteSalarySchedule(String id) =>
+      _database.execute('DELETE FROM salary_schedules WHERE id = ?', [id]);
+
+  void insertGoalCategory(String name) =>
+      _database.execute('INSERT INTO goal_categories(name) VALUES (?)', [name]);
 
   List<FinanceCategory> loadFinanceCategories() => _database
       .select('SELECT * FROM finance_categories ORDER BY is_system DESC, name')
@@ -572,6 +706,10 @@ class AppDatabase {
           account.institution.name,
         ],
       );
+
+  void updateAccountOpeningBalance(String id, int cents) => _database.execute(
+      'UPDATE accounts SET opening_balance_cents = ? WHERE id = ?',
+      [cents, id]);
 
   void insertTransaction(TransactionRecord item) => _database.execute(
         '''INSERT INTO transactions(
@@ -676,7 +814,8 @@ class AppDatabase {
         '''INSERT INTO investments(
           id, name, type, invested_amount_cents, current_value_cents, created_at,
           fixed_income_type, institution_name, maturity_date
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+          , quoted_rate_bps, quoted_rate_period, yield_payment_day
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
         [
           investment.id,
           investment.name,
@@ -687,6 +826,30 @@ class AppDatabase {
           investment.fixedIncomeType?.name,
           investment.institutionName,
           investment.maturityDate?.toIso8601String(),
+          investment.quotedRateBasisPoints,
+          investment.quotedRatePeriod?.name,
+          investment.yieldPaymentDay,
+        ],
+      );
+
+  void updateInvestment(InvestmentPosition investment) => _database.execute(
+        '''UPDATE investments SET
+          name = ?, type = ?, invested_amount_cents = ?, current_value_cents = ?,
+          fixed_income_type = ?, institution_name = ?, maturity_date = ?,
+          quoted_rate_bps = ?, quoted_rate_period = ?, yield_payment_day = ?
+        WHERE id = ?''',
+        [
+          investment.name,
+          investment.type.name,
+          investment.investedAmountInCents,
+          investment.currentValueInCents,
+          investment.fixedIncomeType?.name,
+          investment.institutionName,
+          investment.maturityDate?.toIso8601String(),
+          investment.quotedRateBasisPoints,
+          investment.quotedRatePeriod?.name,
+          investment.yieldPaymentDay,
+          investment.id,
         ],
       );
 
@@ -748,10 +911,26 @@ class AppDatabase {
         ],
       );
 
+  void updateSubscription(Subscription item) => _database.execute(
+          '''UPDATE subscriptions SET name = ?, amount_cents = ?, billing_day = ?,
+      category = ?, is_active = ? WHERE id = ?''',
+          [
+            item.name,
+            item.amountInCents,
+            item.billingDay,
+            item.category,
+            item.isActive ? 1 : 0,
+            item.id
+          ]);
+
+  void setSubscriptionActive(String id, bool active) => _database.execute(
+      'UPDATE subscriptions SET is_active = ? WHERE id = ?',
+      [active ? 1 : 0, id]);
+
   void insertFinancialGoal(FinancialGoal goal) => _database.execute(
         '''INSERT INTO financial_goals(
-          id, name, target_cents, saved_cents, deadline, icon_key, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?)''',
+          id, name, target_cents, saved_cents, deadline, icon_key, created_at, category
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
         [
           goal.id,
           goal.name,
@@ -760,6 +939,7 @@ class AppDatabase {
           goal.deadline?.toIso8601String(),
           goal.iconKey,
           goal.createdAt.toIso8601String(),
+          goal.category,
         ],
       );
 

@@ -90,10 +90,12 @@ class Panel extends StatelessWidget {
                     Text(title, style: Theme.of(context).textTheme.titleMedium),
                     if (subtitle != null) ...[
                       const SizedBox(height: 3),
-                      Text(subtitle!, style: TextStyle(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        fontSize: 13,
-                      )),
+                      Text(subtitle!,
+                          style: TextStyle(
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                            fontSize: 13,
+                          )),
                     ],
                   ],
                 );

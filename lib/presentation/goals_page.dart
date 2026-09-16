@@ -256,7 +256,8 @@ class _GoalCard extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 6),
-            Text('${money(goal.savedInCents)} de ${money(goal.targetInCents)}',
+            Text(
+                '${goal.category} · ${money(goal.savedInCents)} de ${money(goal.targetInCents)}',
                 style: TextStyle(
                     color: Theme.of(context).colorScheme.onSurfaceVariant)),
             const SizedBox(height: 18),

@@ -3,7 +3,7 @@ import 'package:organiza/database/app_database.dart';
 import 'package:organiza/domain/models.dart';
 
 void main() {
-  test('migração 1 para 9 preserva dados e habilita lista de compras', () {
+  test('migração 1 para 11 preserva dados e habilita novos módulos', () {
     final database = AppDatabase.openInMemoryFromVersion1ForTest();
     addTearDown(database.close);
     final now = DateTime(2026, 9, 10);
@@ -69,12 +69,13 @@ void main() {
       createdAt: now,
     ));
 
-    expect(database.schemaVersion, 9);
+    expect(database.schemaVersion, 11);
     expect(database.loadAccounts().single.name, 'Principal');
     expect(
         database.loadAccounts().single.institution, AccountInstitution.generic);
     expect(database.loadCreditCards().single.lastFour, '4242');
     expect(database.loadInvestments().single.currentValueInCents, 102500);
+    expect(database.loadInvestments().single.quotedRateBasisPoints, isNull);
     expect(database.loadTransactions().single.category, 'Alimentação');
     expect(database.loadBudgets().single.limitInCents, 50000);
     expect(database.loadTransactions().single.subcategory, 'Geral');
@@ -90,5 +91,28 @@ void main() {
       isTrue,
     );
     expect(database.loadShoppingItems(), isEmpty);
+    expect(database.loadGoalCategories(), contains('Reserva'));
+    expect(database.loadMobileQuickPages(), [0, 1, 6, 8]);
+    expect(database.loadFinanceCategories().any((item) => item.name == 'Pets'),
+        isTrue);
+
+    database.updateInvestment(InvestmentPosition(
+      id: 'investment-1',
+      name: 'Poupança',
+      type: InvestmentType.fixedIncome,
+      investedAmountInCents: 100000,
+      currentValueInCents: 103500,
+      fixedIncomeType: FixedIncomeType.savings,
+      quotedRateBasisPoints: 50,
+      quotedRatePeriod: InvestmentRatePeriod.monthly,
+      yieldPaymentDay: 10,
+      createdAt: now,
+    ));
+    final updated = database.loadInvestments().single;
+    expect(updated.name, 'Poupança');
+    expect(updated.currentValueInCents, 103500);
+    expect(updated.quotedRateBasisPoints, 50);
+    expect(updated.quotedRatePeriod, InvestmentRatePeriod.monthly);
+    expect(updated.yieldPaymentDay, 10);
   });
 }

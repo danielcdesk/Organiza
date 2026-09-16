@@ -1,5 +1,25 @@
 # Registro de mudanças
 
+## 2026-09-16 — Organiza 0.6.0, planejamento integrado e vencimentos
+
+- Planejamento considera apenas entradas classificadas como Salário e reúne a visão de orçamento, com mais categorias padrão e criação de categorias no próprio limite.
+- Salário recorrente ganhou série persistida: a competência é criada só no dia devido, nasce pendente e pode ser cancelada sem apagar o histórico. Descrição de transação passou a ser opcional; salário não apresenta parcelas ou quantidade de meses.
+- Contas permitem ajustar o saldo atual sem remover lançamentos anteriores.
+- Investimentos permitem informar taxa, valor atual e dia mensal de crédito, mantendo rendimento esperado separado do resultado efetivo.
+- Dashboard ganhou calendário mensal de contas lançadas, assinaturas ativas e vencimentos de cartão.
+- Assinaturas podem ser editadas, pausadas, reativadas e exibem a próxima cobrança; o painel de roadmap foi removido.
+- Relatórios ganharam pizza interativa para despesas por categoria; metas receberam categorias personalizáveis.
+- No celular, o menu lateral foi agrupado como no desktop, a barra inferior ganhou ação central de nova transação e quatro atalhos configuráveis em Configurações.
+- Schema local 11, com migração incremental e regressões de salário, saldo, assinaturas, preferências móveis e categorias de metas.
+
+## 2026-09-15 — Organiza 0.5.1, rentabilidade manual e atualização de investimentos
+
+- Posições de investimento agora aceitam taxa informada em porcentagem ao mês ou ao ano, incluindo poupança, sem presumir retorno automático.
+- Valor atual e total aplicado são campos explícitos; posições podem ser editadas mantendo identidade e data de criação.
+- A carteira separa taxa informada de variação acumulada simples, calculada pelo valor atual menos o total aplicado.
+- O schema local passou à versão 10 com migração incremental; investimentos existentes ficam com a taxa opcional vazia, sem perda de valores.
+- Testes cobrem parsing decimal da taxa, persistência/migração, edição, cálculos e diálogo mobile.
+
 ## 2026-09-15 — Organiza 0.4, tarefas e lista de compras
 
 - Tarefas podem ser excluídas pelo Planejamento ou pelo Dashboard, sempre com confirmação.

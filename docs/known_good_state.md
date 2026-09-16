@@ -1,5 +1,23 @@
 # Estado conhecido como bom
 
+## 2026-09-16 — Organiza 0.6.0
+
+Branch de publicação: `main`. Fontes locais analisadas e testadas antes do release.
+
+- Schema SQLite 11 migra a base histórica sem apagar contas, movimentações, metas ou investimentos.
+- Planejamento usa somente a categoria Salário; séries salariais geram uma ocorrência pendente apenas no dia devido e podem ser canceladas sem apagar meses anteriores.
+- Planejamento e Orçamento compartilham uma tela; categorias de despesa e de meta podem ser criadas pelo usuário.
+- Saldo atual de contas pode ser ajustado sem excluir movimentações; assinaturas podem ser editadas, pausadas e reativadas.
+- Investimentos separam valor aplicado, valor atual, taxa informada e dia de crédito informado, sem projeção ou crédito automático.
+- Dashboard inclui calendário de vencimentos; Relatórios incluem pizza interativa de despesas e seleção de mês.
+- Celular tem menu agrupado, ação central de nova transação e quatro atalhos configuráveis na barra inferior.
+
+Verificações: `flutter analyze --no-pub` sem problemas; `flutter test --no-pub` com 33 testes aprovados; `flutter test integration_test -d windows --no-pub` com 2 fluxos aprovados; build Windows release e APK Android release concluídos. O APK declara `versionName 0.6.0`, `versionCode 7` e assinatura v2 válida. O pacote Windows foi inspecionado quanto a executável, DLLs e assets. As capturas em `docs/screenshots/` foram atualizadas a partir dos testes integrados. A instalação em Android físico ainda não foi verificada.
+
+Limites: não há sincronização entre PC e celular, integração bancária, cotação automática nem pagamento de fatura. O rendimento informado não altera o saldo. O salário previsto não altera o caixa até a confirmação da movimentação.
+
+## Histórico anterior
+
 ## Baseline 2026-09-15 — Organiza 0.4 local integrado
 
 Branch de publicação: `main`.

@@ -21,6 +21,21 @@ class LocalRepository {
   List<InvestmentPosition> loadInvestments() => _database.loadInvestments();
   List<Budget> loadBudgets() => _database.loadBudgets();
   List<Subscription> loadSubscriptions() => _database.loadSubscriptions();
+  List<SalarySchedule> loadSalarySchedules() => _database.loadSalarySchedules();
+  List<String> loadGoalCategories() => _database.loadGoalCategories();
+  List<int> loadMobileQuickPages() => _database.loadMobileQuickPages();
+  void saveMobileQuickPages(List<int> pages) =>
+      _database.saveMobileQuickPages(pages);
+  void insertSalarySchedule(SalarySchedule item) =>
+      _database.insertSalarySchedule(item);
+  void deleteSalarySchedule(String id) => _database.deleteSalarySchedule(id);
+  void insertGoalCategory(String name) => _database.insertGoalCategory(name);
+  void updateAccountOpeningBalance(String id, int cents) =>
+      _database.updateAccountOpeningBalance(id, cents);
+  void updateSubscription(Subscription item) =>
+      _database.updateSubscription(item);
+  void setSubscriptionActive(String id, bool active) =>
+      _database.setSubscriptionActive(id, active);
   SalaryAllocation loadSalaryAllocation() => _database.loadSalaryAllocation();
   List<FinancialGoal> loadFinancialGoals() => _database.loadFinancialGoals();
   List<FinanceCategory> loadFinanceCategories() =>
@@ -43,6 +58,8 @@ class LocalRepository {
       _database.insertCardPurchase(item);
   void insertInvestment(InvestmentPosition item) =>
       _database.insertInvestment(item);
+  void updateInvestment(InvestmentPosition item) =>
+      _database.updateInvestment(item);
   void insertBudget(Budget item) => _database.insertBudget(item);
   void insertSubscription(Subscription item) =>
       _database.insertSubscription(item);

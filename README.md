@@ -14,7 +14,7 @@
   <img alt="Windows" src="https://img.shields.io/badge/Windows-10%2F11-0078D4?logo=windows11&logoColor=white">
   <img alt="Android" src="https://img.shields.io/badge/Android-APK-3DDC84?logo=android&logoColor=white">
   <img alt="SQLite" src="https://img.shields.io/badge/SQLite-local-003B57?logo=sqlite&logoColor=white">
-  <img alt="Versão" src="https://img.shields.io/badge/versao-0.5.0-F0643B">
+  <img alt="Versão" src="https://img.shields.io/badge/versao-0.6.0-F0643B">
   <img alt="Desenvolvido com apoio de IA" src="https://img.shields.io/badge/desenvolvimento-assistido%20por%20IA-6E56CF?logo=openai&logoColor=white">
 </p>
 
@@ -29,11 +29,11 @@ O **Organiza** reúne contas, lançamentos, cartões, orçamentos, assinaturas, 
 
 ## ✨ Destaques
 
-- **Fluxo financeiro real e planejado:** receitas, despesas e transferências, com lançamentos únicos, recorrentes ou parcelados e controle de pago/pendente.
+- **Fluxo financeiro real e planejado:** receitas, despesas e transferências, com lançamentos únicos, recorrentes ou parcelados, descrição opcional e controle de pago/pendente. O salário recorrente só cria cada ocorrência quando chega o dia.
 - **Organização flexível:** categorias e subcategorias personalizáveis, filtros, busca e identificação visual das contas bancárias.
-- **Cartões e compromissos:** limite, ciclo, fatura atual, compras parceladas, orçamentos mensais e assinaturas recorrentes.
-- **Patrimônio e objetivos:** carteira de investimentos por classe, renda fixa por tipo/emissor/vencimento, planejamento salarial e metas com aportes.
-- **Análise visual:** evolução mensal, entradas versus saídas, distribuição por categoria, ranking de gastos, exportação CSV e mapa anual.
+- **Cartões e compromissos:** limite, ciclo, fatura atual, compras parceladas, calendário de vencimentos e assinaturas editáveis ou pausáveis.
+- **Patrimônio e objetivos:** carteira de investimentos por classe, renda fixa por tipo/emissor/vencimento, taxa manual ao mês ou ao ano, dia de crédito do rendimento, valor atual editável, planejamento salarial e metas com categorias próprias.
+- **Análise visual:** evolução mensal, entradas versus saídas, pizza interativa de gastos por categoria, ranking, exportação CSV e mapa anual.
 - **Experiência desktop:** temas claro e escuro, ocultação de valores, animações sutis, atalhos de teclado e tela cheia.
 - **Compras conscientes:** lista de desejos com quantidade, prioridade, valor estimado, itens comprados e exclusão; tarefas também podem ser excluídas com confirmação.
 
@@ -72,7 +72,12 @@ O **Organiza** reúne contas, lançamentos, cartões, orçamentos, assinaturas, 
     <img src="docs/screenshots/planning.png" width="49%" alt="Planejamento salarial">
     <img src="docs/screenshots/goals.png" width="49%" alt="Metas financeiras">
     <img src="docs/screenshots/reports-roadmap.png" width="49%" alt="Mapa anual de gastos">
+    <img src="docs/screenshots/reports-categories.png" width="49%" alt="Gráfico interativo de gastos por categoria">
     <img src="docs/screenshots/shopping.png" width="49%" alt="Lista de desejos e compras">
+  </p>
+  <p align="center">
+    <img src="docs/screenshots/mobile-dashboard.png" width="28%" alt="Visão geral no celular">
+    <img src="docs/screenshots/mobile-drawer.png" width="28%" alt="Navegação agrupada no celular">
   </p>
 </details>
 
@@ -80,25 +85,28 @@ O **Organiza** reúne contas, lançamentos, cartões, orçamentos, assinaturas, 
 
 | Área | O que oferece |
 |---|---|
-| 📊 Visão geral | Saldo consolidado, movimento mensal, orçamento, assinaturas, economia e ações rápidas |
+| 📊 Visão geral | Saldo consolidado, movimento mensal, calendário de pagamentos, assinaturas e ações rápidas |
 | 💸 Finanças | Histórico, busca, filtros, categorias, subcategorias, recorrência, parcelamento e baixa de pendências |
-| 🏦 Contas | Saldo por conta, cadastro e identificação de instituições financeiras |
+| 🏦 Contas | Saldo por conta, cadastro, ajuste do saldo atual e identificação de instituições financeiras |
 | 💳 Cartões | Limite, fechamento, vencimento, ciclo, fatura atual e compras parceladas |
-| 🎯 Orçamentos | Limites mensais por categoria e acompanhamento do consumo realizado |
-| 📈 Investimentos | Patrimônio, rentabilidade, resultado, alocação e organização de renda fixa |
-| 🔁 Assinaturas | Compromissos mensais por valor, vencimento e categoria |
-| 🗂️ Planejamento | Salário identificado e distribuição ajustável entre essenciais, objetivos e livre |
-| 🏁 Metas | Objetivo, prazo, valor acumulado, aportes e progresso |
+| 🎯 Planejamento e orçamento | Salário apenas da categoria Salário, distribuição ajustável e limites mensais por categoria, inclusive novas categorias |
+| 📈 Investimentos | Total aplicado, valor atual, variação acumulada, taxa e dia de crédito informados, edição, alocação e renda fixa |
+| 🔁 Assinaturas | Compromissos mensais por valor, vencimento e categoria; edição, pausa e reativação |
+| 🏁 Metas | Objetivo, categoria personalizada, prazo, valor acumulado, aportes e progresso |
 | 🛍️ Lista de desejos | Planejamento de compras sem alterar o saldo financeiro |
-| 📉 Relatórios | Mês selecionável, realizado versus previsto, tendências, categorias, mapa anual e exportação CSV |
+| 📉 Relatórios | Mês selecionável, realizado versus previsto, tendências, pizza interativa, mapa anual e exportação CSV |
 
 ## 🚀 Primeiros passos
 
 ### ✅ Android: instalar o aplicativo
 
-[Baixe o APK Android 0.5.0](https://github.com/danielcdesk/Organiza/releases/download/v0.5.0/Organiza-Android-0.5.0.apk), copie-o para o celular e abra-o pelo gerenciador de arquivos. O Android pode pedir autorização para instalar apps dessa origem. Após a instalação, abra **Organiza**; não é necessário criar conta nem ter internet. Atualizações devem usar APKs assinados com a mesma chave de release.
+[Baixe o APK Android 0.6.0](https://github.com/danielcdesk/Organiza/releases/download/v0.6.0/Organiza-Android-0.6.0.apk), copie-o para o celular e abra-o pelo gerenciador de arquivos. O Android pode pedir autorização para instalar apps dessa origem. Após a instalação, abra **Organiza**; não é necessário criar conta nem ter internet. Atualizações devem usar APKs assinados com a mesma chave de release.
 
-O APK contém todos os módulos, com menu lateral para navegação completa e barra inferior para Início, Finanças, Planejamento e Relatórios. Esta versão foi compilada para Android; **não há pacote iOS**, pois a compilação e assinatura para iPhone exigem macOS e a toolchain da Apple.
+O APK contém todos os módulos, com menu lateral dividido por áreas, quatro atalhos configuráveis em Configurações e botão central de nova transação. Esta versão foi compilada para Android; **não há pacote iOS**, pois a compilação e assinatura para iPhone exigem macOS e a toolchain da Apple.
+
+### ✅ Windows: baixar e executar
+
+[Baixe o pacote Windows 0.6.0](https://github.com/danielcdesk/Organiza/releases/download/v0.6.0/Organiza-Windows-0.6.0.zip), extraia a pasta inteira e abra `organiza.exe`. Não mova apenas o executável: os arquivos distribuídos ao lado dele são necessários.
 
 ### ✅ Requisitos para desenvolver
 
@@ -136,16 +144,9 @@ flutter test
 flutter test integration_test -d windows
 ```
 
-Estado verificado da versão 0.4.0 (Windows):
+Na versão 0.6.0, a taxa informada pelo usuário é apresentada separadamente da variação acumulada, calculada pelo valor atual menos o total aplicado. Essa variação simples **não é uma taxa mensal ou anualizada** e não considera datas de aportes e resgates. O dia do rendimento é apenas informativo: o app não credita rendimentos automaticamente nem consulta Selic, TR ou cotações externas. O salário recorrente gera uma ocorrência pendente no dia cadastrado, para confirmação manual. O APK é compilado e assinado, mas a instalação em aparelho físico precisa ser conferida separadamente.
 
-- análise estática sem problemas;
-- 22 testes unitários e de widget aprovados;
-- fluxo integrado aprovado no Windows em 1366 × 768;
-- build Windows em modo release concluído;
-- migração incremental do schema 1 ao 9 coberta por teste;
-- capturas das áreas principais revisadas visualmente.
-
-Estado verificado da versão 0.5.0 (Android): análise estática, 23 testes Flutter, navegação/diálogo em viewport de 390 × 844 e APK universal de release assinado. Não havia aparelho ou emulador Android conectado nesta validação; a instalação e o uso em dispositivo físico ainda precisam ser conferidos.
+Validação da versão 0.6.0: análise estática sem problemas, **33 testes Flutter** aprovados, **2 fluxos de integração Windows** aprovados (desktop 1366×768 e layout compacto 390×844), build Windows release concluído e APK Android 0.6.0 (`versionCode 7`) verificado com assinatura v2. O ZIP Windows foi inspecionado quanto a executável, DLLs e assets. Não havia aparelho Android conectado para teste de instalação ou uso real.
 
 Consulte o [estado conhecido como bom](docs/known_good_state.md) e a [estratégia de testes](docs/testing_strategy.md) para os contratos de regressão.
 
@@ -214,7 +215,6 @@ windows/           # runner nativo do Flutter
 - baixa e alteração de séries recorrentes em lote;
 - backup e restauração com confirmação;
 - importação de extratos e notas;
-- versões móveis opcionais;
 - integração bancária e cotações somente mediante arquitetura explícita de consentimento e privacidade.
 
 ## ⚖️ Avisos e transparência

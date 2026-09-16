@@ -8,18 +8,23 @@ import '../domain/investment_rules.dart';
 import '../domain/models.dart';
 import 'shared_widgets.dart';
 
+String _percent(double rate, {int decimals = 2}) =>
+    (rate * 100).toStringAsFixed(decimals).replaceAll('.', ',');
+
 class InvestmentsPage extends StatelessWidget {
   const InvestmentsPage({
     super.key,
     required this.store,
     required this.hideValues,
     required this.onAdd,
+    required this.onEdit,
     required this.onDelete,
   });
 
   final OrganizaStore store;
   final bool hideValues;
   final VoidCallback onAdd;
+  final ValueChanged<String> onEdit;
   final ValueChanged<String> onDelete;
 
   @override
@@ -72,8 +77,10 @@ class InvestmentsPage extends StatelessWidget {
                 profit: money(profit),
                 rate: rate,
                 positive: positive,
+                hideValues: hideValues,
               );
               final allocation = _AllocationPanel(positions: positions);
+              if (constraints.maxWidth < 600) return summary;
               if (constraints.maxWidth < 920) {
                 return Column(
                   children: [summary, const SizedBox(height: 14), allocation],
@@ -96,8 +103,13 @@ class InvestmentsPage extends StatelessWidget {
           _PositionsPanel(
             positions: positions,
             hideValues: hideValues,
+            onEdit: onEdit,
             onDelete: onDelete,
           ),
+          if (MediaQuery.sizeOf(context).width < 600) ...[
+            const SizedBox(height: 14),
+            _AllocationPanel(positions: positions),
+          ],
           if (positions
               .any((item) => item.type == InvestmentType.fixedIncome)) ...[
             const SizedBox(height: 14),
@@ -121,6 +133,7 @@ class _PortfolioSummary extends StatelessWidget {
     required this.profit,
     required this.rate,
     required this.positive,
+    required this.hideValues,
   });
 
   final String current;
@@ -128,11 +141,12 @@ class _PortfolioSummary extends StatelessWidget {
   final String profit;
   final double rate;
   final bool positive;
+  final bool hideValues;
 
   @override
   Widget build(BuildContext context) => Panel(
         title: 'Carteira consolidada',
-        subtitle: 'Atualização manual · sem sincronização externa',
+        subtitle: 'Valores informados manualmente · variação acumulada simples',
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -152,7 +166,9 @@ class _PortfolioSummary extends StatelessWidget {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  '${positive ? '+' : ''}${(rate * 100).toStringAsFixed(1)}%',
+                  hideValues
+                      ? '••••••'
+                      : '${positive ? '+' : ''}${_percent(rate, decimals: 1)}%',
                   style: TextStyle(
                     fontWeight: FontWeight.w800,
                     color: positive
@@ -169,9 +185,10 @@ class _PortfolioSummary extends StatelessWidget {
                     child: _Value(label: 'Total aplicado', value: invested)),
                 Expanded(
                   child: _Value(
-                    label: 'Rentabilidade',
-                    value:
-                        '${positive ? '+' : ''}${(rate * 100).toStringAsFixed(1)}%',
+                    label: 'Variação acumulada',
+                    value: hideValues
+                        ? '••••••'
+                        : '${positive ? '+' : ''}${_percent(rate, decimals: 1)}%',
                     color: positive
                         ? const Color(0xFF258A5A)
                         : const Color(0xFFC94D4D),
@@ -337,10 +354,12 @@ class _PositionsPanel extends StatelessWidget {
   const _PositionsPanel(
       {required this.positions,
       required this.hideValues,
+      required this.onEdit,
       required this.onDelete});
 
   final List<InvestmentPosition> positions;
   final bool hideValues;
+  final ValueChanged<String> onEdit;
   final ValueChanged<String> onDelete;
 
   @override
@@ -348,41 +367,167 @@ class _PositionsPanel extends StatelessWidget {
         title: 'Posições',
         subtitle:
             '${positions.length} ativo${positions.length == 1 ? '' : 's'}',
-        child: Column(
-          children: positions.map((position) {
-            final result =
-                position.currentValueInCents - position.investedAmountInCents;
-            final positive = result >= 0;
-            return DataListRow(
-              icon: investmentTypeIcon(position.type),
-              iconColor: Theme.of(context).colorScheme.primary,
-              title: position.name,
-              subtitle: _positionSubtitle(position, hideValues),
-              value: hideValues
-                  ? '••••••'
-                  : '${positive ? '+' : ''}${FinancialRules.formatBrl(result)}',
-              valueColor:
-                  positive ? const Color(0xFF258A5A) : const Color(0xFFC94D4D),
-              trailing: IconButton(
-                tooltip: 'Excluir posição',
-                onPressed: () => onDelete(position.id),
-                icon: const Icon(Icons.delete_outline_rounded, size: 18),
-              ),
-            );
-          }).toList(),
-        ),
+        child: Column(children: [
+          for (final position in positions)
+            _PositionEntry(
+              position: position,
+              hideValues: hideValues,
+              onEdit: () => onEdit(position.id),
+              onDelete: () => onDelete(position.id),
+            ),
+        ]),
       );
 }
 
-String _positionSubtitle(InvestmentPosition position, bool hideValues) {
+class _PositionEntry extends StatelessWidget {
+  const _PositionEntry(
+      {required this.position,
+      required this.hideValues,
+      required this.onEdit,
+      required this.onDelete});
+
+  final InvestmentPosition position;
+  final bool hideValues;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final result =
+        position.currentValueInCents - position.investedAmountInCents;
+    final positive = result >= 0;
+    final resultColor =
+        positive ? const Color(0xFF258A5A) : const Color(0xFFC94D4D);
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      decoration: BoxDecoration(
+        border:
+            Border(bottom: BorderSide(color: Theme.of(context).dividerColor)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          IconTile(
+              icon: investmentTypeIcon(position.type),
+              color: Theme.of(context).colorScheme.primary),
+          const SizedBox(width: 12),
+          Expanded(
+              child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(position.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.w700)),
+              const SizedBox(height: 2),
+              Text(_positionSubtitle(position),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant)),
+            ],
+          )),
+          PopupMenuButton<String>(
+            tooltip: 'Ações de ${position.name}',
+            onSelected: (action) => action == 'edit' ? onEdit() : onDelete(),
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 'edit', child: Text('Editar posição')),
+              PopupMenuItem(value: 'delete', child: Text('Excluir posição')),
+            ],
+          ),
+        ]),
+        const SizedBox(height: 15),
+        LayoutBuilder(builder: (context, constraints) {
+          final metricWidth = constraints.maxWidth < 600
+              ? (constraints.maxWidth - 12) / 2
+              : (constraints.maxWidth - 24) / 3;
+          return Wrap(spacing: 12, runSpacing: 14, children: [
+            _PositionMetric(
+              width: metricWidth,
+              label: 'Total aplicado',
+              value: hideValues
+                  ? '••••••'
+                  : FinancialRules.formatBrl(position.investedAmountInCents),
+            ),
+            _PositionMetric(
+              width: metricWidth,
+              label: 'Valor atual',
+              value: hideValues
+                  ? '••••••'
+                  : FinancialRules.formatBrl(position.currentValueInCents),
+            ),
+            _PositionMetric(
+              width: metricWidth,
+              label: 'Variação acumulada',
+              value: hideValues
+                  ? '••••••'
+                  : '${positive ? '+' : ''}${FinancialRules.formatBrl(result)}',
+              detail: hideValues
+                  ? null
+                  : '${positive ? '+' : ''}${_percent(InvestmentRules.positionReturnRate(position))}%',
+              color: resultColor,
+            ),
+          ]);
+        }),
+        if (position.quotedRateBasisPoints != null) ...[
+          const SizedBox(height: 13),
+          Text(
+              hideValues
+                  ? 'Taxa informada: ••••••'
+                  : 'Taxa informada: ${_percent(position.quotedRateBasisPoints! / 10000)}% ${position.quotedRatePeriod == InvestmentRatePeriod.monthly ? 'ao mês' : 'ao ano'}',
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant)),
+        ],
+      ]),
+    );
+  }
+}
+
+class _PositionMetric extends StatelessWidget {
+  const _PositionMetric(
+      {required this.width,
+      required this.label,
+      required this.value,
+      this.detail,
+      this.color});
+
+  final double width;
+  final String label;
+  final String value;
+  final String? detail;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+      width: width,
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(label,
+            style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurfaceVariant)),
+        const SizedBox(height: 4),
+        Text(value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontWeight: FontWeight.w700, color: color)),
+        if (detail != null)
+          Text(detail!,
+              style: TextStyle(
+                  fontSize: 12, fontWeight: FontWeight.w600, color: color)),
+      ]));
+}
+
+String _positionSubtitle(InvestmentPosition position) {
   final details = <String>[investmentTypeName(position.type)];
   if (position.fixedIncomeType != null) {
     details.add(fixedIncomeTypeName(position.fixedIncomeType!));
   }
   if (position.institutionName != null) details.add(position.institutionName!);
-  details.add(hideValues
-      ? 'aplicado ••••••'
-      : 'aplicado ${FinancialRules.formatBrl(position.investedAmountInCents)}');
+  if (position.yieldPaymentDay != null) {
+    details.add('Rendimento: dia ${position.yieldPaymentDay}');
+  }
   return details.join(' · ');
 }
 
@@ -418,6 +563,12 @@ class _FixedIncomePanel extends StatelessWidget {
               maturity == null
                   ? 'Sem vencimento informado'
                   : 'Vence em ${shortDate(maturity)}',
+              if (position.quotedRateBasisPoints != null)
+                hideValues
+                    ? 'Taxa informada ••••••'
+                    : '${_percent(position.quotedRateBasisPoints! / 10000)}% ${position.quotedRatePeriod == InvestmentRatePeriod.monthly ? 'ao mês' : 'ao ano'}',
+              if (position.yieldPaymentDay != null)
+                'Crédito dia ${position.yieldPaymentDay}',
             ].join(' · '),
             value: hideValues
                 ? '••••••'

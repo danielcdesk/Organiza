@@ -13,7 +13,7 @@
 | Compra no cartão | Sim | Sim | Sim | Sim | 2026-09-10 |
 | Ciclo, fatura atual e limite | Sim | Sim | Sim | Sim | 2026-09-10 |
 | Instituição visual da conta, com ativos locais | Sim | Sim | Sim | Sim | 2026-09-14 |
-| Investimentos manuais e rentabilidade | Sim | Sim | Sim | Sim | 2026-09-14 |
+| Investimentos manuais, taxa informada e valor atual editável | Sim | Sim | Sim | Sim | 2026-09-15 |
 | Alocação por classe e renda fixa por tipo/emissor/vencimento | Sim | Sim | Sim | Sim | 2026-09-14 |
 | Relatórios por mês e exportação CSV local | Sim | Sim | Sim | Sim | 2026-09-14 |
 | Seletor mensal, comparação anterior e modo previsto | Sim | Sim | Sim | Sim | 2026-09-14 |
@@ -30,7 +30,15 @@
 | Parcelas distribuídas entre faturas | Sim | Sim | Sim | Sim | 2026-09-11 |
 | Mapa anual de gastos | Sim | Sim | Sim | Sim | 2026-09-11 |
 | Metas financeiras e aportes | Sim | Sim | Sim | Sim | 2026-09-11 |
-| Migração schema 1 → 9 | Sim | Sim | Sim | Sim | 2026-09-15 |
+| Migração schema 1 → 11 | Sim | Sim | Sim | Sim | 2026-09-16 |
+| Salário apenas por categoria e recorrência sob demanda | Sim | Sim | Parcial | Sim | 2026-09-16 |
+| Ajuste de saldo atual sem apagar movimentações | Sim | Sim | Sim | Sim | 2026-09-16 |
+| Dia de crédito de rendimento informado | Sim | Sim | Sim | Sim | 2026-09-16 |
+| Calendário de vencimentos na visão geral | Sim | Sim | Sim | Sim | 2026-09-16 |
+| Barra móvel configurável e ação central | Sim | Sim | Sim | Sim | 2026-09-16 |
+| Assinaturas editáveis e pausáveis | Sim | Sim | Sim | Sim | 2026-09-16 |
+| Categorias de metas e orçamento criadas pelo usuário | Sim | Sim | Não | Sim | 2026-09-16 |
+| Pizza interativa de despesas por categoria | Sim | Sim | Sim | Sim | 2026-09-16 |
 | Pagamento e histórico de faturas | Não | Não | Não | Não | — |
 | Backup JSON | Serviço inicial | Não executado | Não | Não | 2026-09-10 |
 | Build Windows | Sim | — | Sim | Sim | 2026-09-14 |

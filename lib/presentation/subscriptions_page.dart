@@ -10,15 +10,37 @@ class SubscriptionsPage extends StatelessWidget {
       {super.key,
       required this.store,
       required this.onAdd,
-      required this.onDelete});
+      required this.onDelete,
+      required this.onEdit,
+      required this.onActiveChanged});
   final OrganizaStore store;
   final VoidCallback onAdd;
   final ValueChanged<String> onDelete;
+  final ValueChanged<String> onEdit;
+  final void Function(String id, bool active) onActiveChanged;
 
   @override
   Widget build(BuildContext context) {
     final active = store.subscriptions.where((item) => item.isActive).toList();
     final total = active.fold(0, (sum, item) => sum + item.amountInCents);
+    final now = DateTime.now();
+    DateTime nextDate(int day) {
+      DateTime forMonth(int offset) {
+        final month = DateTime(now.year, now.month + offset);
+        final last = DateTime(month.year, month.month + 1, 0).day;
+        return DateTime(month.year, month.month, day.clamp(1, last));
+      }
+
+      final thisMonth = forMonth(0);
+      return thisMonth.isBefore(DateTime(now.year, now.month, now.day))
+          ? forMonth(1)
+          : thisMonth;
+    }
+
+    final next = active.isEmpty
+        ? null
+        : (active.map((item) => nextDate(item.billingDay)).toList()..sort())
+            .first;
     return ListView(
       padding: pagePadding(context),
       children: [
@@ -53,17 +75,16 @@ class SubscriptionsPage extends StatelessWidget {
                   Expanded(
                       child: _Metric(
                           label: 'Próxima cobrança',
-                          value: active.isEmpty
+                          value: next == null
                               ? '—'
-                              : 'dia ${active.map((e) => e.billingDay).reduce((a, b) => a < b ? a : b)}')),
+                              : '${next.day}/${next.month}')),
                 ]))),
         const SizedBox(height: 14),
         Panel(
             title: 'Cobranças recorrentes',
-            subtitle: active.isEmpty
-                ? 'Nenhuma assinatura ativa'
-                : 'Ordenadas pelo dia de cobrança',
-            child: active.isEmpty
+            subtitle:
+                '${active.length} ativa${active.length == 1 ? '' : 's'} · ${store.subscriptions.length - active.length} pausada${store.subscriptions.length - active.length == 1 ? '' : 's'}',
+            child: store.subscriptions.isEmpty
                 ? EmptyState(
                     icon: Icons.autorenew_rounded,
                     title: 'Organize suas assinaturas',
@@ -72,41 +93,38 @@ class SubscriptionsPage extends StatelessWidget {
                     actionLabel: 'Adicionar assinatura',
                     onAction: onAdd)
                 : Column(
-                    children: active
+                    children: store.subscriptions
                         .map((item) => DataListRow(
                             icon: Icons.autorenew_rounded,
                             iconColor: OrganizaTheme.orange,
                             title: item.name,
                             subtitle:
-                                '${item.category} · cobrança dia ${item.billingDay}',
+                                '${item.category} · ${item.isActive ? 'próxima em ${nextDate(item.billingDay).day}/${nextDate(item.billingDay).month}' : 'pausada'}',
                             value: FinancialRules.formatBrl(item.amountInCents,
                                 signed: true),
                             valueColor: OrganizaTheme.orange,
-                            trailing: IconButton(
-                                tooltip: 'Excluir assinatura',
-                                onPressed: () => onDelete(item.id),
-                                icon: const Icon(Icons.delete_outline_rounded,
-                                    size: 18))))
+                            trailing: PopupMenuButton<String>(
+                                tooltip: 'Ações da assinatura',
+                                onSelected: (action) {
+                                  if (action == 'edit') onEdit(item.id);
+                                  if (action == 'toggle') {
+                                    onActiveChanged(item.id, !item.isActive);
+                                  }
+                                  if (action == 'delete') onDelete(item.id);
+                                },
+                                itemBuilder: (_) => [
+                                      const PopupMenuItem(
+                                          value: 'edit', child: Text('Editar')),
+                                      PopupMenuItem(
+                                          value: 'toggle',
+                                          child: Text(item.isActive
+                                              ? 'Pausar'
+                                              : 'Reativar')),
+                                      const PopupMenuItem(
+                                          value: 'delete',
+                                          child: Text('Excluir')),
+                                    ])))
                         .toList())),
-        const SizedBox(height: 14),
-        const Panel(
-            title: 'Roadmap de organização',
-            subtitle: 'Próximas melhorias do módulo',
-            child: Column(children: [
-              _RoadmapRow(
-                  icon: Icons.calendar_month_outlined,
-                  title: 'Calendário de cobranças',
-                  subtitle:
-                      'Ver todas as datas recorrentes em uma linha do tempo'),
-              _RoadmapRow(
-                  icon: Icons.notifications_none_rounded,
-                  title: 'Alertas antes da cobrança',
-                  subtitle: 'Lembretes locais para evitar surpresas'),
-              _RoadmapRow(
-                  icon: Icons.insights_outlined,
-                  title: 'Impacto no orçamento',
-                  subtitle: 'Cruzar assinaturas com limites por categoria'),
-            ])),
       ],
     );
   }
@@ -136,30 +154,4 @@ class _Divider extends StatelessWidget {
   @override
   Widget build(BuildContext context) =>
       Container(width: 1, height: 38, color: Theme.of(context).dividerColor);
-}
-
-class _RoadmapRow extends StatelessWidget {
-  const _RoadmapRow(
-      {required this.icon, required this.title, required this.subtitle});
-  final IconData icon;
-  final String title, subtitle;
-  @override
-  Widget build(BuildContext context) => Padding(
-      padding: const EdgeInsets.only(bottom: 15),
-      child: Row(children: [
-        IconTile(
-            icon: icon, color: Theme.of(context).colorScheme.onSurfaceVariant),
-        const SizedBox(width: 11),
-        Expanded(
-            child:
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-          const SizedBox(height: 3),
-          Text(subtitle,
-              style: TextStyle(
-                  fontSize: 12,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant))
-        ])),
-        const StatusPill(label: 'Roadmap')
-      ]));
 }

@@ -6,9 +6,9 @@ import 'package:window_manager/window_manager.dart';
 
 import '../application/organiza_store.dart';
 import '../domain/models.dart';
+import '../domain/financial_rules.dart';
 import 'basic_pages.dart';
 import 'cards_page.dart';
-import 'budgets_page.dart';
 import 'subscriptions_page.dart';
 import 'dashboard_page.dart';
 import 'dialogs.dart';
@@ -71,7 +71,7 @@ class _OrganizaShellState extends State<OrganizaShell> {
     _PageDefinition('Finanças', Icons.swap_vert_circle_outlined),
     _PageDefinition('Contas', Icons.account_balance_wallet_outlined),
     _PageDefinition('Cartões', Icons.credit_card_outlined),
-    _PageDefinition('Orçamentos', Icons.donut_large_outlined),
+    _PageDefinition('Orçamento', Icons.donut_large_outlined),
     _PageDefinition('Investimentos', Icons.show_chart_outlined),
     _PageDefinition('Planejamento', Icons.checklist_rounded),
     _PageDefinition('Metas', Icons.flag_outlined),
@@ -207,7 +207,7 @@ class _OrganizaShellState extends State<OrganizaShell> {
       );
 
   Widget _buildMobileShell() {
-    const primaryPages = [0, 1, 6, 8];
+    final primaryPages = widget.store.mobileQuickPages;
     return Scaffold(
       appBar: AppBar(
         title: Text(_pages[_page].label),
@@ -231,26 +231,20 @@ class _OrganizaShellState extends State<OrganizaShell> {
           child: Column(
             children: [
               const ListTile(
-                title: Text('Organiza', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
+                title: Text('Organiza',
+                    style:
+                        TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
                 subtitle: Text('Seu espaço financeiro'),
               ),
               const Divider(),
               Expanded(
-                child: ListView.builder(
-                  itemCount: _pages.length,
-                  itemBuilder: (context, index) => ListTile(
-                    leading: Icon(_pages[index].icon),
-                    title: Text(_pages[index].label),
-                    selected: index == _page,
-                    selectedTileColor: Theme.of(context).colorScheme.primaryContainer,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                    onTap: () {
-                      Navigator.pop(context);
-                      setState(() => _page = index);
-                    },
-                  ),
-                ),
-              ),
+                  child: ListView(children: [
+                _mobileDrawerSection('INÍCIO', [0]),
+                _mobileDrawerSection('FINANÇAS', [1, 2, 3, 5, 10]),
+                _mobileDrawerSection('ORGANIZAÇÃO', [6, 4, 7, 11]),
+                _mobileDrawerSection('ANÁLISE', [8]),
+                _mobileDrawerSection('PREFERÊNCIAS', [9]),
+              ])),
             ],
           ),
         ),
@@ -261,26 +255,61 @@ class _OrganizaShellState extends State<OrganizaShell> {
           child: KeyedSubtree(key: ValueKey(_page), child: _buildPage()),
         ),
       ),
-      floatingActionButton: _page == 0 || _page == 1
-          ? FloatingActionButton(
-              tooltip: 'Nova transação',
-              onPressed: _openTransactionDialog,
-              child: const Icon(Icons.add_rounded),
-            )
-          : null,
       bottomNavigationBar: NavigationBar(
-        selectedIndex: primaryPages.contains(_page) ? primaryPages.indexOf(_page) : 0,
-        onDestinationSelected: (index) => setState(() => _page = primaryPages[index]),
+        selectedIndex: primaryPages.contains(_page)
+            ? (primaryPages.indexOf(_page) < 2
+                ? primaryPages.indexOf(_page)
+                : primaryPages.indexOf(_page) + 1)
+            : 0,
+        onDestinationSelected: (index) {
+          if (index == 2) {
+            _openTransactionDialog();
+            return;
+          }
+          setState(() => _page = primaryPages[index < 2 ? index : index - 1]);
+        },
         destinations: [
-          for (final index in primaryPages)
+          for (var slot = 0; slot < 5; slot++)
             NavigationDestination(
-              icon: Icon(_pages[index].icon),
-              label: _pages[index].label == 'Visão geral' ? 'Início' : _pages[index].label,
+              icon: Icon(slot == 2
+                  ? Icons.add_circle_rounded
+                  : _pages[primaryPages[slot < 2 ? slot : slot - 1]].icon),
+              label: slot == 2
+                  ? 'Nova'
+                  : _mobileNavLabel(primaryPages[slot < 2 ? slot : slot - 1]),
             ),
         ],
       ),
     );
   }
+
+  String _mobileNavLabel(int page) => switch (page) {
+        0 => 'Início',
+        5 => 'Investir',
+        6 => 'Planejar',
+        11 => 'Desejos',
+        _ => _pages[page].label,
+      };
+
+  Widget _mobileDrawerSection(String title, List<int> indices) =>
+      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Padding(
+            padding: const EdgeInsets.fromLTRB(20, 18, 12, 6),
+            child: Text(title,
+                style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1))),
+        for (final index in indices)
+          ListTile(
+              leading: Icon(_pages[index].icon),
+              title: Text(_pages[index].label),
+              selected: index == _page,
+              onTap: () {
+                Navigator.pop(context);
+                setState(() => _page = index);
+              }),
+      ]);
 
   Widget _buildPage() => switch (_page) {
         0 => DashboardPage(
@@ -305,6 +334,7 @@ class _OrganizaShellState extends State<OrganizaShell> {
             hideValues: _hideValues,
             onAdd: _openAccountDialog,
             onDelete: _deleteAccount,
+            onEditBalance: _editAccountBalance,
           ),
         3 => CardsPage(
             store: widget.store,
@@ -312,20 +342,28 @@ class _OrganizaShellState extends State<OrganizaShell> {
             onAddCard: _openCardDialog,
             onAddPurchase: _openCardPurchaseDialog,
           ),
-        4 => BudgetsPage(
+        4 => PlanningPage(
             store: widget.store,
-            onAdd: _openBudgetDialog,
-            onDelete: _deleteBudget),
+            onAdd: _openTaskDialog,
+            onDeleteTask: _deleteTask,
+            onAddBudget: _openBudgetDialog,
+            onDeleteBudget: _deleteBudget,
+            onCancelSalary: _cancelSalarySchedule,
+            budgetFirst: true),
         5 => InvestmentsPage(
             store: widget.store,
             hideValues: _hideValues,
             onAdd: _openInvestmentDialog,
+            onEdit: _editInvestment,
             onDelete: _deleteInvestment,
           ),
         6 => PlanningPage(
             store: widget.store,
             onAdd: _openTaskDialog,
             onDeleteTask: _deleteTask,
+            onAddBudget: _openBudgetDialog,
+            onDeleteBudget: _deleteBudget,
+            onCancelSalary: _cancelSalarySchedule,
           ),
         7 => GoalsPage(
             store: widget.store,
@@ -339,11 +377,16 @@ class _OrganizaShellState extends State<OrganizaShell> {
             hideValues: _hideValues,
             onExport: _exportReport,
           ),
-        9 => SettingsPage(onThemeChanged: widget.onThemeChanged),
+        9 => SettingsPage(
+            onThemeChanged: widget.onThemeChanged,
+            quickPages: widget.store.mobileQuickPages,
+            onQuickPagesChanged: widget.store.updateMobileQuickPages),
         10 => SubscriptionsPage(
             store: widget.store,
             onAdd: _openSubscriptionDialog,
-            onDelete: _deleteSubscription),
+            onDelete: _deleteSubscription,
+            onEdit: _editSubscription,
+            onActiveChanged: widget.store.setSubscriptionActive),
         11 => ShoppingPage(
             store: widget.store,
             hideValues: _hideValues,
@@ -378,6 +421,24 @@ class _OrganizaShellState extends State<OrganizaShell> {
     } on ArgumentError catch (error) {
       _showError(
           error.message?.toString() ?? 'Não foi possível salvar a conta.');
+    }
+  }
+
+  Future<void> _editAccountBalance(String id) async {
+    final account =
+        widget.store.accounts.where((item) => item.id == id).firstOrNull;
+    if (account == null) return;
+    final amount = await showDialog<int>(
+        context: context,
+        builder: (_) => AccountBalanceDialog(
+            name: account.name,
+            currentCents: FinancialRules.accountBalance(
+                account, widget.store.transactions)));
+    if (amount == null || !mounted) return;
+    try {
+      widget.store.setAccountCurrentBalance(id, amount);
+    } on ArgumentError catch (error) {
+      _showError(error.message.toString());
     }
   }
 
@@ -416,9 +477,17 @@ class _OrganizaShellState extends State<OrganizaShell> {
   }
 
   Future<void> _deleteTransaction(String transactionId) async {
+    final transaction = widget.store.transactions
+        .where((item) => item.id == transactionId)
+        .firstOrNull;
+    final recurringSalary = transaction?.category.toLowerCase() == 'salário' &&
+        widget.store.salarySchedules
+            .any((item) => item.id == transaction?.seriesId);
     final confirmed = await _confirmDelete(
       title: 'Excluir lançamento?',
-      message: 'O saldo e os relatórios serão recalculados imediatamente.',
+      message: recurringSalary
+          ? 'Este salário pertence a uma recorrência. A ocorrência será excluída e os próximos salários deixarão de ser criados; os meses anteriores permanecem no histórico.'
+          : 'O saldo e os relatórios serão recalculados imediatamente.',
     );
     if (confirmed) widget.store.deleteTransaction(transactionId);
   }
@@ -429,6 +498,14 @@ class _OrganizaShellState extends State<OrganizaShell> {
       message: 'O limite mensal desta categoria será removido.',
     );
     if (confirmed) widget.store.deleteBudget(id);
+  }
+
+  Future<void> _cancelSalarySchedule(String id) async {
+    final confirmed = await _confirmDelete(
+        title: 'Cancelar salário recorrente?',
+        message:
+            'Novos meses não serão criados. Movimentações já registradas permanecem no histórico.');
+    if (confirmed) widget.store.cancelSalarySchedule(id);
   }
 
   Future<void> _deleteSubscription(String id) async {
@@ -547,7 +624,9 @@ class _OrganizaShellState extends State<OrganizaShell> {
   Future<void> _openFinancialGoalDialog() async {
     final value = await showDialog<FinancialGoalInput>(
       context: context,
-      builder: (_) => const FinancialGoalDialog(),
+      builder: (_) => FinancialGoalDialog(
+          categories: widget.store.goalCategories,
+          onCreateCategory: widget.store.addGoalCategory),
     );
     if (value == null || !mounted) return;
     try {
@@ -557,6 +636,7 @@ class _OrganizaShellState extends State<OrganizaShell> {
         initialSavedInCents: value.initialSavedInCents,
         deadline: value.deadline,
         iconKey: value.iconKey,
+        category: value.category,
       );
     } on ArgumentError catch (error) {
       _showError(error.message?.toString() ?? 'Não foi possível criar a meta.');
@@ -641,22 +721,49 @@ class _OrganizaShellState extends State<OrganizaShell> {
     }
   }
 
-  Future<void> _openInvestmentDialog() async {
+  Future<void> _openInvestmentDialog() => _showInvestmentDialog();
+
+  Future<void> _editInvestment(String id) async {
+    final position =
+        widget.store.investments.where((item) => item.id == id).firstOrNull;
+    if (position != null) await _showInvestmentDialog(position);
+  }
+
+  Future<void> _showInvestmentDialog([InvestmentPosition? position]) async {
     final value = await showDialog<InvestmentInput>(
       context: context,
-      builder: (_) => const InvestmentDialog(),
+      builder: (_) => InvestmentDialog(position: position),
     );
     if (value == null || !mounted) return;
     try {
-      widget.store.addInvestment(
-        name: value.name,
-        type: value.type,
-        investedAmountInCents: value.investedAmountInCents,
-        currentValueInCents: value.currentValueInCents,
-        fixedIncomeType: value.fixedIncomeType,
-        institutionName: value.institutionName,
-        maturityDate: value.maturityDate,
-      );
+      if (position == null) {
+        widget.store.addInvestment(
+          name: value.name,
+          type: value.type,
+          investedAmountInCents: value.investedAmountInCents,
+          currentValueInCents: value.currentValueInCents,
+          fixedIncomeType: value.fixedIncomeType,
+          institutionName: value.institutionName,
+          maturityDate: value.maturityDate,
+          quotedRateBasisPoints: value.quotedRateBasisPoints,
+          quotedRatePeriod: value.quotedRatePeriod,
+          yieldPaymentDay: value.yieldPaymentDay,
+        );
+      } else {
+        widget.store.updateInvestment(
+          id: position.id,
+          name: value.name,
+          type: value.type,
+          investedAmountInCents: value.investedAmountInCents,
+          currentValueInCents: value.currentValueInCents,
+          fixedIncomeType: value.fixedIncomeType,
+          institutionName: value.institutionName,
+          maturityDate: value.maturityDate,
+          quotedRateBasisPoints: value.quotedRateBasisPoints,
+          quotedRatePeriod: value.quotedRatePeriod,
+          yieldPaymentDay: value.yieldPaymentDay,
+        );
+      }
     } on ArgumentError catch (error) {
       _showError(
           error.message?.toString() ?? 'Não foi possível salvar o ativo.');
@@ -670,7 +777,9 @@ class _OrganizaShellState extends State<OrganizaShell> {
         .toList();
     final value = await showDialog<BudgetInput>(
       context: context,
-      builder: (_) => BudgetDialog(categories: categories),
+      builder: (_) => BudgetDialog(
+          categories: categories,
+          onCreateCategory: widget.store.addFinanceCategory),
     );
     if (value == null || !mounted) return;
     try {
@@ -684,23 +793,40 @@ class _OrganizaShellState extends State<OrganizaShell> {
     }
   }
 
-  Future<void> _openSubscriptionDialog() async {
+  Future<void> _openSubscriptionDialog() => _showSubscriptionDialog();
+
+  Future<void> _editSubscription(String id) async {
+    final item =
+        widget.store.subscriptions.where((value) => value.id == id).firstOrNull;
+    if (item != null) await _showSubscriptionDialog(item);
+  }
+
+  Future<void> _showSubscriptionDialog([Subscription? existing]) async {
     final categories = widget.store.financeCategories
         .where((item) => item.type == TransactionType.expense)
         .map((item) => item.name)
         .toList();
     final value = await showDialog<SubscriptionInput>(
       context: context,
-      builder: (_) => SubscriptionDialog(categories: categories),
+      builder: (_) =>
+          SubscriptionDialog(categories: categories, subscription: existing),
     );
     if (value == null || !mounted) return;
     try {
-      widget.store.addSubscription(
-        name: value.name,
-        amountInCents: value.amountInCents,
-        billingDay: value.billingDay,
-        category: value.category,
-      );
+      if (existing == null) {
+        widget.store.addSubscription(
+            name: value.name,
+            amountInCents: value.amountInCents,
+            billingDay: value.billingDay,
+            category: value.category);
+      } else {
+        widget.store.updateSubscription(
+            id: existing.id,
+            name: value.name,
+            amountInCents: value.amountInCents,
+            billingDay: value.billingDay,
+            category: value.category);
+      }
     } on ArgumentError catch (error) {
       _showError(
           error.message?.toString() ?? 'Não foi possível salvar a assinatura.');
@@ -815,9 +941,9 @@ class _Sidebar extends StatelessWidget {
               ),
               _section(context, [0]),
               _label('FINANÇAS'),
-              _section(context, [1, 2, 3, 4, 5, 10]),
+              _section(context, [1, 2, 3, 5, 10]),
               _label('ORGANIZAÇÃO'),
-              _section(context, [6, 7, 11]),
+              _section(context, [6, 4, 7, 11]),
               _label('ANÁLISE'),
               _section(context, [8]),
               const Spacer(),
