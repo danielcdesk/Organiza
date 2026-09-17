@@ -1,8 +1,19 @@
 # Estado conhecido como bom
 
-## 2026-09-16 — Organiza 0.6.0
+## 2026-09-17 — Organiza 0.6.1
 
 Branch de publicação: `main`. Fontes locais analisadas e testadas antes do release.
+
+- Tema compartilhado revisado com superfícies quentes, contraste de leitura, acento terracota e componentes de borda/raio consistentes.
+- Sidebar refinada com acabamento escuro, perfil integrado e seleção ativa mais clara; cabeçalhos e navegação mobile receberam transições mais suaves.
+
+Verificações: `flutter analyze --no-pub` sem problemas; `flutter test --no-pub` concluído; `flutter test integration_test -d windows --no-pub` aprovado; build Windows release concluído. O pacote `Organiza-Windows-0.6.1.zip` foi inspecionado quanto a executável, DLLs e assets e tem SHA-256 `4D849A6CF7E96499D14F4CBB5F6BA4F1FAC9E4887F6C937FAEB273E9F9F3E7FC`. A instalação em Android físico ainda não foi verificada.
+
+Limite de distribuição: a compilação Android 0.6.1 não recebeu assinatura porque a chave privada não estava configurada nesta sessão. O APK assinado mais recente permanece em 0.6.0; nenhum APK não assinado foi preparado para release.
+
+## 2026-09-16 — Organiza 0.6.0
+
+Fontes locais analisadas e testadas antes do release.
 
 - Schema SQLite 11 migra a base histórica sem apagar contas, movimentações, metas ou investimentos.
 - Planejamento usa somente a categoria Salário; séries salariais geram uma ocorrência pendente apenas no dia devido e podem ser canceladas sem apagar meses anteriores.

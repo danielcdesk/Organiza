@@ -14,7 +14,7 @@
   <img alt="Windows" src="https://img.shields.io/badge/Windows-10%2F11-0078D4?logo=windows11&logoColor=white">
   <img alt="Android" src="https://img.shields.io/badge/Android-APK-3DDC84?logo=android&logoColor=white">
   <img alt="SQLite" src="https://img.shields.io/badge/SQLite-local-003B57?logo=sqlite&logoColor=white">
-  <img alt="Versão" src="https://img.shields.io/badge/versao-0.6.0-F0643B">
+  <img alt="Versão" src="https://img.shields.io/badge/versao-0.6.1-B85A3B">
   <img alt="Desenvolvido com apoio de IA" src="https://img.shields.io/badge/desenvolvimento-assistido%20por%20IA-6E56CF?logo=openai&logoColor=white">
 </p>
 
@@ -106,7 +106,7 @@ O APK contém todos os módulos, com menu lateral dividido por áreas, quatro at
 
 ### ✅ Windows: baixar e executar
 
-[Baixe o pacote Windows 0.6.0](https://github.com/danielcdesk/Organiza/releases/download/v0.6.0/Organiza-Windows-0.6.0.zip), extraia a pasta inteira e abra `organiza.exe`. Não mova apenas o executável: os arquivos distribuídos ao lado dele são necessários.
+[Baixe o pacote Windows 0.6.1](https://github.com/danielcdesk/Organiza/releases/download/v0.6.1/Organiza-Windows-0.6.1.zip), extraia a pasta inteira e abra `organiza.exe`. Não mova apenas o executável: os arquivos distribuídos ao lado dele são necessários.
 
 ### ✅ Requisitos para desenvolver
 
@@ -144,7 +144,9 @@ flutter test
 flutter test integration_test -d windows
 ```
 
-Na versão 0.6.0, a taxa informada pelo usuário é apresentada separadamente da variação acumulada, calculada pelo valor atual menos o total aplicado. Essa variação simples **não é uma taxa mensal ou anualizada** e não considera datas de aportes e resgates. O dia do rendimento é apenas informativo: o app não credita rendimentos automaticamente nem consulta Selic, TR ou cotações externas. O salário recorrente gera uma ocorrência pendente no dia cadastrado, para confirmação manual. O APK é compilado e assinado, mas a instalação em aparelho físico precisa ser conferida separadamente.
+Na versão 0.6.1, a experiência visual foi refinada com superfícies mais leves, acento terracota, sidebar premium e transições mais suaves no desktop e no celular. A taxa informada pelo usuário continua separada da variação acumulada, calculada pelo valor atual menos o total aplicado. Essa variação simples **não é uma taxa mensal ou anualizada** e não considera datas de aportes e resgates. O dia do rendimento é apenas informativo: o app não credita rendimentos automaticamente nem consulta Selic, TR ou cotações externas. O salário recorrente gera uma ocorrência pendente no dia cadastrado, para confirmação manual.
+
+Validação da revisão visual 0.6.1: análise estática sem problemas, testes Flutter aprovados, fluxo de integração Windows aprovado e pacote Windows release inspecionado quanto a executável, DLLs e assets. O APK Android assinado mais recente permanece na versão 0.6.0: a chave privada necessária para assinar uma atualização 0.6.1 não está configurada nesta sessão. Não havia aparelho Android conectado para teste de instalação ou uso real.
 
 Validação da versão 0.6.0: análise estática sem problemas, **33 testes Flutter** aprovados, **2 fluxos de integração Windows** aprovados (desktop 1366×768 e layout compacto 390×844), build Windows release concluído e APK Android 0.6.0 (`versionCode 7`) verificado com assinatura v2. O ZIP Windows foi inspecionado quanto a executável, DLLs e assets. Não havia aparelho Android conectado para teste de instalação ou uso real.
 

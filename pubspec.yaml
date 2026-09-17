@@ -1,7 +1,7 @@
 name: organiza
 description: Organizador pessoal local-first para Windows e Android.
 publish_to: none
-version: 0.6.0+7
+version: 0.6.1+8
 
 environment:
   sdk: '>=3.4.0 <4.0.0'

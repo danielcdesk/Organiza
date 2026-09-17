@@ -1,5 +1,13 @@
 # Registro de mudanças
 
+## 2026-09-17 — Organiza 0.6.1, acabamento editorial e navegação refinada
+
+- Tema claro passou a usar uma base mais quente e suave, com contraste pensado para leitura financeira prolongada.
+- A cor de ação foi consolidada em terracota discreto; cards, campos, diálogos, botões e navegação receberam cantos e sombras mais consistentes.
+- A sidebar escura agora usa um acabamento mais sofisticado, melhor contraste de perfil e seleção ativa mais clara.
+- Cabeçalhos ganharam contexto visual de período e o app aplica transições de entrada e troca de página também no fluxo mobile.
+- Pacote Windows 0.6.1 gerado e inspecionado. O Android mantém o APK assinado 0.6.0 até que a chave privada de assinatura esteja disponível para assinar a atualização.
+
 ## 2026-09-16 — Organiza 0.6.0, planejamento integrado e vencimentos
 
 - Planejamento considera apenas entradas classificadas como Salário e reúne a visão de orçamento, com mais categorias padrão e criação de categorias no próprio limite.

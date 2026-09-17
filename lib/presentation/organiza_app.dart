@@ -251,7 +251,19 @@ class _OrganizaShellState extends State<OrganizaShell> {
       ),
       body: SafeArea(
         child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 220),
+          duration: const Duration(milliseconds: 280),
+          switchInCurve: Curves.easeOutCubic,
+          switchOutCurve: Curves.easeInCubic,
+          transitionBuilder: (child, animation) => FadeTransition(
+            opacity: animation,
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0, .018),
+                end: Offset.zero,
+              ).animate(animation),
+              child: child,
+            ),
+          ),
           child: KeyedSubtree(key: ValueKey(_page), child: _buildPage()),
         ),
       ),
@@ -888,25 +900,29 @@ class _Sidebar extends StatelessWidget {
   Widget build(BuildContext context) {
     final parentTheme = Theme.of(context);
     final sidebarTheme = parentTheme.copyWith(
-      dividerColor: const Color(0xFF343438),
+      dividerColor: const Color(0xFF40302C),
       colorScheme: const ColorScheme.dark(
         primary: OrganizaTheme.orange,
         onPrimary: Colors.white,
-        surface: Color(0xFF1D1D20),
-        onSurface: Color(0xFFF6F6F7),
-        onSurfaceVariant: Color(0xFFB7B7BC),
+        surface: Color(0xFF211A18),
+        onSurface: Color(0xFFFFF8F5),
+        onSurfaceVariant: Color(0xFFCDBFBA),
       ),
     );
     return Theme(
       data: sidebarTheme,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
+        duration: const Duration(milliseconds: 240),
         curve: Curves.easeOutCubic,
         width: collapsed ? 72 : 224,
         decoration: BoxDecoration(
-          color: const Color(0xFF1D1D20),
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF2B1B17), Color(0xFF181414)],
+          ),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Theme.of(context).dividerColor),
+          border: Border.all(color: const Color(0xFF40302C)),
         ),
         child: SafeArea(
           child: Column(
@@ -930,7 +946,7 @@ class _Sidebar extends StatelessWidget {
                       const Text(
                         'ORGANIZA',
                         style: TextStyle(
-                          color: Color(0xFFF6F6F7),
+                          color: Color(0xFFFFF8F5),
                           fontWeight: FontWeight.w800,
                           letterSpacing: 1.15,
                         ),
@@ -951,7 +967,7 @@ class _Sidebar extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(12, 2, 12, 2),
                   child: Material(
-                    color: const Color(0xFF2B2B2E),
+                    color: const Color(0xFF392724),
                     borderRadius: BorderRadius.circular(13),
                     child: InkWell(
                       onTap: () => onSelect(9),
@@ -963,9 +979,9 @@ class _Sidebar extends StatelessWidget {
                           children: [
                             CircleAvatar(
                               radius: 13,
-                              backgroundColor: Color(0xFF48484D),
+                              backgroundColor: Color(0xFF6E453B),
                               child: Icon(Icons.person_outline_rounded,
-                                  size: 16, color: Color(0xFFF6F6F7)),
+                                  size: 16, color: Color(0xFFFFF8F5)),
                             ),
                             SizedBox(width: 9),
                             Expanded(
@@ -974,19 +990,19 @@ class _Sidebar extends StatelessWidget {
                                 children: [
                                   Text('Perfil local',
                                       style: TextStyle(
-                                          color: Color(0xFFF6F6F7),
+                                          color: Color(0xFFFFF8F5),
                                           fontSize: 12,
                                           fontWeight: FontWeight.w700)),
                                   SizedBox(height: 2),
                                   Text('Somente neste dispositivo',
                                       style: TextStyle(
-                                          color: Color(0xFFB7B7BC),
+                                          color: Color(0xFFCDBFBA),
                                           fontSize: 10.5)),
                                 ],
                               ),
                             ),
                             Icon(Icons.chevron_right_rounded,
-                                color: Color(0xFFB7B7BC), size: 17),
+                                color: Color(0xFFCDBFBA), size: 17),
                           ],
                         ),
                       ),
@@ -1028,7 +1044,7 @@ class _Sidebar extends StatelessWidget {
             child: Text(
               text,
               style: const TextStyle(
-                color: Color(0xFF8F8F96),
+                color: Color(0xFFC4AFA8),
                 fontSize: 11,
                 letterSpacing: 1,
                 fontWeight: FontWeight.w700,
@@ -1046,7 +1062,7 @@ class _Sidebar extends StatelessWidget {
             child: Tooltip(
               message: collapsed ? page.label : '',
               child: Material(
-                color: active ? const Color(0xFFEEEEF0) : Colors.transparent,
+                color: active ? const Color(0xFFFFF4EF) : Colors.transparent,
                 borderRadius: BorderRadius.circular(12),
                 child: InkWell(
                   onTap: () => onSelect(index),
@@ -1076,7 +1092,7 @@ class _Sidebar extends StatelessWidget {
                           size: 19,
                           color: active
                               ? OrganizaTheme.orange
-                              : const Color(0xFFB7B7BC),
+                              : const Color(0xFFCDBFBA),
                         ),
                         if (!collapsed) ...[
                           const SizedBox(width: 12),
@@ -1086,8 +1102,8 @@ class _Sidebar extends StatelessWidget {
                               fontWeight:
                                   active ? FontWeight.w700 : FontWeight.w500,
                               color: active
-                                  ? const Color(0xFF202023)
-                                  : const Color(0xFFE4E4E7),
+                                  ? const Color(0xFF2A1D1A)
+                                  : const Color(0xFFF2E9E6),
                             ),
                           ),
                         ],
