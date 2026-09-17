@@ -152,6 +152,8 @@ Validação da versão 0.6.0: análise estática sem problemas, **33 testes Flut
 
 Consulte o [estado conhecido como bom](docs/known_good_state.md) e a [estratégia de testes](docs/testing_strategy.md) para os contratos de regressão.
 
+Para navegar por todas as decisões, regras e notas de release, consulte o [índice da documentação](docs/README.md).
+
 ## 🏗️ Arquitetura
 
 ```text

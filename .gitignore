@@ -8,6 +8,20 @@ build/
 
 # Native tool output
 windows/flutter/ephemeral/
+android/.gradle/
+android/local.properties
+android/key.properties
+
+# Signing material and distribution artifacts
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.apk
+*.aab
+*.msix
+*.msixbundle
+*.zip
 
 # Local user data: never commit databases, exports, backups, or logs
 *.db
@@ -25,3 +39,8 @@ logs/
 .idea/
 .vscode/
 *.iml
+
+# Platform and test output
+.DS_Store
+Thumbs.db
+coverage/
