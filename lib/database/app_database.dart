@@ -628,11 +628,19 @@ class AppDatabase {
         (rows.first['value'] as String).split(',').map(int.tryParse).toList();
     if (parsed.length != 4 ||
         parsed.contains(null) ||
-        parsed.toSet().length != 4 ||
         parsed.any((value) => value! < 0 || value > 11 || value == 9)) {
       return [0, 1, 6, 8];
     }
-    return parsed.cast<int>();
+    final normalized = <int>[];
+    for (final page in parsed.cast<int>()) {
+      final mapped = page == 4 ? 6 : page;
+      if (!normalized.contains(mapped)) normalized.add(mapped);
+    }
+    for (final fallback in [0, 1, 6, 8]) {
+      if (normalized.length == 4) break;
+      if (!normalized.contains(fallback)) normalized.add(fallback);
+    }
+    return normalized;
   }
 
   String? loadPreference(String key) {

@@ -48,7 +48,7 @@ void main() {
     for (final label in [
       'Contas',
       'Cartões',
-      'Orçamento',
+      'Organização',
       'Investimentos',
       'Metas',
       'Configurações',
@@ -87,7 +87,7 @@ void main() {
       }
     }
 
-    for (final label in ['Finanças', 'Planejar', 'Relatórios']) {
+    for (final label in ['Finanças', 'Organizar', 'Relatórios']) {
       await tester.tap(find.descendant(
           of: find.byType(NavigationBar), matching: find.text(label)));
       await tester.pumpAndSettle();

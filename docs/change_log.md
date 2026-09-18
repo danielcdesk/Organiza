@@ -1,5 +1,11 @@
 # Registro de mudanças
 
+## 2026-09-18 — Organiza 0.7.1, navegação de Organização unificada
+
+- Orçamento deixou de ser um item paralelo no menu. Planejamento e limites mensais agora têm um único acesso: **Organização**.
+- O mesmo agrupamento foi aplicado ao menu lateral do celular, à navegação desktop, aos resultados de busca e aos atalhos rápidos configuráveis.
+- Preferências móveis salvas com o antigo atalho Orçamento são convertidas automaticamente para Organização, sem apagar os demais atalhos.
+
 ## 2026-09-17 — Organiza 0.7.0, rotina financeira e experiência revisada
 
 - Dashboard reorganizado com saldo confirmado, evolução interativa de seis meses, lista de pendências e previsão de fechamento.

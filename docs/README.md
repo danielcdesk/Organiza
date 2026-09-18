@@ -19,6 +19,7 @@ Este diretório concentra as decisões de produto, regras financeiras, qualidade
 
 ## Releases
 
+- [Organiza 0.7.1](releases/v0.7.1.md)
 - [Organiza 0.7.0](releases/v0.7.0.md)
 - [Organiza 0.6.1](releases/v0.6.1.md)
 - [Organiza 0.6.0](releases/v0.6.0.md)

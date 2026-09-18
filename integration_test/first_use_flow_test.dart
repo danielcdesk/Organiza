@@ -164,7 +164,7 @@ void main() {
       File('${output.path}/organiza-investments.png'),
     );
 
-    await tester.tap(find.text('Orçamento').first);
+    await tester.tap(find.text('Organização').first);
     await tester.pumpAndSettle();
     expect(find.text('Planejamento e orçamento'), findsOneWidget);
     expect(find.text('Alimentação'), findsWidgets);
@@ -264,7 +264,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(store.subscriptions.single.isActive, isTrue);
 
-    await tester.tap(find.text('Planejamento').first);
+    await tester.tap(find.text('Organização').first);
     await tester.pumpAndSettle();
     expect(find.text('Salário identificado no mês'), findsOneWidget);
     expect(find.text('Distribuição sugerida'), findsOneWidget);
@@ -361,7 +361,7 @@ void main() {
     await tester.tap(find.byTooltip('Abrir navegação'));
     await tester.pumpAndSettle();
     expect(find.text('ORGANIZAÇÃO'), findsOneWidget);
-    expect(find.text('Orçamento'), findsOneWidget);
+    expect(find.text('Organização'), findsOneWidget);
     await _saveScreenshot(
         screenshotKey, File('${output.path}/organiza-mobile-drawer.png'));
     await tester.tap(find.descendant(

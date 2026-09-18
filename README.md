@@ -14,7 +14,7 @@
   <img alt="Windows" src="https://img.shields.io/badge/Windows-10%2F11-0078D4?logo=windows11&logoColor=white">
   <img alt="Android" src="https://img.shields.io/badge/Android-APK-3DDC84?logo=android&logoColor=white">
   <img alt="SQLite" src="https://img.shields.io/badge/SQLite-local-003B57?logo=sqlite&logoColor=white">
-  <img alt="Versão" src="https://img.shields.io/badge/versao-0.7.0-B85A3B">
+  <img alt="Versão" src="https://img.shields.io/badge/versao-0.7.1-B85A3B">
   <img alt="Desenvolvido com apoio de IA" src="https://img.shields.io/badge/desenvolvimento-assistido%20por%20IA-6E56CF?logo=openai&logoColor=white">
 </p>
 
@@ -29,8 +29,9 @@ O **Organiza** reúne contas, lançamentos, cartões, orçamentos, assinaturas, 
 
 ## ✨ Destaques
 
-### Novo na versão 0.7.0
+### Novo na versão 0.7.1
 
+- **Organização sem duplicidade:** Planejamento e Orçamento agora usam um único acesso, **Organização**, no menu do desktop e do celular. Atalhos antigos de orçamento são convertidos automaticamente para a área unificada.
 - **Visão geral orientada à ação:** evolução interativa de seis meses, pendências ordenadas por vencimento, previsão de fechamento e categorias próximas do limite.
 - **Pagamentos com controle:** confirmação de pagamento/recebimento com opção de desfazer; edição de valor e descrição de uma ocorrência sem recriar o lançamento.
 - **Histórico contextual:** filtros de mês, conta, tipo, status e texto; ordenação por data ou valor; os totais acompanham os filtros e consideram apenas valores confirmados.
@@ -114,13 +115,13 @@ O **Organiza** reúne contas, lançamentos, cartões, orçamentos, assinaturas, 
 
 ### ✅ Android: instalar o aplicativo
 
-[Baixe o APK Android 0.7.0](https://github.com/danielcdesk/Organiza/releases/download/v0.7.0/Organiza-Android-0.7.0.apk), copie-o para o celular e abra-o pelo gerenciador de arquivos. O Android pode pedir autorização para instalar apps dessa origem. Após a instalação, abra **Organiza**; não é necessário criar conta nem ter internet. Atualizações usam a mesma chave de release.
+[Baixe o APK Android 0.7.1](https://github.com/danielcdesk/Organiza/releases/download/v0.7.1/Organiza-Android-0.7.1.apk), copie-o para o celular e abra-o pelo gerenciador de arquivos. O Android pode pedir autorização para instalar apps dessa origem. Após a instalação, abra **Organiza**; não é necessário criar conta nem ter internet. Atualizações usam a mesma chave de release.
 
 O APK contém todos os módulos, com menu lateral dividido por áreas, quatro atalhos configuráveis em Configurações e botão central de nova transação. Esta versão foi compilada para Android; **não há pacote iOS**, pois a compilação e assinatura para iPhone exigem macOS e a toolchain da Apple.
 
 ### ✅ Windows: baixar e executar
 
-[Baixe o pacote Windows 0.7.0](https://github.com/danielcdesk/Organiza/releases/download/v0.7.0/Organiza-Windows-0.7.0.zip), extraia a pasta inteira e abra `organiza.exe`. Não mova apenas o executável: os arquivos distribuídos ao lado dele são necessários.
+[Baixe o pacote Windows 0.7.1](https://github.com/danielcdesk/Organiza/releases/download/v0.7.1/Organiza-Windows-0.7.1.zip), extraia a pasta inteira e abra `organiza.exe`. Não mova apenas o executável: os arquivos distribuídos ao lado dele são necessários.
 
 ### ✅ Requisitos para desenvolver
 
@@ -158,11 +159,11 @@ flutter test
 flutter test integration_test -d windows
 ```
 
-Na versão 0.7.0, a previsão do dashboard usa o saldo atual e as receitas/despesas pendentes registradas até o fim do mês, incluindo atrasos. Transferências não alteram a previsão consolidada. Assinaturas, faturas e salários ainda não lançados não entram nesse cálculo. A edição de lançamentos altera somente a ocorrência selecionada, preservando as próximas parcelas e recorrências.
+Na versão 0.7.1, a previsão do dashboard usa o saldo atual e as receitas/despesas pendentes registradas até o fim do mês, incluindo atrasos. Transferências não alteram a previsão consolidada. Assinaturas, faturas e salários ainda não lançados não entram nesse cálculo. A edição de lançamentos altera somente a ocorrência selecionada, preservando as próximas parcelas e recorrências.
 
 A taxa de investimento informada pelo usuário continua separada da variação acumulada simples. Não há crédito automático de rendimentos ou consulta de cotações. O salário recorrente gera uma ocorrência pendente no dia cadastrado, para confirmação manual.
 
-Validação da versão 0.7.0: análise estática e **41 testes Flutter** aprovados, cobrindo previsão, edição, desfazer, filtros, preferências, migrações e navegação móvel. Consulte as [notas da versão](docs/releases/v0.7.0.md) para evidências dos pacotes. A validação do layout compacto no Windows não substitui instalação e teste em Android físico.
+Validação da versão 0.7.1: análise estática, **41 testes Flutter** e os dois fluxos de integração Windows aprovados, cobrindo a área unificada, previsão, edição, desfazer, filtros, preferências, migrações e navegação móvel. Consulte as [notas da versão](docs/releases/v0.7.1.md) para evidências dos pacotes. A validação do layout compacto no Windows não substitui instalação e teste em Android físico.
 
 Consulte o [estado conhecido como bom](docs/known_good_state.md) e a [estratégia de testes](docs/testing_strategy.md) para os contratos de regressão.
 

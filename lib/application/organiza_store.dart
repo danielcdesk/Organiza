@@ -653,12 +653,13 @@ class OrganizaStore extends ChangeNotifier {
   }
 
   void updateMobileQuickPages(List<int> pages) {
-    if (pages.length != 4 ||
-        pages.toSet().length != 4 ||
-        pages.any((item) => item < 0 || item > 11 || item == 9)) {
+    final normalized = pages.map((item) => item == 4 ? 6 : item).toList();
+    if (normalized.length != 4 ||
+        normalized.toSet().length != 4 ||
+        normalized.any((item) => item < 0 || item > 11 || item == 9)) {
       throw ArgumentError('Escolha quatro atalhos diferentes.');
     }
-    _repository.saveMobileQuickPages(pages);
+    _repository.saveMobileQuickPages(normalized);
     reload();
   }
 

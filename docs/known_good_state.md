@@ -1,5 +1,14 @@
 # Estado conhecido como bom
 
+## 2026-09-18 — Organiza 0.7.1
+
+- Planejamento e Orçamento têm um único ponto de entrada, Organização, tanto na barra lateral desktop quanto no menu móvel.
+- Resultados de busca e atalhos rápidos usam a área unificada; um atalho antigo de Orçamento é convertido automaticamente e sem duplicar os demais atalhos.
+- `flutter analyze --no-pub`, 41 testes Flutter e dois fluxos de integração Windows foram aprovados.
+- Distribuição conferida: ZIP Windows com executável e DLLs necessárias (SHA-256 `3EE3979835580CFE15392A26980F5880A37168E8F56EEC8B748D3761FDC9B650`) e APK 0.7.1+10 com assinatura APK v2 válida (SHA-256 `FE217D8BCCAA5EE0A107EF461765A8ED2772EE06EDC077BC7F238808008CDBF7`).
+
+Pacotes e verificações de distribuição: [notas 0.7.1](releases/v0.7.1.md).
+
 ## 2026-09-17 — Organiza 0.7.0
 
 - Análise estática sem problemas e 41 testes Flutter aprovados.

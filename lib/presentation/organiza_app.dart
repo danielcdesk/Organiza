@@ -91,7 +91,7 @@ class _OrganizaShellState extends State<OrganizaShell> {
     _PageDefinition('Cartões', Icons.credit_card_outlined),
     _PageDefinition('Orçamento', Icons.donut_large_outlined),
     _PageDefinition('Investimentos', Icons.show_chart_outlined),
-    _PageDefinition('Planejamento', Icons.checklist_rounded),
+    _PageDefinition('Organização', Icons.dashboard_customize_outlined),
     _PageDefinition('Metas', Icons.flag_outlined),
     _PageDefinition('Relatórios', Icons.bar_chart_rounded),
     _PageDefinition('Configurações', Icons.tune_rounded),
@@ -272,7 +272,7 @@ class _OrganizaShellState extends State<OrganizaShell> {
                   child: ListView(children: [
                 _mobileDrawerSection('INÍCIO', [0]),
                 _mobileDrawerSection('FINANÇAS', [1, 2, 3, 5, 10]),
-                _mobileDrawerSection('ORGANIZAÇÃO', [6, 4, 7, 11]),
+                _mobileDrawerSection('ORGANIZAÇÃO', [6, 7, 11]),
                 _mobileDrawerSection('ANÁLISE', [8]),
                 _mobileDrawerSection('PREFERÊNCIAS', [9]),
               ])),
@@ -331,7 +331,7 @@ class _OrganizaShellState extends State<OrganizaShell> {
   String _mobileNavLabel(int page) => switch (page) {
         0 => 'Início',
         5 => 'Investir',
-        6 => 'Planejar',
+        6 => 'Organizar',
         11 => 'Desejos',
         _ => _pages[page].label,
       };
@@ -364,7 +364,7 @@ class _OrganizaShellState extends State<OrganizaShell> {
             onNewTask: _openTaskDialog,
             onDeleteTask: _deleteTask,
             onOpenCards: () => setState(() => _page = 3),
-            onOpenBudgets: () => setState(() => _page = 4),
+            onOpenBudgets: () => setState(() => _page = 6),
             onOpenSubscriptions: () => setState(() => _page = 10),
             onOpenTransactions: () => setState(() => _page = 1),
             onNewAccount: _openAccountDialog,
@@ -1013,7 +1013,7 @@ class _Sidebar extends StatelessWidget {
                 _label('FINANÇAS'),
                 _section(context, [1, 2, 3, 5, 10]),
                 _label('ORGANIZAÇÃO'),
-                _section(context, [6, 4, 7, 11]),
+                _section(context, [6, 7, 11]),
                 _label('ANÁLISE'),
                 _section(context, [8]),
               ])),
@@ -1363,7 +1363,7 @@ class _SearchDialogState extends State<_SearchDialog> {
     for (final budget in widget.store.budgets) {
       if (budget.category.toLowerCase().contains(_query)) {
         results.add(_SearchResult(Icons.track_changes_rounded, budget.category,
-            'Orçamento mensal', 4));
+            'Orçamento mensal', 6));
       }
     }
     for (final goal in widget.store.financialGoals) {

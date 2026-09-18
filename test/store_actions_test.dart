@@ -66,7 +66,7 @@ void main() {
     expect(store.balance, 15000);
     expect(store.transactions.length, 1);
     store.updateMobileQuickPages([0, 1, 4, 7]);
-    expect(store.mobileQuickPages, [0, 1, 4, 7]);
+    expect(store.mobileQuickPages, [0, 1, 6, 7]);
   });
 
   test('assinatura pode ser editada, pausada e reativada', () {
