@@ -1,13 +1,15 @@
 name: organiza
 description: Organizador pessoal local-first para Windows e Android.
 publish_to: none
-version: 0.6.1+8
+version: 0.7.0+9
 
 environment:
   sdk: '>=3.4.0 <4.0.0'
 
 dependencies:
   flutter:
+    sdk: flutter
+  flutter_localizations:
     sdk: flutter
   sqlite3: ^3.5.2
   path: ^1.9.0

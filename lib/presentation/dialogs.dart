@@ -11,6 +11,70 @@ class AccountInput {
   final AccountInstitution institution;
 }
 
+class TransactionEditDialog extends StatefulWidget {
+  const TransactionEditDialog({super.key, required this.item});
+  final TransactionRecord item;
+  @override
+  State<TransactionEditDialog> createState() => _TransactionEditDialogState();
+}
+
+class _TransactionEditDialogState extends State<TransactionEditDialog> {
+  late final _amount = TextEditingController(
+      text: (widget.item.amountInCents / 100)
+          .toStringAsFixed(2)
+          .replaceAll('.', ','));
+  late final _description =
+      TextEditingController(text: widget.item.description);
+  String? _error;
+  @override
+  void dispose() {
+    _amount.dispose();
+    _description.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        title: const Text('Editar lançamento'),
+        content: SizedBox(
+            width: 420,
+            child: SingleChildScrollView(
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Text(widget.item.seriesId == null
+                  ? 'O saldo e os relatórios serão recalculados.'
+                  : 'A alteração vale só para esta ocorrência. As próximas parcelas ou salários mantêm os valores cadastrados.'),
+              const SizedBox(height: 18),
+              TextField(
+                  controller: _amount,
+                  autofocus: true,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(labelText: 'Valor (R\$)')),
+              const SizedBox(height: 14),
+              TextField(
+                  controller: _description,
+                  decoration:
+                      const InputDecoration(labelText: 'Descrição (opcional)')),
+              _DialogError(_error),
+            ]))),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancelar')),
+          FilledButton(
+              onPressed: () {
+                final cents = parseMoney(_amount.text);
+                if (cents == null || cents <= 0 || cents >= 100000000000) {
+                  setState(() => _error = 'Informe um valor válido.');
+                  return;
+                }
+                Navigator.pop(context, (cents, _description.text));
+              },
+              child: const Text('Salvar alteração'))
+        ],
+      );
+}
+
 class AccountDialog extends StatefulWidget {
   const AccountDialog({super.key});
 
@@ -1923,6 +1987,11 @@ class _DialogError extends StatelessWidget {
 int? parseMoney(String raw) {
   final normalized = raw.trim().replaceAll('.', '').replaceAll(',', '.');
   final value = double.tryParse(normalized);
-  if (value == null || value.isNegative || value > 1000000000) return null;
+  if (value == null ||
+      !value.isFinite ||
+      value.isNegative ||
+      value > 1000000000) {
+    return null;
+  }
   return (value * 100).round();
 }

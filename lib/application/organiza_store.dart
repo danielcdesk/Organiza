@@ -40,6 +40,19 @@ class OrganizaStore extends ChangeNotifier {
   List<String> goalCategories = [];
   List<int> mobileQuickPages = [0, 1, 6, 8];
   SalaryAllocation salaryAllocation = SalaryAllocation.defaults;
+  String get themePreference => _repository.loadPreference('theme') ?? 'light';
+  bool get hideValuesPreference =>
+      _repository.loadPreference('hide_values') == 'true';
+
+  void saveThemePreference(String value) {
+    if (!const ['light', 'dark', 'system'].contains(value)) {
+      throw ArgumentError('Tema inválido.');
+    }
+    _repository.savePreference('theme', value);
+  }
+
+  void saveHideValuesPreference(bool value) =>
+      _repository.savePreference('hide_values', value.toString());
 
   static Future<OrganizaStore> create() async {
     final store = OrganizaStore._(await LocalRepository.open());
@@ -575,6 +588,17 @@ class OrganizaStore extends ChangeNotifier {
       throw ArgumentError('Salário recorrente não encontrado.');
     }
     _repository.deleteSalarySchedule(id);
+    reload();
+  }
+
+  void updateTransactionDetails(String id, int cents, String description) {
+    final item = transactions.where((item) => item.id == id).firstOrNull;
+    if (item == null) throw ArgumentError('Lançamento não encontrado.');
+    if (!FinancialRules.isValidAmount(cents)) {
+      throw ArgumentError('Informe um valor válido.');
+    }
+    _repository.updateTransactionDetails(id, cents,
+        description.trim().isEmpty ? item.category : description.trim());
     reload();
   }
 

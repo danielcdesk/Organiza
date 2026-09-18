@@ -15,6 +15,7 @@ class TransactionsPage extends StatefulWidget {
     required this.onAdd,
     required this.onDelete,
     required this.onSettledChanged,
+    this.onEdit,
   });
 
   final OrganizaStore store;
@@ -22,6 +23,7 @@ class TransactionsPage extends StatefulWidget {
   final VoidCallback onAdd;
   final ValueChanged<String> onDelete;
   final void Function(String id, bool value) onSettledChanged;
+  final ValueChanged<TransactionRecord>? onEdit;
 
   @override
   State<TransactionsPage> createState() => _TransactionsPageState();
@@ -31,30 +33,158 @@ class _TransactionsPageState extends State<TransactionsPage> {
   TransactionType? _filter;
   var _query = '';
   var _pendingOnly = false;
+  DateTime? _month = DateTime(DateTime.now().year, DateTime.now().month);
+  String? _accountId;
+  bool _largestFirst = false;
+  int _visibleCount = 50;
+  final _search = TextEditingController();
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  void _resetFilters() => setState(() {
+        _filter = null;
+        _query = '';
+        _search.clear();
+        _pendingOnly = false;
+        _accountId = null;
+        _largestFirst = false;
+        _visibleCount = 50;
+        _month = DateTime(DateTime.now().year, DateTime.now().month);
+      });
 
   @override
   Widget build(BuildContext context) {
     final filtered = widget.store.transactions.where((item) {
       final matchesType = _filter == null || item.type == _filter;
       final matchesStatus = !_pendingOnly || !item.isSettled;
+      final matchesMonth = _month == null ||
+          (item.occurredOn.year == _month!.year &&
+              item.occurredOn.month == _month!.month);
+      final matchesAccount = _accountId == null ||
+          item.accountId == _accountId ||
+          item.destinationAccountId == _accountId;
       final needle = _query.toLowerCase();
       final matchesQuery = needle.isEmpty ||
           item.description.toLowerCase().contains(needle) ||
           item.category.toLowerCase().contains(needle) ||
           item.subcategory.toLowerCase().contains(needle);
-      return matchesType && matchesStatus && matchesQuery;
-    }).toList();
+      return matchesType &&
+          matchesStatus &&
+          matchesQuery &&
+          matchesMonth &&
+          matchesAccount;
+    }).toList()
+      ..sort((a, b) => _largestFirst
+          ? b.amountInCents.compareTo(a.amountInCents)
+          : b.occurredOn.compareTo(a.occurredOn));
     return _Page(
       heading: PageHeading(
         eyebrow: 'Bancos e carteiras',
         title: 'Movimentações',
-        description: 'Explore seu fluxo por tipo, categoria e descrição.',
+        description: 'Encontre cada lançamento. Entenda cada movimento.',
         actions: [_primaryAction('Nova transação', widget.onAdd)],
       ),
       content: Column(
         children: [
           _TransactionFlowSummary(
-              store: widget.store, hideValues: widget.hideValues),
+              transactions: filtered, hideValues: widget.hideValues),
+          const SizedBox(height: 16),
+          LayoutBuilder(
+              builder: (context, constraints) => Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        SizedBox(
+                            width: constraints.maxWidth < 540
+                                ? constraints.maxWidth
+                                : 300,
+                            child: Row(children: [
+                              IconButton(
+                                  tooltip: 'Mês anterior',
+                                  onPressed: () => setState(() {
+                                        final current =
+                                            _month ?? DateTime.now();
+                                        _month = DateTime(
+                                            current.year, current.month - 1);
+                                      }),
+                                  icon: const Icon(Icons.chevron_left_rounded)),
+                              Expanded(
+                                  child: TextButton(
+                                      onPressed: () async {
+                                        final date = await showDatePicker(
+                                            context: context,
+                                            initialDate:
+                                                _month ?? DateTime.now(),
+                                            firstDate: DateTime(2000),
+                                            lastDate: DateTime(2100, 12, 31),
+                                            helpText:
+                                                'Escolha uma data do mês desejado');
+                                        if (date != null) {
+                                          setState(() => _month =
+                                              DateTime(date.year, date.month));
+                                        }
+                                      },
+                                      child: Text(_month == null
+                                          ? 'Todo o histórico'
+                                          : '${sentenceCase(monthName(_month!.month))} ${_month!.year}'))),
+                              IconButton(
+                                  tooltip: 'Próximo mês',
+                                  onPressed: () => setState(() {
+                                        final current =
+                                            _month ?? DateTime.now();
+                                        _month = DateTime(
+                                            current.year, current.month + 1);
+                                      }),
+                                  icon:
+                                      const Icon(Icons.chevron_right_rounded)),
+                            ])),
+                        SizedBox(
+                            width: constraints.maxWidth < 540
+                                ? constraints.maxWidth
+                                : 230,
+                            child: DropdownButtonFormField<String>(
+                                key: ValueKey(_accountId),
+                                initialValue: _accountId ?? '',
+                                isExpanded: true,
+                                decoration:
+                                    const InputDecoration(labelText: 'Conta'),
+                                items: [
+                                  const DropdownMenuItem(
+                                      value: '',
+                                      child: Text('Todas as contas')),
+                                  ...widget.store.accounts
+                                      .map((account) => DropdownMenuItem(
+                                          value: account.id,
+                                          child: Row(children: [
+                                            InstitutionMark(
+                                                institution:
+                                                    account.institution,
+                                                size: 22),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                                child: Text(account.name,
+                                                    overflow:
+                                                        TextOverflow.ellipsis))
+                                          ])))
+                                ],
+                                onChanged: (value) => setState(() =>
+                                    _accountId = value == '' ? null : value))),
+                        FilterChip(
+                            label: const Text('Todo o período'),
+                            selected: _month == null,
+                            onSelected: (value) => setState(() => _month = value
+                                ? null
+                                : DateTime(DateTime.now().year,
+                                    DateTime.now().month))),
+                        TextButton(
+                            onPressed: _resetFilters,
+                            child: const Text('Limpar filtros')),
+                      ])),
           const SizedBox(height: 14),
           Panel(
             title: 'Histórico',
@@ -69,6 +199,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
             child: Column(
               children: [
                 TextField(
+                  controller: _search,
                   onChanged: (value) => setState(() => _query = value.trim()),
                   decoration: const InputDecoration(
                     hintText: 'Buscar por descrição, categoria ou subcategoria',
@@ -76,6 +207,15 @@ class _TransactionsPageState extends State<TransactionsPage> {
                   ),
                 ),
                 const SizedBox(height: 12),
+                Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                        onPressed: () =>
+                            setState(() => _largestFirst = !_largestFirst),
+                        icon: const Icon(Icons.sort_rounded, size: 18),
+                        label: Text(_largestFirst
+                            ? 'Maior valor primeiro'
+                            : 'Mais recentes primeiro'))),
                 if (filtered.isEmpty)
                   EmptyState(
                     icon: Icons.receipt_long_outlined,
@@ -92,39 +232,58 @@ class _TransactionsPageState extends State<TransactionsPage> {
                         widget.store.transactions.isEmpty ? widget.onAdd : null,
                   )
                 else
-                  ...filtered.map((item) => TransactionListRow(
-                        item: item,
-                        hideValues: widget.hideValues,
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              tooltip: item.isSettled
-                                  ? 'Marcar como pendente'
-                                  : 'Marcar como pago',
-                              onPressed: () => widget.onSettledChanged(
-                                  item.id, !item.isSettled),
-                              icon: Icon(
-                                item.isSettled
-                                    ? Icons.check_circle_rounded
-                                    : Icons.schedule_rounded,
-                                size: 18,
-                                color: item.isSettled
-                                    ? const Color(0xFF258A5A)
-                                    : Theme.of(context)
-                                        .colorScheme
-                                        .onSurfaceVariant,
-                              ),
+                  ...filtered
+                      .take(_visibleCount)
+                      .map((item) => TransactionListRow(
+                            item: item,
+                            account: widget.store.accounts
+                                .where((a) => a.id == item.accountId)
+                                .firstOrNull,
+                            hideValues: widget.hideValues,
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  tooltip: item.isSettled
+                                      ? 'Marcar como pendente'
+                                      : 'Marcar como pago',
+                                  onPressed: () => widget.onSettledChanged(
+                                      item.id, !item.isSettled),
+                                  icon: Icon(
+                                    item.isSettled
+                                        ? Icons.check_circle_rounded
+                                        : Icons.schedule_rounded,
+                                    size: 18,
+                                    color: item.isSettled
+                                        ? const Color(0xFF258A5A)
+                                        : Theme.of(context)
+                                            .colorScheme
+                                            .onSurfaceVariant,
+                                  ),
+                                ),
+                                PopupMenuButton<String>(
+                                  tooltip: 'Ações do lançamento',
+                                  onSelected: (value) => value == 'edit'
+                                      ? widget.onEdit?.call(item)
+                                      : widget.onDelete(item.id),
+                                  itemBuilder: (_) => [
+                                    if (widget.onEdit != null)
+                                      const PopupMenuItem(
+                                          value: 'edit',
+                                          child: Text('Editar lançamento')),
+                                    const PopupMenuItem(
+                                        value: 'delete',
+                                        child: Text('Excluir lançamento')),
+                                  ],
+                                ),
+                              ],
                             ),
-                            IconButton(
-                              tooltip: 'Excluir lançamento',
-                              onPressed: () => widget.onDelete(item.id),
-                              icon: const Icon(Icons.delete_outline_rounded,
-                                  size: 18),
-                            ),
-                          ],
-                        ),
-                      )),
+                          )),
+                if (filtered.length > _visibleCount)
+                  TextButton(
+                      onPressed: () => setState(() => _visibleCount += 50),
+                      child: Text(
+                          'Mostrar mais (${filtered.length - _visibleCount} restantes)')),
               ],
             ),
           ),
@@ -176,38 +335,55 @@ class _TransactionFilters extends StatelessWidget {
 
 class _TransactionFlowSummary extends StatelessWidget {
   const _TransactionFlowSummary(
-      {required this.store, required this.hideValues});
-  final OrganizaStore store;
+      {required this.transactions, required this.hideValues});
+  final List<TransactionRecord> transactions;
   final bool hideValues;
   @override
   Widget build(BuildContext context) {
     String money(int value) =>
         hideValues ? '••••••' : FinancialRules.formatBrl(value);
+    final incomes = transactions
+        .where((t) => t.isSettled && t.type == TransactionType.income)
+        .fold(0, (sum, t) => sum + t.amountInCents);
+    final expenses = transactions
+        .where((t) => t.isSettled && t.type == TransactionType.expense)
+        .fold(0, (sum, t) => sum + t.amountInCents);
+    final metrics = [
+      _FlowMetric(
+          label: 'Recebido no filtro',
+          value: money(incomes),
+          color: const Color(0xFF258A5A),
+          icon: Icons.south_west_rounded),
+      _FlowMetric(
+          label: 'Pago no filtro',
+          value: money(expenses),
+          color: const Color(0xFFC94D4D),
+          icon: Icons.north_east_rounded),
+      _FlowMetric(
+          label: 'Resultado',
+          value: money(incomes - expenses),
+          color: Theme.of(context).colorScheme.primary,
+          icon: Icons.account_balance_outlined),
+    ];
     return Card(
         child: Padding(
             padding: const EdgeInsets.all(20),
-            child: Row(children: [
-              Expanded(
-                  child: _FlowMetric(
-                      label: 'Entradas no mês',
-                      value: money(store.incomes),
-                      color: const Color(0xFF258A5A),
-                      icon: Icons.south_west_rounded)),
-              _FlowDivider(),
-              Expanded(
-                  child: _FlowMetric(
-                      label: 'Saídas no mês',
-                      value: money(store.expenses),
-                      color: const Color(0xFFC94D4D),
-                      icon: Icons.north_east_rounded)),
-              _FlowDivider(),
-              Expanded(
-                  child: _FlowMetric(
-                      label: 'Resultado',
-                      value: money(store.incomes - store.expenses),
-                      color: Theme.of(context).colorScheme.primary,
-                      icon: Icons.account_balance_outlined)),
-            ])));
+            child: LayoutBuilder(builder: (context, constraints) {
+              if (constraints.maxWidth < 450) {
+                return Column(children: [
+                  for (var i = 0; i < metrics.length; i++) ...[
+                    metrics[i],
+                    if (i < metrics.length - 1) const SizedBox(height: 16),
+                  ]
+                ]);
+              }
+              return Row(children: [
+                for (var i = 0; i < metrics.length; i++) ...[
+                  Expanded(child: metrics[i]),
+                  if (i < metrics.length - 1) _FlowDivider(),
+                ]
+              ]);
+            })));
   }
 }
 
@@ -281,35 +457,103 @@ class AccountsPage extends StatelessWidget {
                   actionLabel: 'Nova conta',
                   onAction: onAdd,
                 )
-              : Column(
-                  children: store.accounts.map((account) {
-                    return DataListRow(
-                      icon: Icons.account_balance_outlined,
-                      leading:
-                          InstitutionMark(institution: account.institution),
-                      title: account.name,
-                      subtitle: institutionName(account.institution),
-                      value: hideValues
-                          ? '••••••'
-                          : FinancialRules.formatBrl(
-                              FinancialRules.accountBalance(
-                                  account, store.transactions),
-                            ),
-                      trailing: PopupMenuButton<String>(
-                        tooltip: 'Ações da conta',
-                        onSelected: (action) => action == 'balance'
-                            ? onEditBalance(account.id)
-                            : onDelete(account.id),
-                        itemBuilder: (_) => const [
-                          PopupMenuItem(
-                              value: 'balance', child: Text('Editar saldo')),
-                          PopupMenuItem(
-                              value: 'delete', child: Text('Excluir conta')),
-                        ],
-                      ),
-                    );
-                  }).toList(),
-                ),
+              : LayoutBuilder(builder: (context, constraints) {
+                  final columns = constraints.maxWidth > 950
+                      ? 3
+                      : constraints.maxWidth > 620
+                          ? 2
+                          : 1;
+                  return Wrap(
+                      spacing: 16,
+                      runSpacing: 16,
+                      children: store.accounts.map((account) {
+                        final transactions = store.transactions
+                            .where((t) =>
+                                t.accountId == account.id ||
+                                t.destinationAccountId == account.id)
+                            .toList();
+                        final pending =
+                            transactions.where((t) => !t.isSettled).length;
+                        return SizedBox(
+                            width: (constraints.maxWidth - 16 * (columns - 1)) /
+                                columns,
+                            child: Container(
+                                padding: const EdgeInsets.all(20),
+                                decoration: BoxDecoration(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .surfaceContainerLow,
+                                    borderRadius: BorderRadius.circular(18),
+                                    border: Border.all(
+                                        color: Theme.of(context).dividerColor)),
+                                child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(children: [
+                                        InstitutionMark(
+                                            institution: account.institution,
+                                            size: 44),
+                                        const Spacer(),
+                                        PopupMenuButton<String>(
+                                            tooltip: 'Ações da conta',
+                                            onSelected: (action) =>
+                                                action == 'balance'
+                                                    ? onEditBalance(account.id)
+                                                    : onDelete(account.id),
+                                            itemBuilder: (_) => const [
+                                                  PopupMenuItem(
+                                                      value: 'balance',
+                                                      child:
+                                                          Text('Editar saldo')),
+                                                  PopupMenuItem(
+                                                      value: 'delete',
+                                                      child: Text(
+                                                          'Excluir conta')),
+                                                ]),
+                                      ]),
+                                      const SizedBox(height: 20),
+                                      Text(account.name,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .titleMedium),
+                                      Text(institutionName(account.institution),
+                                          style: TextStyle(
+                                              fontSize: 12,
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .onSurfaceVariant)),
+                                      const SizedBox(height: 18),
+                                      Text(
+                                          hideValues
+                                              ? '••••••'
+                                              : FinancialRules.formatBrl(
+                                                  FinancialRules.accountBalance(
+                                                      account,
+                                                      store.transactions)),
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .headlineSmall
+                                              ?.copyWith(
+                                                  fontWeight: FontWeight.w700)),
+                                      const SizedBox(height: 16),
+                                      Text(
+                                          '${transactions.length} lançamentos · $pending pendentes',
+                                          style: TextStyle(
+                                              fontSize: 12,
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .onSurfaceVariant)),
+                                      const SizedBox(height: 8),
+                                      TextButton.icon(
+                                          onPressed: () =>
+                                              onEditBalance(account.id),
+                                          icon: const Icon(Icons.tune_rounded,
+                                              size: 17),
+                                          label: const Text('Ajustar saldo')),
+                                    ])));
+                      }).toList());
+                }),
         ),
       );
 }
@@ -667,10 +911,12 @@ class SettingsPage extends StatelessWidget {
   const SettingsPage(
       {super.key,
       required this.onThemeChanged,
+      this.themePreference = 'light',
       required this.quickPages,
       required this.onQuickPagesChanged});
 
   final ValueChanged<ThemeMode> onThemeChanged;
+  final String themePreference;
   final List<int> quickPages;
   final ValueChanged<List<int>> onQuickPagesChanged;
   static const _quickLabels = <int, String>{
@@ -761,7 +1007,7 @@ class SettingsPage extends StatelessWidget {
               title: 'Privacidade',
               child: DataListRow(
                 icon: Icons.shield_outlined,
-                title: 'Dados somente neste computador',
+                title: 'Dados somente neste dispositivo',
                 subtitle: 'Sem login online, analytics ou telemetria.',
                 value: 'Local',
               ),
@@ -773,7 +1019,8 @@ class SettingsPage extends StatelessWidget {
   Widget _themeButton(IconData icon, String label, ThemeMode mode) =>
       OutlinedButton.icon(
         onPressed: () => onThemeChanged(mode),
-        icon: Icon(icon),
+        icon: Icon(
+            themePreference == mode.name ? Icons.check_circle_outline : icon),
         label: Text(label),
       );
 }

@@ -635,6 +635,16 @@ class AppDatabase {
     return parsed.cast<int>();
   }
 
+  String? loadPreference(String key) {
+    final rows =
+        _database.select('SELECT value FROM app_settings WHERE key = ?', [key]);
+    return rows.isEmpty ? null : rows.first['value'] as String;
+  }
+
+  void savePreference(String key, String value) => _database.execute(
+      'INSERT OR REPLACE INTO app_settings(key, value) VALUES (?, ?)',
+      [key, value]);
+
   void saveMobileQuickPages(List<int> pages) => _database.execute(
       "INSERT OR REPLACE INTO app_settings(key, value) VALUES ('mobile_quick_pages', ?)",
       [pages.join(',')]);
@@ -883,6 +893,11 @@ class AppDatabase {
         'UPDATE transactions SET is_settled = ? WHERE id = ?',
         [value ? 1 : 0, id],
       );
+
+  void updateTransactionDetails(String id, int cents, String description) =>
+      _database.execute(
+          'UPDATE transactions SET amount_cents = ?, description = ? WHERE id = ?',
+          [cents, description, id]);
 
   void insertBudget(Budget budget) => _database.execute(
         '''INSERT INTO budgets(id, category, limit_cents, year, month, created_at)

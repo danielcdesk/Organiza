@@ -1,5 +1,17 @@
 # Registro de mudanças
 
+## 2026-09-17 — Organiza 0.7.0, rotina financeira e experiência revisada
+
+- Dashboard reorganizado com saldo confirmado, evolução interativa de seis meses, lista de pendências e previsão de fechamento.
+- Pendências podem ser confirmadas com diálogo e desfeitas; atrasos recebem destaque.
+- Limites mensais próximos do esgotamento ficam visíveis na visão geral; calendário de pagamentos passa a ser expansível.
+- Histórico ganhou filtro por conta e mês, visão de todo o período, ordenação por valor/data, carregamento de 50 linhas por vez e totais sincronizados aos filtros.
+- Valor e descrição de lançamentos podem ser editados, preservando identidade, competência, conta, status e recorrência. A alteração é individual.
+- Contas passaram a ter cards com ícone, saldo, quantidade de lançamentos, pendências e ajuste de saldo.
+- Tema e ocultação de valores são persistidos em app_settings; componentes nativos agora usam pt-BR.
+- Melhorias de contraste de chips, cabeçalhos móveis, linhas de transação, rolagem da sidebar e respeito ao movimento reduzido nas novas animações.
+- Validação de moeda rejeita NaN; valores e séries existentes mantêm o schema 11.
+
 ## 2026-09-17 — Organiza 0.6.1, acabamento editorial e navegação refinada
 
 - Tema claro passou a usar uma base mais quente e suave, com contraste pensado para leitura financeira prolongada.

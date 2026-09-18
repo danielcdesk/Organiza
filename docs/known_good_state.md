@@ -1,5 +1,17 @@
 # Estado conhecido como bom
 
+## 2026-09-17 — Organiza 0.7.0
+
+- Análise estática sem problemas e 41 testes Flutter aprovados.
+- Dois fluxos integrados Windows aprovados em 1366×768 e 390×844; capturas reais revisadas para dashboard claro/escuro, contas, histórico e histórico móvel.
+- Previsão exclui transferências e registros confirmados; inclui atrasos e limita o horizonte ao fim do mês.
+- Confirmação/desfazer e edição individual preservam a coerência do saldo; edição de transferência não altera o total consolidado.
+- Tema e ocultação persistem em app_settings. Schema 11 mantido, sem migração destrutiva.
+- Componentes Flutter localizados para pt-BR. Layout móvel validado em testes; instalação em Android físico ainda não verificada.
+- Pacotes de distribuição conferidos: ZIP Windows com executável e DLLs necessárias (SHA-256 `7456EDEB38F8B66B68B28627456ECDF9A866EBA8561F416A07F635E4E4FDBA57`) e APK 0.7.0+9 assinado por APK Signature Scheme v2 (SHA-256 `58118431D6874A19355E410C50BC4E53731F7F1CF3ECC44C344414247473792A`).
+
+Pacotes e verificações de distribuição: [notas 0.7.0](releases/v0.7.0.md).
+
 ## 2026-09-17 — Organiza 0.6.1
 
 Branch de publicação: `main`. Fontes locais analisadas e testadas antes do release.

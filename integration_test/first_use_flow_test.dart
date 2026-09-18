@@ -99,19 +99,28 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Resumo financeiro'), findsOneWidget);
-    expect(find.text('Calendário de pagamentos'), findsOneWidget);
+    expect(find.text('Seu dinheiro no tempo'), findsOneWidget);
     expect(tester.takeException(), isNull);
     final output = Directory('build/qa')..createSync(recursive: true);
     await _saveScreenshot(
       screenshotKey,
       File('${output.path}/organiza-dashboard.png'),
     );
+    await tester.scrollUntilVisible(find.text('Calendário de pagamentos'), 380,
+        scrollable: find.byType(Scrollable).last);
+    await tester.tap(find.text('Calendário de pagamentos'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    await _saveScreenshot(
+        screenshotKey, File('${output.path}/organiza-dashboard-agenda.png'));
 
     await tester.tap(find.text('Finanças').first);
     await tester.pumpAndSettle();
     expect(find.text('Movimentações'), findsOneWidget);
     expect(find.text('Despesas do mês'), findsWidgets);
     expect(tester.takeException(), isNull);
+    await _saveScreenshot(
+        screenshotKey, File('${output.path}/organiza-transactions.png'));
 
     await tester.tap(find.text('Nova transação'));
     await tester.pumpAndSettle();
@@ -311,6 +320,15 @@ void main() {
       screenshotKey,
       File('${output.path}/organiza-goals.png'),
     );
+    await tester.tap(find.byTooltip('Tema'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Escuro'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Visão geral').first);
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    await _saveScreenshot(
+        screenshotKey, File('${output.path}/organiza-dashboard-dark.png'));
   });
 
   testWidgets('layout compacto exibe nova transação e navegação agrupada',
@@ -340,12 +358,18 @@ void main() {
     final output = Directory('build/qa')..createSync(recursive: true);
     await _saveScreenshot(
         screenshotKey, File('${output.path}/organiza-mobile-dashboard.png'));
-    await tester.tap(find.byTooltip('Open navigation menu'));
+    await tester.tap(find.byTooltip('Abrir navegação'));
     await tester.pumpAndSettle();
     expect(find.text('ORGANIZAÇÃO'), findsOneWidget);
     expect(find.text('Orçamento'), findsOneWidget);
     await _saveScreenshot(
         screenshotKey, File('${output.path}/organiza-mobile-drawer.png'));
+    await tester.tap(find.descendant(
+        of: find.byType(Drawer), matching: find.text('Finanças')));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    await _saveScreenshot(
+        screenshotKey, File('${output.path}/organiza-mobile-transactions.png'));
   });
 }
 

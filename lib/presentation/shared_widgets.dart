@@ -55,14 +55,18 @@ class PageHeading extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 6),
-                        Text(
+                        Flexible(
+                            child: Text(
                           eyebrow,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
                           ),
-                        ),
+                        )),
                       ],
                     ),
                   ),
@@ -355,44 +359,81 @@ class DataListRow extends StatelessWidget {
           border:
               Border(bottom: BorderSide(color: Theme.of(context).dividerColor)),
         ),
-        child: Row(
-          children: [
-            leading ?? IconTile(icon: icon, color: iconColor),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
+        child: LayoutBuilder(builder: (context, constraints) {
+          if (constraints.maxWidth < 460) {
+            return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      fontSize: 13,
+                  Row(children: [
+                    leading ?? IconTile(icon: icon, color: iconColor),
+                    const SizedBox(width: 12),
+                    Expanded(
+                        child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                          Text(title,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w600)),
+                          const SizedBox(height: 4),
+                          Text(value,
+                              style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  color: valueColor)),
+                        ])),
+                    if (trailing != null) trailing!,
+                  ]),
+                  const SizedBox(height: 7),
+                  Text(subtitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 12,
+                          color:
+                              Theme.of(context).colorScheme.onSurfaceVariant)),
+                ]);
+          }
+          return Row(
+            children: [
+              leading ?? IconTile(icon: icon, color: iconColor),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Text(
-              value,
-              style: TextStyle(fontWeight: FontWeight.w700, color: valueColor),
-            ),
-            if (trailing != null) ...[
-              const SizedBox(width: 6),
-              trailing!,
+              const SizedBox(width: 12),
+              Text(
+                value,
+                style:
+                    TextStyle(fontWeight: FontWeight.w700, color: valueColor),
+              ),
+              if (trailing != null) ...[
+                const SizedBox(width: 6),
+                trailing!,
+              ],
             ],
-          ],
-        ),
+          );
+        }),
       );
 }
 
@@ -402,9 +443,11 @@ class TransactionListRow extends StatelessWidget {
     required this.item,
     required this.hideValues,
     this.trailing,
+    this.account,
   });
 
   final TransactionRecord item;
+  final Account? account;
   final bool hideValues;
   final Widget? trailing;
 
@@ -419,21 +462,23 @@ class TransactionListRow extends StatelessWidget {
             : OrganizaTheme.red;
     final schedule = switch (item.scheduleType) {
       TransactionScheduleType.single => 'Único',
-      TransactionScheduleType.recurring =>
-        'Recorrente ${item.installmentNumber}/${item.installmentCount}',
+      TransactionScheduleType.recurring => 'Recorrente',
       TransactionScheduleType.installment =>
         'Parcela ${item.installmentNumber}/${item.installmentCount}',
     };
     return DataListRow(
+      leading: account == null
+          ? null
+          : InstitutionMark(institution: account!.institution),
       icon: income
           ? Icons.south_west_rounded
           : transfer
               ? Icons.swap_horiz_rounded
               : Icons.north_east_rounded,
       iconColor: color,
-      title: item.description,
+      title: item.description.isEmpty ? item.category : item.description,
       subtitle:
-          '${income ? 'Receita' : transfer ? 'Transferência' : 'Despesa'} · ${item.category} / ${item.subcategory} · $schedule · ${item.isSettled ? 'Pago' : 'Pendente'} · ${shortDate(item.occurredOn)}',
+          '${account == null ? '' : '${account!.name} · '}${item.category} / ${item.subcategory} · $schedule · ${item.isSettled ? (income ? 'Recebido' : 'Pago') : 'Pendente'} · ${shortDate(item.occurredOn)}',
       value:
           hideValues ? '••••••' : FinancialRules.formatBrl(item.amountInCents),
       valueColor: color,

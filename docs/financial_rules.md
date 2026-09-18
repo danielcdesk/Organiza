@@ -1,5 +1,14 @@
 # Regras financeiras
 
+## Previsão e edição na versão 0.7.0
+
+- A previsão de fechamento parte do saldo confirmado e soma receitas pendentes e desconta despesas pendentes até o último dia do mês, incluindo atrasos de meses anteriores.
+- Transferências entre contas próprias não alteram a previsão consolidada. Assinaturas, compras no cartão e salários de séries ainda não materializados não são somados automaticamente.
+- A agenda de pendências é ordenada por vencimento; confirmar uma ocorrência altera seu status e, consequentemente, o saldo. Desfazer devolve a ocorrência ao estado pendente.
+- Edição de valor/descrição preserva ID, conta, data, tipo, série e status. A edição não se propaga para outras parcelas ou salários.
+- Totais do histórico acompanham o filtro ativo e consideram apenas ocorrências confirmadas, com transferências fora de receitas/despesas.
+
+
 - Valores monetários são centavos inteiros; `double`, `NaN` e `Infinity` não entram no domínio.
 - Saldo de uma conta: saldo inicial + receitas pagas − despesas pagas − transferências enviadas + transferências recebidas.
 - Ajustar o saldo atual altera o saldo-base pela diferença observada; movimentações existentes permanecem no histórico e continuam a compor o saldo.

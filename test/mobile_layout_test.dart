@@ -55,11 +55,15 @@ void main() {
       'Assinaturas',
       'Lista de desejos',
     ]) {
-      await tester.tap(find.byTooltip('Open navigation menu'));
+      await tester.tap(find.byTooltip('Abrir navegação'));
       await tester.pumpAndSettle();
       final drawerItem =
           find.descendant(of: find.byType(Drawer), matching: find.text(label));
-      await tester.ensureVisible(drawerItem);
+      await tester.scrollUntilVisible(drawerItem, 180,
+          scrollable: find
+              .descendant(
+                  of: find.byType(Drawer), matching: find.byType(Scrollable))
+              .first);
       await tester.pumpAndSettle();
       await tester.tap(drawerItem);
       await tester.pumpAndSettle();
@@ -93,11 +97,15 @@ void main() {
         of: find.byType(NavigationBar), matching: find.text('Início')));
     await tester.pumpAndSettle();
     expect(find.text('Resumo financeiro'), findsOneWidget);
-    await tester.tap(find.byTooltip('Open navigation menu'));
+    await tester.tap(find.byTooltip('Abrir navegação'));
     await tester.pumpAndSettle();
     final settings = find.descendant(
         of: find.byType(Drawer), matching: find.text('Configurações'));
-    await tester.ensureVisible(settings);
+    await tester.scrollUntilVisible(settings, 180,
+        scrollable: find
+            .descendant(
+                of: find.byType(Drawer), matching: find.byType(Scrollable))
+            .first);
     await tester.pumpAndSettle();
     await tester.tap(settings);
     await tester.pumpAndSettle();

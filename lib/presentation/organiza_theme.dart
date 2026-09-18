@@ -25,7 +25,7 @@ abstract final class OrganizaTheme {
       error: red,
     ).copyWith(
       primary: primary,
-      onPrimary: Colors.white,
+      onPrimary: dark ? const Color(0xFF301A12) : Colors.white,
       secondary: green,
       onSecondary: Colors.white,
       onSurface: dark ? const Color(0xFFF7F4F2) : const Color(0xFF25211F),
@@ -49,21 +49,20 @@ abstract final class OrganizaTheme {
       useMaterial3: true,
       brightness: brightness,
       colorScheme: scheme,
-      scaffoldBackgroundColor:
-          dark ? const Color(0xFF131110) : paper,
+      scaffoldBackgroundColor: dark ? const Color(0xFF131110) : paper,
       dividerColor: border,
       fontFamily: 'Segoe UI Variable',
-      visualDensity: VisualDensity.compact,
+      visualDensity: VisualDensity.standard,
     );
 
     return base.copyWith(
       textTheme: base.textTheme.copyWith(
         displaySmall: base.textTheme.displaySmall?.copyWith(
-          fontWeight: FontWeight.w800,
+          fontWeight: FontWeight.w700,
           letterSpacing: -1.8,
         ),
         headlineMedium: base.textTheme.headlineMedium?.copyWith(
-          fontWeight: FontWeight.w800,
+          fontWeight: FontWeight.w700,
           letterSpacing: -1.1,
         ),
         titleLarge:
@@ -134,7 +133,7 @@ abstract final class OrganizaTheme {
       ),
       iconButtonTheme: IconButtonThemeData(
         style: IconButton.styleFrom(
-          minimumSize: const Size(42, 42),
+          minimumSize: const Size(44, 44),
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
@@ -144,7 +143,9 @@ abstract final class OrganizaTheme {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         side: BorderSide(color: border),
         selectedColor: primary.withValues(alpha: dark ? .9 : .16),
-        labelStyle: const TextStyle(fontWeight: FontWeight.w600),
+        labelStyle:
+            TextStyle(fontWeight: FontWeight.w600, color: scheme.onSurface),
+        checkmarkColor: scheme.onSurface,
       ),
       segmentedButtonTheme: SegmentedButtonThemeData(
         style: ButtonStyle(

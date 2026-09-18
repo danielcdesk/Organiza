@@ -2,6 +2,12 @@
 
 | Funcionalidade | Implementada | Testada | Integração | Regressão | Última validação |
 |---|---:|---:|---:|---:|---|
+| Previsão mensal e agenda de pendências | Sim | Sim | Sim | Sim | 2026-09-17 |
+| Confirmar pendência e desfazer | Sim | Sim | Widget | Sim | 2026-09-17 |
+| Editar valor/descrição de lançamento individual | Sim | Sim | Widget | Sim | 2026-09-17 |
+| Filtro mensal/conta e totais contextuais | Sim | Sim | Sim | Sim | 2026-09-17 |
+| Tema e ocultação de valores persistentes | Sim | Sim | Sim | Sim | 2026-09-17 |
+| Evolução interativa e alertas de orçamento | Sim | Renderização | Sim | Parcial | 2026-09-17 |
 | Criar conta | Sim | Sim | Sim | Sim | 2026-09-10 |
 | Receita e despesa | Sim | Sim | Sim | Sim | 2026-09-10 |
 | Transferência | Sim | Sim | Sim | Sim | 2026-09-10 |

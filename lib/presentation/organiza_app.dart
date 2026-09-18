@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../application/organiza_store.dart';
@@ -33,15 +34,32 @@ class _OrganizaAppState extends State<OrganizaApp> {
   ThemeMode _themeMode = ThemeMode.light;
 
   @override
+  void initState() {
+    super.initState();
+    _themeMode = ThemeMode.values.firstWhere(
+      (mode) => mode.name == widget.store.themePreference,
+      orElse: () => ThemeMode.light,
+    );
+  }
+
+  void _changeTheme(ThemeMode mode) {
+    widget.store.saveThemePreference(mode.name);
+    setState(() => _themeMode = mode);
+  }
+
+  @override
   Widget build(BuildContext context) => MaterialApp(
         title: 'Organiza',
         debugShowCheckedModeBanner: false,
+        locale: const Locale('pt', 'BR'),
+        supportedLocales: const [Locale('pt', 'BR')],
+        localizationsDelegates: GlobalMaterialLocalizations.delegates,
         themeMode: _themeMode,
         theme: OrganizaTheme.light(),
         darkTheme: OrganizaTheme.dark(),
         home: OrganizaShell(
           store: widget.store,
-          onThemeChanged: (mode) => setState(() => _themeMode = mode),
+          onThemeChanged: _changeTheme,
         ),
       );
 }
@@ -84,7 +102,13 @@ class _OrganizaShellState extends State<OrganizaShell> {
   @override
   void initState() {
     super.initState();
+    _hideValues = widget.store.hideValuesPreference;
     widget.store.addListener(_refresh);
+  }
+
+  void _toggleValues() {
+    setState(() => _hideValues = !_hideValues);
+    widget.store.saveHideValuesPreference(_hideValues);
   }
 
   @override
@@ -164,15 +188,17 @@ class _OrganizaShellState extends State<OrganizaShell> {
                                   title: _pages[_page].label,
                                   hideValues: _hideValues,
                                   onSearch: _openSearch,
-                                  onToggleValues: () => setState(
-                                      () => _hideValues = !_hideValues),
+                                  onToggleValues: _toggleValues,
                                   onThemeChanged: widget.onThemeChanged,
                                   isFullscreen: _isFullscreen,
                                   onToggleFullscreen: _toggleFullscreen,
                                 ),
                                 Expanded(
                                   child: AnimatedSwitcher(
-                                    duration: const Duration(milliseconds: 280),
+                                    duration:
+                                        MediaQuery.disableAnimationsOf(context)
+                                            ? Duration.zero
+                                            : const Duration(milliseconds: 280),
                                     switchInCurve: Curves.easeOutCubic,
                                     switchOutCurve: Curves.easeInCubic,
                                     transitionBuilder: (child, animation) =>
@@ -210,6 +236,11 @@ class _OrganizaShellState extends State<OrganizaShell> {
     final primaryPages = widget.store.mobileQuickPages;
     return Scaffold(
       appBar: AppBar(
+        leading: Builder(
+            builder: (context) => IconButton(
+                tooltip: 'Abrir navegação',
+                icon: const Icon(Icons.menu_rounded),
+                onPressed: () => Scaffold.of(context).openDrawer())),
         title: Text(_pages[_page].label),
         actions: [
           IconButton(
@@ -219,7 +250,7 @@ class _OrganizaShellState extends State<OrganizaShell> {
           ),
           IconButton(
             tooltip: _hideValues ? 'Mostrar valores' : 'Ocultar valores',
-            onPressed: () => setState(() => _hideValues = !_hideValues),
+            onPressed: _toggleValues,
             icon: Icon(_hideValues
                 ? Icons.visibility_off_outlined
                 : Icons.visibility_outlined),
@@ -251,7 +282,9 @@ class _OrganizaShellState extends State<OrganizaShell> {
       ),
       body: SafeArea(
         child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 280),
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 280),
           switchInCurve: Curves.easeOutCubic,
           switchOutCurve: Curves.easeInCubic,
           transitionBuilder: (child, animation) => FadeTransition(
@@ -333,6 +366,8 @@ class _OrganizaShellState extends State<OrganizaShell> {
             onOpenCards: () => setState(() => _page = 3),
             onOpenBudgets: () => setState(() => _page = 4),
             onOpenSubscriptions: () => setState(() => _page = 10),
+            onOpenTransactions: () => setState(() => _page = 1),
+            onNewAccount: _openAccountDialog,
           ),
         1 => TransactionsPage(
             store: widget.store,
@@ -340,6 +375,7 @@ class _OrganizaShellState extends State<OrganizaShell> {
             onAdd: _openTransactionDialog,
             onDelete: _deleteTransaction,
             onSettledChanged: widget.store.setTransactionSettled,
+            onEdit: _editTransaction,
           ),
         2 => AccountsPage(
             store: widget.store,
@@ -391,6 +427,7 @@ class _OrganizaShellState extends State<OrganizaShell> {
           ),
         9 => SettingsPage(
             onThemeChanged: widget.onThemeChanged,
+            themePreference: widget.store.themePreference,
             quickPages: widget.store.mobileQuickPages,
             onQuickPagesChanged: widget.store.updateMobileQuickPages),
         10 => SubscriptionsPage(
@@ -502,6 +539,19 @@ class _OrganizaShellState extends State<OrganizaShell> {
           : 'O saldo e os relatórios serão recalculados imediatamente.',
     );
     if (confirmed) widget.store.deleteTransaction(transactionId);
+  }
+
+  Future<void> _editTransaction(TransactionRecord item) async {
+    final input = await showDialog<(int, String)>(
+        context: context, builder: (_) => TransactionEditDialog(item: item));
+    if (input == null || !mounted) return;
+    try {
+      widget.store.updateTransactionDetails(item.id, input.$1, input.$2);
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Lançamento atualizado.')));
+    } on ArgumentError catch (error) {
+      _showError(error.message.toString());
+    }
   }
 
   Future<void> _deleteBudget(String id) async {
@@ -912,14 +962,16 @@ class _Sidebar extends StatelessWidget {
     return Theme(
       data: sidebarTheme,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 240),
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : const Duration(milliseconds: 240),
         curve: Curves.easeOutCubic,
         width: collapsed ? 72 : 224,
         decoration: BoxDecoration(
           gradient: const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFF2B1B17), Color(0xFF181414)],
+            colors: [Color(0xFF232927), Color(0xFF171B1A)],
           ),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: const Color(0xFF40302C)),
@@ -955,19 +1007,21 @@ class _Sidebar extends StatelessWidget {
                   ],
                 ),
               ),
-              _section(context, [0]),
-              _label('FINANÇAS'),
-              _section(context, [1, 2, 3, 5, 10]),
-              _label('ORGANIZAÇÃO'),
-              _section(context, [6, 4, 7, 11]),
-              _label('ANÁLISE'),
-              _section(context, [8]),
-              const Spacer(),
+              Expanded(
+                  child: ListView(padding: EdgeInsets.zero, children: [
+                _section(context, [0]),
+                _label('FINANÇAS'),
+                _section(context, [1, 2, 3, 5, 10]),
+                _label('ORGANIZAÇÃO'),
+                _section(context, [6, 4, 7, 11]),
+                _label('ANÁLISE'),
+                _section(context, [8]),
+              ])),
               if (!collapsed)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(12, 2, 12, 2),
                   child: Material(
-                    color: const Color(0xFF392724),
+                    color: const Color(0xFF303735),
                     borderRadius: BorderRadius.circular(13),
                     child: InkWell(
                       onTap: () => onSelect(9),
@@ -979,7 +1033,7 @@ class _Sidebar extends StatelessWidget {
                           children: [
                             CircleAvatar(
                               radius: 13,
-                              backgroundColor: Color(0xFF6E453B),
+                              backgroundColor: Color(0xFF4B5B54),
                               child: Icon(Icons.person_outline_rounded,
                                   size: 16, color: Color(0xFFFFF8F5)),
                             ),

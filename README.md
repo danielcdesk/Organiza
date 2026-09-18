@@ -14,7 +14,7 @@
   <img alt="Windows" src="https://img.shields.io/badge/Windows-10%2F11-0078D4?logo=windows11&logoColor=white">
   <img alt="Android" src="https://img.shields.io/badge/Android-APK-3DDC84?logo=android&logoColor=white">
   <img alt="SQLite" src="https://img.shields.io/badge/SQLite-local-003B57?logo=sqlite&logoColor=white">
-  <img alt="Versão" src="https://img.shields.io/badge/versao-0.6.1-B85A3B">
+  <img alt="Versão" src="https://img.shields.io/badge/versao-0.7.0-B85A3B">
   <img alt="Desenvolvido com apoio de IA" src="https://img.shields.io/badge/desenvolvimento-assistido%20por%20IA-6E56CF?logo=openai&logoColor=white">
 </p>
 
@@ -28,6 +28,16 @@ O **Organiza** reúne contas, lançamentos, cartões, orçamentos, assinaturas, 
 > **Transparência sobre IA:** este projeto foi desenvolvido com apoio de ferramentas de inteligência artificial na pesquisa, concepção visual, implementação, testes e documentação. A direção do produto e a publicação são humanas. O aplicativo distribuído não incorpora modelos de IA e não envia dados financeiros para serviços de IA.
 
 ## ✨ Destaques
+
+### Novo na versão 0.7.0
+
+- **Visão geral orientada à ação:** evolução interativa de seis meses, pendências ordenadas por vencimento, previsão de fechamento e categorias próximas do limite.
+- **Pagamentos com controle:** confirmação de pagamento/recebimento com opção de desfazer; edição de valor e descrição de uma ocorrência sem recriar o lançamento.
+- **Histórico contextual:** filtros de mês, conta, tipo, status e texto; ordenação por data ou valor; os totais acompanham os filtros e consideram apenas valores confirmados.
+- **Experiência revisada:** cards de contas, primeiro acesso guiado, calendário recolhível, contraste corrigido nos filtros, navegação adaptável a janelas menores e linhas de transação legíveis no celular.
+- **Preferências que permanecem:** tema e ocultação de valores são salvos; seletores de data e componentes nativos usam português do Brasil.
+
+### Recursos do Organiza
 
 - **Fluxo financeiro real e planejado:** receitas, despesas e transferências, com lançamentos únicos, recorrentes ou parcelados, descrição opcional e controle de pago/pendente. O salário recorrente só cria cada ocorrência quando chega o dia.
 - **Organização flexível:** categorias e subcategorias personalizáveis, filtros, busca e identificação visual das contas bancárias.
@@ -67,6 +77,9 @@ O **Organiza** reúne contas, lançamentos, cartões, orçamentos, assinaturas, 
   <br>
   <p align="center">
     <img src="docs/screenshots/accounts.png" width="49%" alt="Contas">
+    <img src="docs/screenshots/transactions.png" width="49%" alt="Fluxo de transações com filtros">
+    <img src="docs/screenshots/dashboard-agenda.png" width="49%" alt="Agenda de pendências e previsão">
+    <img src="docs/screenshots/dashboard-dark.png" width="49%" alt="Tema escuro do dashboard">
     <img src="docs/screenshots/budgets.png" width="49%" alt="Orçamentos">
     <img src="docs/screenshots/subscriptions.png" width="49%" alt="Assinaturas">
     <img src="docs/screenshots/planning.png" width="49%" alt="Planejamento salarial">
@@ -78,6 +91,7 @@ O **Organiza** reúne contas, lançamentos, cartões, orçamentos, assinaturas, 
   <p align="center">
     <img src="docs/screenshots/mobile-dashboard.png" width="28%" alt="Visão geral no celular">
     <img src="docs/screenshots/mobile-drawer.png" width="28%" alt="Navegação agrupada no celular">
+    <img src="docs/screenshots/mobile-transactions.png" width="28%" alt="Transações no celular">
   </p>
 </details>
 
@@ -100,13 +114,13 @@ O **Organiza** reúne contas, lançamentos, cartões, orçamentos, assinaturas, 
 
 ### ✅ Android: instalar o aplicativo
 
-[Baixe o APK Android 0.6.0](https://github.com/danielcdesk/Organiza/releases/download/v0.6.0/Organiza-Android-0.6.0.apk), copie-o para o celular e abra-o pelo gerenciador de arquivos. O Android pode pedir autorização para instalar apps dessa origem. Após a instalação, abra **Organiza**; não é necessário criar conta nem ter internet. Atualizações devem usar APKs assinados com a mesma chave de release.
+[Baixe o APK Android 0.7.0](https://github.com/danielcdesk/Organiza/releases/download/v0.7.0/Organiza-Android-0.7.0.apk), copie-o para o celular e abra-o pelo gerenciador de arquivos. O Android pode pedir autorização para instalar apps dessa origem. Após a instalação, abra **Organiza**; não é necessário criar conta nem ter internet. Atualizações usam a mesma chave de release.
 
 O APK contém todos os módulos, com menu lateral dividido por áreas, quatro atalhos configuráveis em Configurações e botão central de nova transação. Esta versão foi compilada para Android; **não há pacote iOS**, pois a compilação e assinatura para iPhone exigem macOS e a toolchain da Apple.
 
 ### ✅ Windows: baixar e executar
 
-[Baixe o pacote Windows 0.6.1](https://github.com/danielcdesk/Organiza/releases/download/v0.6.1/Organiza-Windows-0.6.1.zip), extraia a pasta inteira e abra `organiza.exe`. Não mova apenas o executável: os arquivos distribuídos ao lado dele são necessários.
+[Baixe o pacote Windows 0.7.0](https://github.com/danielcdesk/Organiza/releases/download/v0.7.0/Organiza-Windows-0.7.0.zip), extraia a pasta inteira e abra `organiza.exe`. Não mova apenas o executável: os arquivos distribuídos ao lado dele são necessários.
 
 ### ✅ Requisitos para desenvolver
 
@@ -144,11 +158,11 @@ flutter test
 flutter test integration_test -d windows
 ```
 
-Na versão 0.6.1, a experiência visual foi refinada com superfícies mais leves, acento terracota, sidebar premium e transições mais suaves no desktop e no celular. A taxa informada pelo usuário continua separada da variação acumulada, calculada pelo valor atual menos o total aplicado. Essa variação simples **não é uma taxa mensal ou anualizada** e não considera datas de aportes e resgates. O dia do rendimento é apenas informativo: o app não credita rendimentos automaticamente nem consulta Selic, TR ou cotações externas. O salário recorrente gera uma ocorrência pendente no dia cadastrado, para confirmação manual.
+Na versão 0.7.0, a previsão do dashboard usa o saldo atual e as receitas/despesas pendentes registradas até o fim do mês, incluindo atrasos. Transferências não alteram a previsão consolidada. Assinaturas, faturas e salários ainda não lançados não entram nesse cálculo. A edição de lançamentos altera somente a ocorrência selecionada, preservando as próximas parcelas e recorrências.
 
-Validação da revisão visual 0.6.1: análise estática sem problemas, testes Flutter aprovados, fluxo de integração Windows aprovado e pacote Windows release inspecionado quanto a executável, DLLs e assets. O APK Android assinado mais recente permanece na versão 0.6.0: a chave privada necessária para assinar uma atualização 0.6.1 não está configurada nesta sessão. Não havia aparelho Android conectado para teste de instalação ou uso real.
+A taxa de investimento informada pelo usuário continua separada da variação acumulada simples. Não há crédito automático de rendimentos ou consulta de cotações. O salário recorrente gera uma ocorrência pendente no dia cadastrado, para confirmação manual.
 
-Validação da versão 0.6.0: análise estática sem problemas, **33 testes Flutter** aprovados, **2 fluxos de integração Windows** aprovados (desktop 1366×768 e layout compacto 390×844), build Windows release concluído e APK Android 0.6.0 (`versionCode 7`) verificado com assinatura v2. O ZIP Windows foi inspecionado quanto a executável, DLLs e assets. Não havia aparelho Android conectado para teste de instalação ou uso real.
+Validação da versão 0.7.0: análise estática e **41 testes Flutter** aprovados, cobrindo previsão, edição, desfazer, filtros, preferências, migrações e navegação móvel. Consulte as [notas da versão](docs/releases/v0.7.0.md) para evidências dos pacotes. A validação do layout compacto no Windows não substitui instalação e teste em Android físico.
 
 Consulte o [estado conhecido como bom](docs/known_good_state.md) e a [estratégia de testes](docs/testing_strategy.md) para os contratos de regressão.
 
@@ -215,7 +229,7 @@ windows/           # runner nativo do Flutter
 ## 🗺️ Roadmap
 
 - pagamento e histórico definitivo de faturas;
-- edição de lançamentos e orçamentos;
+- edição de categorias, datas e limites de orçamentos;
 - baixa e alteração de séries recorrentes em lote;
 - backup e restauração com confirmação;
 - importação de extratos e notas;

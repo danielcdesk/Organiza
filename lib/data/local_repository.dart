@@ -24,6 +24,9 @@ class LocalRepository {
   List<SalarySchedule> loadSalarySchedules() => _database.loadSalarySchedules();
   List<String> loadGoalCategories() => _database.loadGoalCategories();
   List<int> loadMobileQuickPages() => _database.loadMobileQuickPages();
+  String? loadPreference(String key) => _database.loadPreference(key);
+  void savePreference(String key, String value) =>
+      _database.savePreference(key, value);
   void saveMobileQuickPages(List<int> pages) =>
       _database.saveMobileQuickPages(pages);
   void insertSalarySchedule(SalarySchedule item) =>
@@ -75,6 +78,8 @@ class LocalRepository {
       _database.updateFinancialGoalSaved(id, savedInCents);
   void deleteAccount(String id) => _database.deleteAccount(id);
   void deleteTransaction(String id) => _database.deleteTransaction(id);
+  void updateTransactionDetails(String id, int cents, String description) =>
+      _database.updateTransactionDetails(id, cents, description);
   void deleteBudget(String id) => _database.deleteBudget(id);
   void deleteSubscription(String id) => _database.deleteSubscription(id);
   void deleteFinancialGoal(String id) => _database.deleteFinancialGoal(id);

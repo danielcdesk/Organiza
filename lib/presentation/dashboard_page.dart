@@ -6,6 +6,7 @@ import '../domain/financial_rules.dart';
 import '../domain/models.dart';
 import 'organiza_theme.dart';
 import 'shared_widgets.dart';
+import 'overview_widgets.dart';
 
 class DashboardPage extends StatelessWidget {
   const DashboardPage({
@@ -18,6 +19,8 @@ class DashboardPage extends StatelessWidget {
     required this.onOpenCards,
     required this.onOpenBudgets,
     required this.onOpenSubscriptions,
+    required this.onOpenTransactions,
+    required this.onNewAccount,
   });
 
   final OrganizaStore store;
@@ -28,6 +31,8 @@ class DashboardPage extends StatelessWidget {
   final VoidCallback onOpenCards;
   final VoidCallback onOpenBudgets;
   final VoidCallback onOpenSubscriptions;
+  final VoidCallback onOpenTransactions;
+  final VoidCallback onNewAccount;
 
   String _money(int value) =>
       hideValues ? '••••••' : FinancialRules.formatBrl(value);
@@ -60,11 +65,14 @@ class DashboardPage extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 24),
+          if (store.accounts.isEmpty) ...[
+            FirstStepsCard(onNewAccount: onNewAccount),
+            const SizedBox(height: 16),
+          ],
           LayoutBuilder(
             builder: (context, constraints) {
               final balance = _BalanceOverview(
                 balance: _money(store.balance),
-                available: _money(store.availableToSpend),
               );
               final month = _MonthlySummary(
                 incomes: _money(store.incomes),
@@ -79,7 +87,7 @@ class DashboardPage extends StatelessWidget {
                 );
               }
               return SizedBox(
-                height: 172,
+                height: 190,
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -99,7 +107,24 @@ class DashboardPage extends StatelessWidget {
             onOpenSubscriptions: onOpenSubscriptions,
           ),
           const SizedBox(height: 14),
-          _PaymentCalendar(store: store, hideValues: hideValues),
+          CashFlowWorkspace(
+              store: store,
+              hideValues: hideValues,
+              onOpenTransactions: onOpenTransactions),
+          const SizedBox(height: 16),
+          BudgetWatch(
+              store: store, hideValues: hideValues, onOpen: onOpenBudgets),
+          Card(
+              child: ExpansionTile(
+            shape: const Border(),
+            collapsedShape: const Border(),
+            leading: const Icon(Icons.calendar_month_outlined),
+            title: const Text('Calendário de pagamentos',
+                style: TextStyle(fontWeight: FontWeight.w600)),
+            subtitle:
+                const Text('Contas, assinaturas e cartões em um só lugar'),
+            children: [_PaymentCalendar(store: store, hideValues: hideValues)],
+          )),
           const SizedBox(height: 14),
           LayoutBuilder(
             builder: (context, constraints) {
@@ -450,26 +475,17 @@ class _InsightCard extends StatelessWidget {
 }
 
 class _BalanceOverview extends StatelessWidget {
-  const _BalanceOverview({required this.balance, required this.available});
+  const _BalanceOverview({required this.balance});
 
   final String balance;
-  final String available;
 
   @override
   Widget build(BuildContext context) => Card(
+        color: const Color(0xFF202523),
         child: Padding(
           padding: const EdgeInsets.all(22),
           child: Row(
             children: [
-              Container(
-                width: 3,
-                height: 84,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primary,
-                  borderRadius: BorderRadius.circular(3),
-                ),
-              ),
-              const SizedBox(width: 18),
               Expanded(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -478,7 +494,7 @@ class _BalanceOverview extends StatelessWidget {
                     Text(
                       'Saldo consolidado',
                       style: TextStyle(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        color: const Color(0xFFBECAC2),
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -486,15 +502,18 @@ class _BalanceOverview extends StatelessWidget {
                       balance,
                       maxLines: 1,
                       overflow: TextOverflow.fade,
-                      style: Theme.of(context).textTheme.headlineMedium,
+                      style: Theme.of(context)
+                          .textTheme
+                          .headlineMedium
+                          ?.copyWith(color: Colors.white, fontSize: 34),
                     ),
                     const SizedBox(height: 14),
                     Text(
-                      '$available disponível para gastar',
+                      'Saldo em contas · valores confirmados',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        color: const Color(0xFFBECAC2),
                         fontSize: 12.5,
                       ),
                     ),
@@ -557,21 +576,27 @@ class _MonthlySummary extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 18),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(3),
-              child: Row(
-                children: [
-                  Expanded(
-                    flex: (incomeShare * 100).round().clamp(1, 99),
-                    child: Container(height: 4, color: OrganizaTheme.green),
-                  ),
-                  Expanded(
-                    flex: ((1 - incomeShare) * 100).round().clamp(1, 99),
-                    child: Container(height: 4, color: OrganizaTheme.red),
-                  ),
-                ],
+            if (total == 0)
+              Text('Sem movimentações confirmadas neste mês.',
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant))
+            else
+              ClipRRect(
+                borderRadius: BorderRadius.circular(3),
+                child: Row(
+                  children: [
+                    Expanded(
+                      flex: (incomeShare * 100).round().clamp(1, 99),
+                      child: Container(height: 4, color: OrganizaTheme.green),
+                    ),
+                    Expanded(
+                      flex: ((1 - incomeShare) * 100).round().clamp(1, 99),
+                      child: Container(height: 4, color: OrganizaTheme.red),
+                    ),
+                  ],
+                ),
               ),
-            ),
           ],
         ),
       ),
