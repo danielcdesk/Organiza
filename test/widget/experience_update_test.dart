@@ -106,6 +106,85 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('desktop finance workspace groups summary filters and history',
+      (tester) async {
+    tester.view.physicalSize = const Size(1180, 820);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final store = OrganizaStore.inMemory();
+    addTearDown(store.dispose);
+    store.addAccount('Conta principal', 100000);
+    store.addTransaction(
+      accountId: store.accounts.single.id,
+      type: TransactionType.income,
+      amountInCents: 50000,
+      description: 'Salário',
+    );
+    store.addTransaction(
+      accountId: store.accounts.single.id,
+      type: TransactionType.expense,
+      amountInCents: 12500,
+      description: 'Mercado',
+    );
+
+    await tester.pumpWidget(MaterialApp(
+      theme: OrganizaTheme.dark(),
+      home: Scaffold(
+        body: TransactionsPage(
+          store: store,
+          hideValues: false,
+          onAdd: () {},
+          onDelete: (_) {},
+          onSettledChanged: (_, __) {},
+        ),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Entradas confirmadas'), findsOneWidget);
+    expect(find.text('Saídas confirmadas'), findsOneWidget);
+    expect(find.text('Resultado do período'), findsOneWidget);
+    expect(find.byIcon(Icons.calendar_month_outlined), findsOneWidget);
+    expect(find.text('2 resultados'), findsOneWidget);
+    expect(find.text('Salário'), findsOneWidget);
+    expect(find.text('Mercado'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('desktop finance empty state offers the first transaction',
+      (tester) async {
+    tester.view.physicalSize = const Size(1180, 820);
+    tester.view.devicePixelRatio = 1;
+    tester.binding.platformDispatcher.textScaleFactorTestValue = 2;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(
+        tester.binding.platformDispatcher.clearTextScaleFactorTestValue);
+    final store = OrganizaStore.inMemory();
+    addTearDown(store.dispose);
+
+    await tester.pumpWidget(MaterialApp(
+      theme: OrganizaTheme.dark(),
+      home: Scaffold(
+        body: TransactionsPage(
+          store: store,
+          hideValues: false,
+          onAdd: () {},
+          onDelete: (_) {},
+          onSettledChanged: (_, __) {},
+        ),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Seu histórico começa aqui'), findsOneWidget);
+    expect(find.text('Registre uma receita, despesa ou transferência.'),
+        findsOneWidget);
+    expect(find.text('Nova transação'), findsWidgets);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('confirm pending payment and undo restore balance on mobile',
       (tester) async {
     tester.view.physicalSize = const Size(390, 844);

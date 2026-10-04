@@ -465,6 +465,7 @@ class _OrganizaShellState extends State<OrganizaShell> {
             onOpenReports: () => setState(() => _page = 8),
             onOpenBudgets: () => setState(() => _page = 4),
             onOpenSubscriptions: () => setState(() => _page = 10),
+            onOpenAccounts: () => setState(() => _page = 2),
             onNewAccount: _openAccountDialog,
             onToggleValues: _toggleValues,
             onNewIncome: _openTransactionDialog,

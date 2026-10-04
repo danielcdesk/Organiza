@@ -167,6 +167,124 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('desktop usa comandos próprios e duas colunas de histórico',
+      (tester) async {
+    tester.view.physicalSize = const Size(1280, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final store = _store();
+    addTearDown(store.dispose);
+    store.addAccount('Conta principal', 100000);
+    store.addTransaction(
+      accountId: store.accounts.single.id,
+      type: TransactionType.expense,
+      amountInCents: 2500,
+      description: 'Mercado',
+    );
+    store.addTransaction(
+      accountId: store.accounts.single.id,
+      type: TransactionType.income,
+      amountInCents: 50000,
+      description: 'Salário',
+    );
+    await _pumpDashboard(tester, store);
+
+    expect(find.byKey(const Key('desktop-new-transaction')), findsOneWidget);
+    expect(find.byType(FloatingActionButton), findsNothing);
+    expect(find.byKey(const Key('desktop-quick-actions')), findsOneWidget);
+    expect(find.byKey(const Key('desktop-month-summary')), findsOneWidget);
+    expect(find.text('Movimento do mês'), findsOneWidget);
+    expect(find.text('+R\$ 500,00'), findsWidgets);
+    expect(find.text('-R\$ 25,00'), findsOneWidget);
+    expect(find.text('+R\$ 475,00'), findsOneWidget);
+    for (final label in const [
+      'Nova despesa',
+      'Nova receita',
+      'Transferir',
+      'Cartões',
+    ]) {
+      final labelRect = tester.getRect(find.text(label));
+      final actionRect = tester.getRect(
+        find.byKey(ValueKey('desktop-action-$label')),
+      );
+      expect(labelRect.height, greaterThanOrEqualTo(14), reason: label);
+      expect(actionRect.contains(labelRect.bottomLeft), isTrue, reason: label);
+      expect(actionRect.contains(labelRect.bottomRight), isTrue, reason: label);
+      expect(actionRect.height, greaterThanOrEqualTo(48), reason: label);
+    }
+    await tester.drag(
+      find.byType(Scrollable).first,
+      const Offset(0, -700),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('desktop-account-overview')), findsOneWidget);
+    expect(find.text('Suas contas'), findsOneWidget);
+    final expensesRect = tester.getRect(find.text('Últimas despesas'));
+    final incomesRect = tester.getRect(find.text('Últimas entradas'));
+    expect((expensesRect.top - incomesRect.top).abs(), lessThan(2));
+    expect(expensesRect.left, lessThan(incomesRect.left));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('dashboard desktop não estoura com fonte em 200%',
+      (tester) async {
+    tester.view.physicalSize = const Size(1280, 900);
+    tester.view.devicePixelRatio = 1;
+    tester.binding.platformDispatcher.textScaleFactorTestValue = 2;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(
+      tester.binding.platformDispatcher.clearTextScaleFactorTestValue,
+    );
+
+    final store = _store();
+    addTearDown(store.dispose);
+    store.addAccount('Conta principal', 100000);
+    await _pumpDashboard(tester, store);
+
+    expect(find.byKey(const Key('desktop-new-transaction')), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('desktop-quick-actions')),
+      320,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.byKey(const Key('desktop-quick-actions')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('resumo e contas do desktop respeitam valores ocultos',
+      (tester) async {
+    tester.view.physicalSize = const Size(1280, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final store = _store();
+    addTearDown(store.dispose);
+    store.addAccount('Conta principal', 100000);
+    store.addTransaction(
+      accountId: store.accounts.single.id,
+      type: TransactionType.expense,
+      amountInCents: 2500,
+      description: 'Mercado',
+    );
+    await _pumpDashboard(tester, store, hideValues: true);
+
+    expect(find.byKey(const Key('desktop-month-summary')), findsOneWidget);
+    expect(find.text('••••••'), findsWidgets);
+    expect(find.text(r'R$ 1.000,00'), findsNothing);
+    expect(find.text('-R\$ 25,00'), findsNothing);
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('desktop-account-overview')),
+      280,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text(r'R$ 975,00'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('golden compacto do dashboard', (tester) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;

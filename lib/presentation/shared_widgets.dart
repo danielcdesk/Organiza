@@ -766,70 +766,91 @@ class QuickActionGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = OrganizaDesignTokens.of(context);
+    final labelStyle = Theme.of(context).textTheme.labelLarge;
     Color actionColor(QuickActionTone tone) => switch (tone) {
           QuickActionTone.neutral =>
             Theme.of(context).colorScheme.onSurfaceVariant,
           QuickActionTone.brand => Theme.of(context).colorScheme.primary,
           QuickActionTone.positive => tokens.positive,
         };
-    return GridView.count(
-      crossAxisCount: 4,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: tokens.spaceSm,
-      crossAxisSpacing: tokens.spaceSm,
-      mainAxisExtent: tokens.quickActionDiameter + tokens.spaceLg,
-      children: [
-        for (final action in actions)
-          Semantics(
-            button: true,
-            label: action.semanticLabel ?? action.label,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(minHeight: tokens.minTapTarget),
-              child: InkWell(
-                key: ValueKey('quick-action-${action.label}'),
-                onTap: action.onPressed,
-                borderRadius: BorderRadius.circular(tokens.radiusMd),
-                child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: tokens.spaceXs),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        width: tokens.quickActionDiameter,
-                        height: tokens.quickActionDiameter,
-                        decoration: BoxDecoration(
-                          color:
-                              actionColor(action.tone).withValues(alpha: .12),
-                          shape: BoxShape.circle,
-                          border: Border.all(
+    return LayoutBuilder(builder: (context, constraints) {
+      final availableWidth = constraints.hasBoundedWidth
+          ? constraints.maxWidth
+          : MediaQuery.sizeOf(context).width;
+      final itemWidth =
+          (availableWidth - (tokens.spaceSm * 3)) / 4 - tokens.spaceXs * 2;
+      var labelHeight = 0.0;
+      for (final action in actions) {
+        final painter = TextPainter(
+          text: TextSpan(text: action.label, style: labelStyle),
+          textAlign: TextAlign.center,
+          textDirection: Directionality.of(context),
+          textScaler: MediaQuery.textScalerOf(context),
+          maxLines: 2,
+        )..layout(maxWidth: itemWidth);
+        if (painter.height > labelHeight) labelHeight = painter.height;
+      }
+      final itemExtent = tokens.spaceXs * 2 +
+          tokens.quickActionDiameter +
+          tokens.spaceSm +
+          labelHeight;
+      return GridView.count(
+        crossAxisCount: 4,
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        mainAxisSpacing: tokens.spaceSm,
+        crossAxisSpacing: tokens.spaceSm,
+        mainAxisExtent: itemExtent,
+        children: [
+          for (final action in actions)
+            Semantics(
+              button: true,
+              label: action.semanticLabel ?? action.label,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: tokens.minTapTarget),
+                child: InkWell(
+                  key: ValueKey('quick-action-${action.label}'),
+                  onTap: action.onPressed,
+                  borderRadius: BorderRadius.circular(tokens.radiusMd),
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: tokens.spaceXs),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: tokens.quickActionDiameter,
+                          height: tokens.quickActionDiameter,
+                          decoration: BoxDecoration(
                             color:
-                                actionColor(action.tone).withValues(alpha: .32),
+                                actionColor(action.tone).withValues(alpha: .12),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: actionColor(action.tone)
+                                  .withValues(alpha: .32),
+                            ),
+                          ),
+                          child: Icon(
+                            action.icon,
+                            color: actionColor(action.tone),
                           ),
                         ),
-                        child: Icon(
-                          action.icon,
-                          color: actionColor(action.tone),
-                        ),
-                      ),
-                      SizedBox(height: tokens.spaceSm),
-                      Flexible(
-                        child: Text(
+                        SizedBox(height: tokens.spaceSm),
+                        Text(
                           action.label,
                           textAlign: TextAlign.center,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.labelLarge,
+                          style: labelStyle,
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-      ],
-    );
+        ],
+      );
+    });
   }
 }
 
