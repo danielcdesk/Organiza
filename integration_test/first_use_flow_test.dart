@@ -22,6 +22,11 @@ void main() {
 
     final store = OrganizaStore.inMemory();
     addTearDown(store.dispose);
+    store.saveProfile(
+      name: 'Pessoa de teste',
+      incomeInCents: 500000,
+      photoPath: null,
+    );
     store.addAccount(
       'Conta principal',
       485000,
@@ -339,6 +344,11 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     final store = OrganizaStore.inMemory();
     addTearDown(store.dispose);
+    store.saveProfile(
+      name: 'Pessoa de teste',
+      incomeInCents: 500000,
+      photoPath: null,
+    );
     store.addAccount('Conta principal', 485000,
         institution: AccountInstitution.nubank);
     store.addSubscription(

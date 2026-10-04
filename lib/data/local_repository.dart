@@ -35,11 +35,28 @@ class LocalRepository {
   void insertGoalCategory(String name) => _database.insertGoalCategory(name);
   void updateAccountOpeningBalance(String id, int cents) =>
       _database.updateAccountOpeningBalance(id, cents);
+  void updateAccountDetails({
+    required String id,
+    required String name,
+    required AccountInstitution institution,
+    String? customInstitutionName,
+    String? customIconKey,
+  }) =>
+      _database.updateAccountDetails(
+        id: id,
+        name: name,
+        institution: institution,
+        customInstitutionName: customInstitutionName,
+        customIconKey: customIconKey,
+      );
   void updateSubscription(Subscription item) =>
       _database.updateSubscription(item);
   void setSubscriptionActive(String id, bool active) =>
       _database.setSubscriptionActive(id, active);
   SalaryAllocation loadSalaryAllocation() => _database.loadSalaryAllocation();
+  Map<String, Object?> exportSnapshot() => _database.exportSnapshot();
+  void restoreSnapshot(Map<String, dynamic> snapshot) =>
+      _database.restoreSnapshot(snapshot);
   List<FinancialGoal> loadFinancialGoals() => _database.loadFinancialGoals();
   List<FinanceCategory> loadFinanceCategories() =>
       _database.loadFinanceCategories();
@@ -55,6 +72,8 @@ class LocalRepository {
       _database.insertShoppingItem(item);
   void setShoppingItemPurchased(String id, bool value) =>
       _database.setShoppingItemPurchased(id, value);
+  void setShoppingItemImage(String id, String? imagePath) =>
+      _database.setShoppingItemImage(id, imagePath);
   void deleteShoppingItem(String id) => _database.deleteShoppingItem(id);
   void insertCreditCard(CreditCard item) => _database.insertCreditCard(item);
   void insertCardPurchase(CardPurchase item) =>
@@ -86,5 +105,7 @@ class LocalRepository {
   void deleteInvestment(String id) => _database.deleteInvestment(id);
   void saveSalaryAllocation(SalaryAllocation item) =>
       _database.saveSalaryAllocation(item);
+  void transaction(void Function() operation) =>
+      _database.transaction(operation);
   void close() => _database.close();
 }

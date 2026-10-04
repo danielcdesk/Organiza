@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 import '../application/organiza_store.dart';
@@ -6,6 +8,7 @@ import '../domain/models.dart';
 import 'dialogs.dart';
 import 'budgets_page.dart';
 import 'shared_widgets.dart';
+import '../services/local_image_service.dart';
 
 class TransactionsPage extends StatefulWidget {
   const TransactionsPage({
@@ -104,15 +107,20 @@ class _TransactionsPageState extends State<TransactionsPage> {
                                 ? constraints.maxWidth
                                 : 300,
                             child: Row(children: [
-                              IconButton(
-                                  tooltip: 'Mês anterior',
-                                  onPressed: () => setState(() {
-                                        final current =
-                                            _month ?? DateTime.now();
-                                        _month = DateTime(
-                                            current.year, current.month - 1);
-                                      }),
-                                  icon: const Icon(Icons.chevron_left_rounded)),
+                              Semantics(
+                                button: true,
+                                label: 'Mês anterior',
+                                child: IconButton(
+                                    tooltip: 'Mês anterior',
+                                    onPressed: () => setState(() {
+                                          final current =
+                                              _month ?? DateTime.now();
+                                          _month = DateTime(
+                                              current.year, current.month - 1);
+                                        }),
+                                    icon:
+                                        const Icon(Icons.chevron_left_rounded)),
+                              ),
                               Expanded(
                                   child: TextButton(
                                       onPressed: () async {
@@ -132,16 +140,20 @@ class _TransactionsPageState extends State<TransactionsPage> {
                                       child: Text(_month == null
                                           ? 'Todo o histórico'
                                           : '${sentenceCase(monthName(_month!.month))} ${_month!.year}'))),
-                              IconButton(
-                                  tooltip: 'Próximo mês',
-                                  onPressed: () => setState(() {
-                                        final current =
-                                            _month ?? DateTime.now();
-                                        _month = DateTime(
-                                            current.year, current.month + 1);
-                                      }),
-                                  icon:
-                                      const Icon(Icons.chevron_right_rounded)),
+                              Semantics(
+                                button: true,
+                                label: 'Próximo mês',
+                                child: IconButton(
+                                    tooltip: 'Próximo mês',
+                                    onPressed: () => setState(() {
+                                          final current =
+                                              _month ?? DateTime.now();
+                                          _month = DateTime(
+                                              current.year, current.month + 1);
+                                        }),
+                                    icon: const Icon(
+                                        Icons.chevron_right_rounded)),
+                              ),
                             ])),
                         SizedBox(
                             width: constraints.maxWidth < 540
@@ -164,6 +176,8 @@ class _TransactionsPageState extends State<TransactionsPage> {
                                             InstitutionMark(
                                                 institution:
                                                     account.institution,
+                                                customIconKey:
+                                                    account.customIconKey,
                                                 size: 22),
                                             const SizedBox(width: 8),
                                             Expanded(
@@ -243,38 +257,50 @@ class _TransactionsPageState extends State<TransactionsPage> {
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                IconButton(
-                                  tooltip: item.isSettled
+                                Semantics(
+                                  button: true,
+                                  label: item.isSettled
                                       ? 'Marcar como pendente'
                                       : 'Marcar como pago',
-                                  onPressed: () => widget.onSettledChanged(
-                                      item.id, !item.isSettled),
-                                  icon: Icon(
-                                    item.isSettled
-                                        ? Icons.check_circle_rounded
-                                        : Icons.schedule_rounded,
-                                    size: 18,
-                                    color: item.isSettled
-                                        ? const Color(0xFF258A5A)
-                                        : Theme.of(context)
-                                            .colorScheme
-                                            .onSurfaceVariant,
+                                  child: IconButton(
+                                    tooltip: item.isSettled
+                                        ? 'Marcar como pendente'
+                                        : 'Marcar como pago',
+                                    onPressed: () => widget.onSettledChanged(
+                                        item.id, !item.isSettled),
+                                    icon: Icon(
+                                      item.isSettled
+                                          ? Icons.check_circle_rounded
+                                          : Icons.schedule_rounded,
+                                      size: 18,
+                                      color: item.isSettled
+                                          ? Theme.of(context)
+                                              .colorScheme
+                                              .secondary
+                                          : Theme.of(context)
+                                              .colorScheme
+                                              .onSurfaceVariant,
+                                    ),
                                   ),
                                 ),
-                                PopupMenuButton<String>(
-                                  tooltip: 'Ações do lançamento',
-                                  onSelected: (value) => value == 'edit'
-                                      ? widget.onEdit?.call(item)
-                                      : widget.onDelete(item.id),
-                                  itemBuilder: (_) => [
-                                    if (widget.onEdit != null)
+                                Semantics(
+                                  button: true,
+                                  label: 'Ações do lançamento',
+                                  child: PopupMenuButton<String>(
+                                    tooltip: 'Ações do lançamento',
+                                    onSelected: (value) => value == 'edit'
+                                        ? widget.onEdit?.call(item)
+                                        : widget.onDelete(item.id),
+                                    itemBuilder: (_) => [
+                                      if (widget.onEdit != null)
+                                        const PopupMenuItem(
+                                            value: 'edit',
+                                            child: Text('Editar lançamento')),
                                       const PopupMenuItem(
-                                          value: 'edit',
-                                          child: Text('Editar lançamento')),
-                                    const PopupMenuItem(
-                                        value: 'delete',
-                                        child: Text('Excluir lançamento')),
-                                  ],
+                                          value: 'delete',
+                                          child: Text('Excluir lançamento')),
+                                    ],
+                                  ),
                                 ),
                               ],
                             ),
@@ -352,12 +378,12 @@ class _TransactionFlowSummary extends StatelessWidget {
       _FlowMetric(
           label: 'Recebido no filtro',
           value: money(incomes),
-          color: const Color(0xFF258A5A),
+          color: Theme.of(context).colorScheme.secondary,
           icon: Icons.south_west_rounded),
       _FlowMetric(
           label: 'Pago no filtro',
           value: money(expenses),
-          color: const Color(0xFFC94D4D),
+          color: Theme.of(context).colorScheme.error,
           icon: Icons.north_east_rounded),
       _FlowMetric(
           label: 'Resultado',
@@ -428,6 +454,7 @@ class AccountsPage extends StatelessWidget {
     required this.onAdd,
     required this.onDelete,
     required this.onEditBalance,
+    required this.onEdit,
   });
 
   final OrganizaStore store;
@@ -435,6 +462,7 @@ class AccountsPage extends StatelessWidget {
   final VoidCallback onAdd;
   final ValueChanged<String> onDelete;
   final ValueChanged<String> onEditBalance;
+  final ValueChanged<String> onEdit;
 
   @override
   Widget build(BuildContext context) => _Page(
@@ -493,15 +521,26 @@ class AccountsPage extends StatelessWidget {
                                       Row(children: [
                                         InstitutionMark(
                                             institution: account.institution,
+                                            customIconKey:
+                                                account.customIconKey,
                                             size: 44),
                                         const Spacer(),
                                         PopupMenuButton<String>(
                                             tooltip: 'Ações da conta',
-                                            onSelected: (action) =>
-                                                action == 'balance'
-                                                    ? onEditBalance(account.id)
-                                                    : onDelete(account.id),
+                                            onSelected: (action) {
+                                              if (action == 'edit') {
+                                                onEdit(account.id);
+                                              } else if (action == 'balance') {
+                                                onEditBalance(account.id);
+                                              } else {
+                                                onDelete(account.id);
+                                              }
+                                            },
                                             itemBuilder: (_) => const [
+                                                  PopupMenuItem(
+                                                      value: 'edit',
+                                                      child:
+                                                          Text('Editar conta')),
                                                   PopupMenuItem(
                                                       value: 'balance',
                                                       child:
@@ -517,7 +556,9 @@ class AccountsPage extends StatelessWidget {
                                           style: Theme.of(context)
                                               .textTheme
                                               .titleMedium),
-                                      Text(institutionName(account.institution),
+                                      Text(
+                                          institutionName(account.institution,
+                                              account.customInstitutionName),
                                           style: TextStyle(
                                               fontSize: 12,
                                               color: Theme.of(context)
@@ -627,37 +668,49 @@ class _PlanningPageState extends State<PlanningPage> {
           Card(
             child: Padding(
               padding: const EdgeInsets.all(22),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Salário identificado no mês',
-                            style: TextStyle(
-                                fontSize: 12,
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurfaceVariant)),
-                        const SizedBox(height: 6),
-                        Text(FinancialRules.formatBrl(salary),
-                            style: Theme.of(context).textTheme.headlineSmall),
-                        const SizedBox(height: 6),
-                        Text('Somente receitas na categoria Salário',
-                            style: TextStyle(
-                                fontSize: 12,
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurfaceVariant)),
-                      ],
-                    ),
-                  ),
-                  FilledButton.icon(
-                      onPressed: _openSalaryDialog,
-                      icon: const Icon(Icons.tune_rounded, size: 17),
-                      label: const Text('Distribuir')),
-                ],
-              ),
+              child: LayoutBuilder(builder: (context, constraints) {
+                final details = Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Salário identificado no mês',
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant)),
+                    const SizedBox(height: 6),
+                    Text(FinancialRules.formatBrl(salary),
+                        style: Theme.of(context).textTheme.headlineSmall),
+                    const SizedBox(height: 6),
+                    Text('Somente receitas na categoria Salário',
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant)),
+                  ],
+                );
+                final action = FilledButton.icon(
+                    onPressed: _openSalaryDialog,
+                    icon: const Icon(Icons.tune_rounded, size: 17),
+                    label: const Text('Distribuir'));
+                if (constraints.maxWidth < 520) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      details,
+                      const SizedBox(height: 14),
+                      action,
+                    ],
+                  );
+                }
+                return Row(
+                  children: [
+                    Expanded(child: details),
+                    action,
+                  ],
+                );
+              }),
             ),
           ),
           const SizedBox(height: 14),
@@ -680,25 +733,28 @@ class _PlanningPageState extends State<PlanningPage> {
           const SizedBox(height: 14),
           if (store.salarySchedules.isNotEmpty) ...[
             Panel(
-                title: 'Salários programados',
-                subtitle:
-                    'Uma movimentação aparece somente no dia de pagamento',
-                child: Column(
-                    children: store.salarySchedules
-                        .map((schedule) => DataListRow(
-                            icon: Icons.event_repeat_rounded,
-                            title: schedule.description,
-                            subtitle:
-                                'Todo dia ${schedule.paymentDay} · confirme o recebimento em Finanças',
-                            value: FinancialRules.formatBrl(
-                                schedule.amountInCents),
-                            trailing: IconButton(
-                                tooltip: 'Cancelar salário recorrente',
-                                onPressed: () =>
-                                    widget.onCancelSalary(schedule.id),
-                                icon:
-                                    const Icon(Icons.close_rounded, size: 18))))
-                        .toList())),
+              title: 'Salários programados',
+              subtitle: 'Uma movimentação aparece somente no dia de pagamento',
+              child: Column(
+                  children: store.salarySchedules
+                      .map((schedule) => DataListRow(
+                          icon: Icons.event_repeat_rounded,
+                          title: schedule.description,
+                          subtitle:
+                              'Todo dia ${schedule.paymentDay} · confirme o recebimento em Finanças',
+                          value:
+                              FinancialRules.formatBrl(schedule.amountInCents),
+                          trailing: Semantics(
+                              button: true,
+                              label: 'Cancelar salário recorrente',
+                              child: IconButton(
+                                  tooltip: 'Cancelar salário recorrente',
+                                  onPressed: () =>
+                                      widget.onCancelSalary(schedule.id),
+                                  icon: const Icon(Icons.close_rounded,
+                                      size: 18)))))
+                      .toList()),
+            ),
             const SizedBox(height: 14),
           ],
           Panel(
@@ -733,12 +789,16 @@ class _PlanningPageState extends State<PlanningPage> {
                                               .onSurfaceVariant
                                           : null)),
                               controlAffinity: ListTileControlAffinity.leading,
-                              secondary: IconButton(
-                                onPressed: () => widget.onDeleteTask(task.id),
-                                tooltip: 'Excluir tarefa',
-                                icon: const Icon(
-                                  Icons.delete_outline_rounded,
-                                  size: 18,
+                              secondary: Semantics(
+                                button: true,
+                                label: 'Excluir tarefa',
+                                child: IconButton(
+                                  onPressed: () => widget.onDeleteTask(task.id),
+                                  tooltip: 'Excluir tarefa',
+                                  icon: const Icon(
+                                    Icons.delete_outline_rounded,
+                                    size: 18,
+                                  ),
                                 ),
                               ),
                             ))
@@ -911,14 +971,26 @@ class SettingsPage extends StatelessWidget {
   const SettingsPage(
       {super.key,
       required this.onThemeChanged,
-      this.themePreference = 'light',
+      this.themePreference = 'dark',
       required this.quickPages,
-      required this.onQuickPagesChanged});
+      required this.onQuickPagesChanged,
+      required this.profileName,
+      required this.profileIncomeInCents,
+      this.profilePhotoPath,
+      required this.onEditProfile,
+      required this.onExportBackup,
+      required this.onRestoreBackup});
 
   final ValueChanged<ThemeMode> onThemeChanged;
   final String themePreference;
   final List<int> quickPages;
   final ValueChanged<List<int>> onQuickPagesChanged;
+  final String profileName;
+  final int profileIncomeInCents;
+  final String? profilePhotoPath;
+  final VoidCallback onEditProfile;
+  final Future<void> Function() onExportBackup;
+  final Future<void> Function() onRestoreBackup;
   static const _quickLabels = <int, String>{
     0: 'Início',
     1: 'Finanças',
@@ -941,6 +1013,65 @@ class SettingsPage extends StatelessWidget {
         ),
         content: Column(
           children: [
+            if (MediaQuery.sizeOf(context).width >= 600) ...[
+              Panel(
+                title: 'Perfil local',
+                subtitle:
+                    'Uma identificação rápida, salva somente neste aparelho.',
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 27,
+                      backgroundColor: Theme.of(context)
+                          .colorScheme
+                          .primary
+                          .withValues(alpha: .15),
+                      backgroundImage:
+                          LocalImageService.exists(profilePhotoPath)
+                              ? FileImage(File(profilePhotoPath!))
+                              : null,
+                      child: LocalImageService.exists(profilePhotoPath)
+                          ? null
+                          : Icon(Icons.person_outline_rounded,
+                              color: Theme.of(context).colorScheme.primary),
+                    ),
+                    const SizedBox(width: 13),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            profileName.isEmpty
+                                ? 'Ainda não configurado'
+                                : profileName,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            profileIncomeInCents == 0
+                                ? 'Adicione seu nome, renda e foto.'
+                                : 'Renda mensal: ${FinancialRules.formatBrl(profileIncomeInCents)}',
+                            style: TextStyle(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: onEditProfile,
+                      icon: const Icon(Icons.edit_outlined, size: 17),
+                      label:
+                          Text(profileName.isEmpty ? 'Criar perfil' : 'Editar'),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+            ],
             const Panel(
               title: 'Geral',
               child: DataListRow(
@@ -1002,6 +1133,28 @@ class SettingsPage extends StatelessWidget {
                               )))),
               const SizedBox(height: 14),
             ],
+            Panel(
+              title: 'Backup local',
+              subtitle:
+                  'Crie um arquivo protegido por senha para recuperar seus dados em outro dispositivo.',
+              child: Wrap(
+                spacing: 9,
+                runSpacing: 9,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: () => onExportBackup(),
+                    icon: const Icon(Icons.lock_outline_rounded),
+                    label: const Text('Criar backup'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () => onRestoreBackup(),
+                    icon: const Icon(Icons.restore_rounded),
+                    label: const Text('Restaurar backup'),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
             const Panel(
               title: 'Privacidade',
               child: DataListRow(
@@ -1054,9 +1207,12 @@ class _Page extends StatelessWidget {
   final Widget content;
 
   @override
-  Widget build(BuildContext context) => ListView(
-        padding: pagePadding(context),
-        children: [heading, const SizedBox(height: 24), content],
+  Widget build(BuildContext context) => FocusTraversalGroup(
+        policy: OrderedTraversalPolicy(),
+        child: ListView(
+          padding: pagePadding(context),
+          children: [heading, const SizedBox(height: 24), content],
+        ),
       );
 }
 

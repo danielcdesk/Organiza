@@ -1,601 +1,597 @@
 import 'package:flutter/material.dart';
 
 import '../application/organiza_store.dart';
+import '../domain/cash_flow_summary.dart';
 import '../domain/credit_card_rules.dart';
 import '../domain/financial_rules.dart';
 import '../domain/models.dart';
 import 'organiza_theme.dart';
 import 'shared_widgets.dart';
-import 'overview_widgets.dart';
 
-class DashboardPage extends StatelessWidget {
+class DashboardPage extends StatefulWidget {
   const DashboardPage({
     super.key,
     required this.store,
     required this.hideValues,
     required this.onNewTransaction,
-    required this.onNewTask,
-    required this.onDeleteTask,
     required this.onOpenCards,
-    required this.onOpenBudgets,
-    required this.onOpenSubscriptions,
     required this.onOpenTransactions,
+    required this.onOpenGoals,
+    required this.onOpenReports,
     required this.onNewAccount,
+    this.onOpenBudgets,
+    this.onOpenSubscriptions,
+    this.onToggleValues,
+    this.onNewIncome,
+    this.onTransfer,
   });
 
   final OrganizaStore store;
   final bool hideValues;
   final VoidCallback onNewTransaction;
-  final VoidCallback onNewTask;
-  final Future<void> Function(String id) onDeleteTask;
   final VoidCallback onOpenCards;
-  final VoidCallback onOpenBudgets;
-  final VoidCallback onOpenSubscriptions;
   final VoidCallback onOpenTransactions;
+  final VoidCallback onOpenGoals;
+  final VoidCallback onOpenReports;
   final VoidCallback onNewAccount;
-
-  String _money(int value) =>
-      hideValues ? '••••••' : FinancialRules.formatBrl(value);
+  final VoidCallback? onOpenBudgets;
+  final VoidCallback? onOpenSubscriptions;
+  final VoidCallback? onToggleValues;
+  final VoidCallback? onNewIncome;
+  final VoidCallback? onTransfer;
 
   @override
-  Widget build(BuildContext context) => ListView(
-        padding: EdgeInsets.fromLTRB(
-          MediaQuery.sizeOf(context).width < 600 ? 16 : 30,
-          MediaQuery.sizeOf(context).width < 600 ? 18 : 28,
-          MediaQuery.sizeOf(context).width < 600 ? 16 : 30,
-          42,
-        ),
-        children: [
-          PageHeading(
-            eyebrow:
-                '${sentenceCase(monthName(DateTime.now().month))} de ${DateTime.now().year}',
-            title: 'Resumo financeiro',
-            description: 'O que entrou, saiu e está disponível agora.',
-            actions: [
-              OutlinedButton.icon(
-                onPressed: onNewTask,
-                icon: const Icon(Icons.add_task_rounded, size: 18),
-                label: const Text('Nova tarefa'),
-              ),
-              FilledButton.icon(
-                onPressed: onNewTransaction,
-                icon: const Icon(Icons.add_rounded, size: 18),
-                label: const Text('Nova transação'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          if (store.accounts.isEmpty) ...[
-            FirstStepsCard(onNewAccount: onNewAccount),
-            const SizedBox(height: 16),
-          ],
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final balance = _BalanceOverview(
-                balance: _money(store.balance),
-              );
-              final month = _MonthlySummary(
-                incomes: _money(store.incomes),
-                expenses: _money(store.expenses),
-                result: _money(store.incomes - store.expenses),
-                incomeValue: store.incomes,
-                expenseValue: store.expenses,
-              );
-              if (constraints.maxWidth < 820) {
-                return Column(
-                  children: [balance, const SizedBox(height: 14), month],
-                );
-              }
-              return SizedBox(
-                height: 190,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(flex: 4, child: balance),
-                    const SizedBox(width: 14),
-                    Expanded(flex: 7, child: month),
-                  ],
-                ),
-              );
-            },
-          ),
-          const SizedBox(height: 14),
-          _CommitmentsStrip(
-            store: store,
-            hideValues: hideValues,
-            onOpenBudgets: onOpenBudgets,
-            onOpenSubscriptions: onOpenSubscriptions,
-          ),
-          const SizedBox(height: 14),
-          CashFlowWorkspace(
-              store: store,
-              hideValues: hideValues,
-              onOpenTransactions: onOpenTransactions),
-          const SizedBox(height: 16),
-          BudgetWatch(
-              store: store, hideValues: hideValues, onOpen: onOpenBudgets),
-          Card(
-              child: ExpansionTile(
-            shape: const Border(),
-            collapsedShape: const Border(),
-            leading: const Icon(Icons.calendar_month_outlined),
-            title: const Text('Calendário de pagamentos',
-                style: TextStyle(fontWeight: FontWeight.w600)),
-            subtitle:
-                const Text('Contas, assinaturas e cartões em um só lugar'),
-            children: [_PaymentCalendar(store: store, hideValues: hideValues)],
-          )),
-          const SizedBox(height: 14),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final transactions = _TransactionsPanel(
-                store: store,
-                hideValues: hideValues,
-                onAdd: onNewTransaction,
-              );
-              final accounts =
-                  _AccountsPanel(store: store, hideValues: hideValues);
-              if (constraints.maxWidth < 1000) {
-                return Column(children: [
-                  transactions,
-                  const SizedBox(height: 14),
-                  accounts,
-                ]);
-              }
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(flex: 3, child: transactions),
-                  const SizedBox(width: 14),
-                  Expanded(flex: 2, child: accounts),
-                ],
-              );
-            },
-          ),
-          const SizedBox(height: 14),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final cards = _CardSnapshot(
-                store: store,
-                hideValues: hideValues,
-                onOpenCards: onOpenCards,
-              );
-              final tasks = _TasksPanel(
-                store: store,
-                onAdd: onNewTask,
-                onDeleteTask: onDeleteTask,
-              );
-              if (constraints.maxWidth < 1000) {
-                return Column(
-                    children: [cards, const SizedBox(height: 14), tasks]);
-              }
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(child: cards),
-                  const SizedBox(width: 14),
-                  Expanded(child: tasks),
-                ],
-              );
-            },
-          ),
-        ],
-      );
+  State<DashboardPage> createState() => _DashboardPageState();
 }
 
-class _PaymentCalendar extends StatefulWidget {
-  const _PaymentCalendar({required this.store, required this.hideValues});
-  final OrganizaStore store;
-  final bool hideValues;
-  @override
-  State<_PaymentCalendar> createState() => _PaymentCalendarState();
-}
-
-class _PaymentCalendarState extends State<_PaymentCalendar> {
-  late DateTime _month = DateTime(DateTime.now().year, DateTime.now().month);
-  late int _day = DateTime.now().day;
-
-  List<(String, int, IconData)> _events(int day) {
-    final last = DateTime(_month.year, _month.month + 1, 0).day;
-    final events = <(String, int, IconData)>[];
-    for (final item
-        in widget.store.subscriptions.where((item) => item.isActive)) {
-      if (item.billingDay.clamp(1, last) == day) {
-        events.add((item.name, item.amountInCents, Icons.autorenew_rounded));
-      }
-    }
-    for (final card in widget.store.creditCards) {
-      if (card.dueDay.clamp(1, last) == day) {
-        events.add(('Fatura · ${card.name}', 0, Icons.credit_card_outlined));
-      }
-    }
-    for (final item in widget.store.transactions.where((item) =>
-        item.type == TransactionType.expense &&
-        item.occurredOn.year == _month.year &&
-        item.occurredOn.month == _month.month &&
-        (!item.isSettled ||
-            item.scheduleType != TransactionScheduleType.single ||
-            const ['Contas e serviços', 'Moradia', 'Impostos e taxas']
-                .contains(item.category)))) {
-      if (item.occurredOn.day == day) {
-        events.add((
-          item.description,
-          item.amountInCents,
-          Icons.receipt_long_outlined
-        ));
-      }
-    }
-    return events;
-  }
+class _DashboardPageState extends State<DashboardPage> {
+  late DateTime _month = _monthStart(widget.store.clock.now());
+  var _tipDismissed = false;
 
   @override
-  Widget build(BuildContext context) {
-    final firstOffset = DateTime(_month.year, _month.month, 1).weekday - 1;
-    final days = DateTime(_month.year, _month.month + 1, 0).day;
-    final count = ((firstOffset + days + 6) ~/ 7) * 7;
-    final selected = _events(_day);
-    final color = Theme.of(context).colorScheme.primary;
-    return Panel(
-        title: 'Calendário de pagamentos',
-        subtitle: 'Contas, assinaturas e vencimentos de cartões',
-        trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-          IconButton(
-              tooltip: 'Mês anterior',
-              icon: const Icon(Icons.chevron_left_rounded),
-              onPressed: () => setState(() {
-                    _month = DateTime(_month.year, _month.month - 1);
-                    _day = 1;
-                  })),
-          Text('${monthName(_month.month)} ${_month.year}',
-              style: const TextStyle(fontWeight: FontWeight.w700)),
-          IconButton(
-              tooltip: 'Próximo mês',
-              icon: const Icon(Icons.chevron_right_rounded),
-              onPressed: () => setState(() {
-                    _month = DateTime(_month.year, _month.month + 1);
-                    _day = 1;
-                  })),
-        ]),
-        child: Column(children: [
-          Row(children: [
-            for (final label in const ['S', 'T', 'Q', 'Q', 'S', 'S', 'D'])
-              Expanded(
-                  child: Center(
-                      child: Text(label,
-                          style: TextStyle(
-                              fontSize: 11,
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurfaceVariant))))
-          ]),
-          const SizedBox(height: 7),
-          LayoutBuilder(
-              builder: (context, constraints) => GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: count,
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 7,
-                      mainAxisExtent: constraints.maxWidth < 500 ? 42 : 50),
-                  itemBuilder: (context, index) {
-                    final day = index - firstOffset + 1;
-                    if (day < 1 || day > days) return const SizedBox.shrink();
-                    final hasEvent = _events(day).isNotEmpty;
-                    final active = day == _day;
-                    return Semantics(
-                        label: 'Dia $day${hasEvent ? ', com pagamentos' : ''}',
-                        button: true,
-                        child: InkWell(
-                            onTap: () => setState(() => _day = day),
-                            borderRadius: BorderRadius.circular(10),
-                            child: Container(
-                                margin: const EdgeInsets.all(2),
-                                decoration: BoxDecoration(
-                                    color: active
-                                        ? color.withValues(alpha: .13)
-                                        : null,
-                                    borderRadius: BorderRadius.circular(10)),
-                                child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Text('$day',
-                                          style: TextStyle(
-                                              fontWeight: active
-                                                  ? FontWeight.w800
-                                                  : FontWeight.w500,
-                                              color: active ? color : null)),
-                                      if (hasEvent)
-                                        Container(
-                                            width: 5,
-                                            height: 5,
-                                            decoration: BoxDecoration(
-                                                color: color,
-                                                shape: BoxShape.circle))
-                                    ]))));
-                  })),
-          const SizedBox(height: 12),
-          Align(
-              alignment: Alignment.centerLeft,
-              child: Text('Dia $_day',
-                  style: const TextStyle(fontWeight: FontWeight.w700))),
-          const SizedBox(height: 6),
-          if (selected.isEmpty)
-            const Align(
-                alignment: Alignment.centerLeft,
-                child: Text('Nenhum pagamento previsto para este dia.'))
-          else
-            for (final (title, amount, icon) in selected)
-              ListTile(
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  leading: Icon(icon, size: 19),
-                  title: Text(title),
-                  trailing: Text(amount == 0
-                      ? 'Vencimento'
-                      : widget.hideValues
-                          ? '••••••'
-                          : FinancialRules.formatBrl(amount))),
-        ]));
-  }
-}
+  Widget build(BuildContext context) => LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 820;
+          final today = _dateOnly(widget.store.clock.now());
+          final reference = _referenceForMonth(_month, today);
+          final summary = CashFlowSummary(widget.store.transactions, _month);
+          final available = widget.store.balance - summary.payable;
+          final monthTransactions =
+              _monthTransactions(widget.store.transactions, _month);
+          final expenses = _recentTransactions(
+            monthTransactions,
+            TransactionType.expense,
+          );
+          final incomes = _recentTransactions(
+            monthTransactions,
+            TransactionType.income,
+          );
+          final invoice = _nextInvoice(widget.store, reference);
+          final subscription =
+              _nextSubscription(widget.store.subscriptions, reference);
+          final budget = _budgetSummary(widget.store, _month);
+          final overdue = summary.pending
+              .where((item) =>
+                  item.type == TransactionType.expense &&
+                  _dateOnly(item.occurredOn).isBefore(today))
+              .toList();
+          final hasData = widget.store.accounts.isNotEmpty ||
+              widget.store.transactions.isNotEmpty ||
+              widget.store.creditCards.isNotEmpty ||
+              widget.store.subscriptions.isNotEmpty ||
+              widget.store.budgets.isNotEmpty;
 
-class _CommitmentsStrip extends StatelessWidget {
-  const _CommitmentsStrip(
-      {required this.store,
-      required this.hideValues,
-      required this.onOpenBudgets,
-      required this.onOpenSubscriptions});
-  final OrganizaStore store;
-  final bool hideValues;
-  final VoidCallback onOpenBudgets;
-  final VoidCallback onOpenSubscriptions;
-
-  @override
-  Widget build(BuildContext context) {
-    final now = DateTime.now();
-    final budgets = store.budgets
-        .where((item) => item.year == now.year && item.month == now.month)
-        .toList();
-    final budgetLimit = budgets.fold(0, (sum, item) => sum + item.limitInCents);
-    final budgetSpent = budgets.fold(
-        0,
-        (sum, item) =>
-            sum + FinancialRules.budgetSpent(item, store.transactions));
-    final subscriptions =
-        store.subscriptions.where((item) => item.isActive).toList();
-    final recurring =
-        subscriptions.fold(0, (sum, item) => sum + item.amountInCents);
-    final nextDay = subscriptions.isEmpty
-        ? null
-        : subscriptions
-            .map((item) => item.billingDay)
-            .reduce((a, b) => a < b ? a : b);
-    String money(int value) =>
-        hideValues ? '••••••' : FinancialRules.formatBrl(value);
-    return LayoutBuilder(builder: (context, constraints) {
-      final cards = [
-        _InsightCard(
-            icon: Icons.track_changes_rounded,
-            label: 'Orçamento usado',
-            value: budgetLimit == 0
-                ? 'Começar'
-                : '${((budgetSpent / budgetLimit) * 100).round()}%',
-            detail: budgetLimit == 0
-                ? 'Defina seus limites do mês'
-                : '${money(budgetSpent)} de ${money(budgetLimit)}',
-            color: Theme.of(context).colorScheme.primary,
-            onTap: onOpenBudgets),
-        _InsightCard(
-            icon: Icons.autorenew_rounded,
-            label: 'Assinaturas',
-            value: money(recurring),
-            detail: nextDay == null
-                ? 'Nenhuma recorrência ativa'
-                : 'Próxima cobrança no dia $nextDay',
-            color: const Color(0xFF7357C7),
-            onTap: onOpenSubscriptions),
-        _InsightCard(
-            icon: Icons.savings_outlined,
-            label: 'Taxa de economia',
-            value: store.incomes == 0
-                ? '—'
-                : '${(((store.incomes - store.expenses) / store.incomes) * 100).round()}%',
-            detail: 'Resultado sobre as entradas do mês',
-            color: const Color(0xFF258A5A)),
-      ];
-      if (constraints.maxWidth < 820) {
-        return Column(
-            children: cards
-                .map((card) => Padding(
-                    padding: const EdgeInsets.only(bottom: 10), child: card))
-                .toList());
-      }
-      return Row(children: [
-        Expanded(child: cards[0]),
-        const SizedBox(width: 10),
-        Expanded(child: cards[1]),
-        const SizedBox(width: 10),
-        Expanded(child: cards[2])
-      ]);
-    });
-  }
-}
-
-class _InsightCard extends StatelessWidget {
-  const _InsightCard(
-      {required this.icon,
-      required this.label,
-      required this.value,
-      required this.detail,
-      required this.color,
-      this.onTap});
-  final IconData icon;
-  final String label, value, detail;
-  final Color color;
-  final VoidCallback? onTap;
-  @override
-  Widget build(BuildContext context) => Card(
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.all(17),
-            child: Row(children: [
-              IconTile(icon: icon, color: color),
-              const SizedBox(width: 12),
-              Expanded(
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                    Text(label,
-                        style: TextStyle(
-                            fontSize: 12,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurfaceVariant)),
-                    const SizedBox(height: 3),
-                    Text(value,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w800, fontSize: 18)),
-                    const SizedBox(height: 2),
-                    Text(detail,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                            fontSize: 11,
-                            color:
-                                Theme.of(context).colorScheme.onSurfaceVariant))
-                  ])),
-              if (onTap != null)
-                const Icon(Icons.chevron_right_rounded, size: 18)
-            ]),
-          ),
-        ),
-      );
-}
-
-class _BalanceOverview extends StatelessWidget {
-  const _BalanceOverview({required this.balance});
-
-  final String balance;
-
-  @override
-  Widget build(BuildContext context) => Card(
-        color: const Color(0xFF202523),
-        child: Padding(
-          padding: const EdgeInsets.all(22),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Saldo consolidado',
-                      style: TextStyle(
-                        color: const Color(0xFFBECAC2),
-                      ),
+          final content = !hasData
+              ? <Widget>[
+                  _HeroSurface(
+                    child: _DashboardHero(
+                      available: _money(available),
+                      current: _money(widget.store.balance),
+                      hideValues: widget.hideValues,
+                      hint: 'Adicione sua primeira conta para começar',
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      balance,
-                      maxLines: 1,
-                      overflow: TextOverflow.fade,
-                      style: Theme.of(context)
-                          .textTheme
-                          .headlineMedium
-                          ?.copyWith(color: Colors.white, fontSize: 34),
-                    ),
-                    const SizedBox(height: 14),
-                    Text(
-                      'Saldo em contas · valores confirmados',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: const Color(0xFFBECAC2),
-                        fontSize: 12.5,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-}
+                  ),
+                  SizedBox(height: OrganizaDesignTokens.of(context).spaceXl),
+                  _EmptyDashboard(
+                    onNewAccount: widget.onNewAccount,
+                    onNewTransaction: widget.onNewTransaction,
+                  ),
+                ]
+              : compact
+                  ? _mobileContent(
+                      context,
+                      available: available,
+                      current: widget.store.balance,
+                      invoice: invoice,
+                      subscription: subscription,
+                      budget: budget,
+                      expenses: expenses,
+                      incomes: incomes,
+                      overdue: overdue,
+                    )
+                  : _desktopContent(
+                      context,
+                      available: available,
+                      current: widget.store.balance,
+                      invoice: invoice,
+                      subscription: subscription,
+                      budget: budget,
+                      expenses: expenses,
+                      incomes: incomes,
+                      overdue: overdue,
+                    );
 
-class _MonthlySummary extends StatelessWidget {
-  const _MonthlySummary({
-    required this.incomes,
-    required this.expenses,
-    required this.result,
-    required this.incomeValue,
-    required this.expenseValue,
-  });
-
-  final String incomes;
-  final String expenses;
-  final String result;
-  final int incomeValue;
-  final int expenseValue;
-
-  @override
-  Widget build(BuildContext context) {
-    final total = incomeValue + expenseValue;
-    final incomeShare = total == 0 ? .5 : incomeValue / total;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(22),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Movimento no mês',
-                style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 18),
-            Row(
+          return FocusTraversalGroup(
+            key: const Key('dashboard-focus-order'),
+            policy: OrderedTraversalPolicy(),
+            child: Stack(
               children: [
-                Expanded(
-                  child: _SummaryValue(
-                    label: 'Entradas',
-                    value: incomes,
-                    color: OrganizaTheme.green,
+                ListView(
+                  padding: EdgeInsets.fromLTRB(
+                    compact ? 20 : 34,
+                    compact ? 18 : 28,
+                    compact ? 20 : 34,
+                    40,
+                  ),
+                  children: [
+                    _MonthToolbar(
+                      month: _month,
+                      compact: compact,
+                      hideValues: widget.hideValues,
+                      onPrevious: () =>
+                          setState(() => _month = _shiftMonth(_month, -1)),
+                      onNext: () =>
+                          setState(() => _month = _shiftMonth(_month, 1)),
+                      onToggleValues: widget.onToggleValues,
+                    ),
+                    SizedBox(height: OrganizaDesignTokens.of(context).spaceLg),
+                    ...content,
+                  ],
+                ),
+                if (!compact)
+                  Positioned(
+                    right: 30,
+                    bottom: 18,
+                    child: Semantics(
+                      button: true,
+                      label: 'Nova transação',
+                      child: FloatingActionButton(
+                        heroTag: 'dashboard-new-expense',
+                        tooltip: 'Nova transação',
+                        onPressed: widget.onNewTransaction,
+                        child: const Icon(Icons.add_rounded),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          );
+        },
+      );
+
+  List<Widget> _mobileContent(
+    BuildContext context, {
+    required int available,
+    required int current,
+    required _NextInvoice? invoice,
+    required _NextSubscription? subscription,
+    required _BudgetSummary? budget,
+    required List<TransactionRecord> expenses,
+    required List<TransactionRecord> incomes,
+    required List<TransactionRecord> overdue,
+  }) {
+    final tokens = OrganizaDesignTokens.of(context);
+    return [
+      _HeroSurface(
+        child: _DashboardHero(
+          available: _money(available),
+          current: _money(current),
+          hideValues: widget.hideValues,
+        ),
+      ),
+      SizedBox(height: tokens.spaceXl),
+      QuickActionGrid(actions: _quickActions()),
+      if (overdue.isNotEmpty) ...[
+        SizedBox(height: tokens.spaceLg),
+        _OverdueNotice(
+          count: overdue.length,
+          totalInCents: overdue.fold(
+            0,
+            (total, item) => total + item.amountInCents,
+          ),
+          hideValues: widget.hideValues,
+          onPressed: widget.onOpenTransactions,
+        ),
+      ],
+      if (_showTip) ...[
+        SizedBox(height: tokens.spaceLg),
+        _Tip(
+          onDismiss: () => setState(() => _tipDismissed = true),
+          onAction: widget.onNewAccount,
+        ),
+      ],
+      SizedBox(height: tokens.spaceXl),
+      _EssentialsSection(
+        invoice: invoice,
+        subscription: subscription,
+        budget: budget,
+        cardStyle: true,
+        hideValues: widget.hideValues,
+        onOpenCards: widget.onOpenCards,
+        onOpenSubscriptions: widget.onOpenSubscriptions ?? widget.onOpenReports,
+        onOpenBudgets: widget.onOpenBudgets ?? widget.onOpenReports,
+      ),
+      SizedBox(height: tokens.spaceXl),
+      _RecentSection(
+        title: 'Últimas despesas',
+        items: expenses,
+        accounts: widget.store.accounts,
+        hideValues: widget.hideValues,
+        emptyText: 'Nenhuma despesa registrada neste mês.',
+        onSeeAll: widget.onOpenTransactions,
+      ),
+      SizedBox(height: tokens.spaceXl),
+      _RecentSection(
+        title: 'Últimas entradas',
+        items: incomes,
+        accounts: widget.store.accounts,
+        hideValues: widget.hideValues,
+        emptyText: 'Nenhuma entrada registrada neste mês.',
+        onSeeAll: widget.onOpenTransactions,
+      ),
+      SizedBox(height: tokens.spaceXl),
+      _ReportLink(onPressed: widget.onOpenReports),
+    ];
+  }
+
+  List<Widget> _desktopContent(
+    BuildContext context, {
+    required int available,
+    required int current,
+    required _NextInvoice? invoice,
+    required _NextSubscription? subscription,
+    required _BudgetSummary? budget,
+    required List<TransactionRecord> expenses,
+    required List<TransactionRecord> incomes,
+    required List<TransactionRecord> overdue,
+  }) {
+    final tokens = OrganizaDesignTokens.of(context);
+    return [
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            flex: 2,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _HeroSurface(
+                  child: _DashboardHero(
+                    available: _money(available),
+                    current: _money(current),
+                    hideValues: widget.hideValues,
                   ),
                 ),
-                Expanded(
-                  child: _SummaryValue(
-                    label: 'Saídas',
-                    value: expenses,
-                    color: OrganizaTheme.red,
-                  ),
+                SizedBox(height: tokens.spaceXl),
+                QuickActionGrid(actions: _quickActions()),
+                SizedBox(height: tokens.spaceXl),
+                _RecentSection(
+                  title: 'Últimas despesas',
+                  items: expenses,
+                  accounts: widget.store.accounts,
+                  hideValues: widget.hideValues,
+                  emptyText: 'Nenhuma despesa registrada neste mês.',
+                  onSeeAll: widget.onOpenTransactions,
                 ),
-                Expanded(
-                  child: _SummaryValue(label: 'Resultado', value: result),
+                SizedBox(height: tokens.spaceXl),
+                _RecentSection(
+                  title: 'Últimas entradas',
+                  items: incomes,
+                  accounts: widget.store.accounts,
+                  hideValues: widget.hideValues,
+                  emptyText: 'Nenhuma entrada registrada neste mês.',
+                  onSeeAll: widget.onOpenTransactions,
                 ),
               ],
             ),
-            const SizedBox(height: 18),
-            if (total == 0)
-              Text('Sem movimentações confirmadas neste mês.',
-                  style: TextStyle(
-                      fontSize: 12,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant))
-            else
-              ClipRRect(
-                borderRadius: BorderRadius.circular(3),
-                child: Row(
-                  children: [
-                    Expanded(
-                      flex: (incomeShare * 100).round().clamp(1, 99),
-                      child: Container(height: 4, color: OrganizaTheme.green),
+          ),
+          SizedBox(width: tokens.spaceXl),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (overdue.isNotEmpty) ...[
+                  _OverdueNotice(
+                    count: overdue.length,
+                    totalInCents: overdue.fold(
+                      0,
+                      (total, item) => total + item.amountInCents,
                     ),
-                    Expanded(
-                      flex: ((1 - incomeShare) * 100).round().clamp(1, 99),
-                      child: Container(height: 4, color: OrganizaTheme.red),
-                    ),
-                  ],
+                    hideValues: widget.hideValues,
+                    onPressed: widget.onOpenTransactions,
+                  ),
+                  SizedBox(height: tokens.spaceXl),
+                ],
+                _EssentialsSection(
+                  invoice: invoice,
+                  subscription: subscription,
+                  budget: budget,
+                  cardStyle: false,
+                  hideValues: widget.hideValues,
+                  onOpenCards: widget.onOpenCards,
+                  onOpenSubscriptions:
+                      widget.onOpenSubscriptions ?? widget.onOpenReports,
+                  onOpenBudgets: widget.onOpenBudgets ?? widget.onOpenReports,
                 ),
+                if (_showTip) ...[
+                  SizedBox(height: tokens.spaceXl),
+                  _Tip(
+                    onDismiss: () => setState(() => _tipDismissed = true),
+                    onAction: widget.onNewAccount,
+                  ),
+                ],
+                SizedBox(height: tokens.spaceXl),
+                _ReportLink(onPressed: widget.onOpenReports),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ];
+  }
+
+  bool get _showTip => widget.store.accounts.isEmpty && !_tipDismissed;
+
+  List<QuickActionItem> _quickActions() => [
+        QuickActionItem(
+          icon: Icons.add_rounded,
+          label: 'Nova despesa',
+          tone: QuickActionTone.brand,
+          onPressed: widget.onNewTransaction,
+        ),
+        QuickActionItem(
+          icon: Icons.south_west_rounded,
+          label: 'Nova receita',
+          tone: QuickActionTone.positive,
+          onPressed: widget.onNewIncome ?? widget.onNewTransaction,
+        ),
+        QuickActionItem(
+          icon: Icons.swap_horiz_rounded,
+          label: 'Transferir',
+          tone: QuickActionTone.brand,
+          onPressed: widget.onTransfer ?? widget.onNewTransaction,
+        ),
+        QuickActionItem(
+          icon: Icons.credit_card_outlined,
+          label: 'Cartões',
+          tone: QuickActionTone.brand,
+          onPressed: widget.onOpenCards,
+        ),
+      ];
+
+  String _money(int cents) =>
+      widget.hideValues ? '••••••' : FinancialRules.formatBrl(cents);
+}
+
+class _MonthToolbar extends StatelessWidget {
+  const _MonthToolbar({
+    required this.month,
+    required this.compact,
+    required this.hideValues,
+    required this.onPrevious,
+    required this.onNext,
+    required this.onToggleValues,
+  });
+
+  final DateTime month;
+  final bool compact;
+  final bool hideValues;
+  final VoidCallback onPrevious;
+  final VoidCallback onNext;
+  final VoidCallback? onToggleValues;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = OrganizaDesignTokens.of(context);
+    final largeText = MediaQuery.textScalerOf(context).scale(1) > 1.5;
+    final label = '${sentenceCase(monthName(month.month))} de ${month.year}';
+    if (!compact || largeText) {
+      return Row(
+        children: [
+          Expanded(
+            child: Text(label, style: Theme.of(context).textTheme.titleLarge),
+          ),
+          _monthButton(
+            tooltip: 'Mês anterior',
+            onPressed: onPrevious,
+            icon: Icons.chevron_left_rounded,
+          ),
+          _monthButton(
+            tooltip: 'Próximo mês',
+            onPressed: onNext,
+            icon: Icons.chevron_right_rounded,
+          ),
+          SizedBox(width: tokens.spaceXs),
+          _visibilityButton(),
+        ],
+      );
+    }
+    return Row(
+      children: [
+        _monthButton(
+          tooltip: 'Mês anterior',
+          onPressed: onPrevious,
+          icon: Icons.chevron_left_rounded,
+          outlined: true,
+        ),
+        SizedBox(width: tokens.spaceSm),
+        Expanded(
+          child: Semantics(
+            label: 'Mês selecionado: $label',
+            child: Container(
+              constraints: BoxConstraints(minHeight: tokens.minTapTarget),
+              padding: EdgeInsets.symmetric(horizontal: tokens.spaceMd),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainer,
+                borderRadius: BorderRadius.circular(tokens.radiusLg),
+                border: Border.all(color: Theme.of(context).dividerColor),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.calendar_month_outlined),
+                  SizedBox(width: tokens.spaceSm),
+                  Flexible(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.labelLarge,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        SizedBox(width: tokens.spaceSm),
+        _monthButton(
+          tooltip: 'Próximo mês',
+          onPressed: onNext,
+          icon: Icons.chevron_right_rounded,
+          outlined: true,
+        ),
+        SizedBox(width: tokens.spaceXs),
+        _visibilityButton(),
+      ],
+    );
+  }
+
+  Widget _monthButton({
+    required String tooltip,
+    required VoidCallback onPressed,
+    required IconData icon,
+    bool outlined = false,
+  }) =>
+      Builder(builder: (context) {
+        final tokens = OrganizaDesignTokens.of(context);
+        return Container(
+          decoration: outlined
+              ? BoxDecoration(
+                  border: Border.all(color: Theme.of(context).dividerColor),
+                  shape: BoxShape.circle,
+                )
+              : null,
+          child: IconButton(
+            tooltip: tooltip,
+            onPressed: onPressed,
+            constraints: BoxConstraints(
+              minWidth: tokens.minTapTarget,
+              minHeight: tokens.minTapTarget,
+            ),
+            icon: Icon(icon),
+          ),
+        );
+      });
+
+  Widget _visibilityButton() => Builder(builder: (context) {
+        final tokens = OrganizaDesignTokens.of(context);
+        return IconButton(
+          tooltip: hideValues ? 'Mostrar valores' : 'Ocultar valores',
+          onPressed: onToggleValues,
+          constraints: BoxConstraints(
+            minWidth: tokens.minTapTarget,
+            minHeight: tokens.minTapTarget,
+          ),
+          icon: Icon(
+            hideValues
+                ? Icons.visibility_off_outlined
+                : Icons.visibility_outlined,
+          ),
+        );
+      });
+}
+
+class _DashboardHero extends StatelessWidget {
+  const _DashboardHero({
+    required this.available,
+    required this.current,
+    required this.hideValues,
+    this.hint,
+  });
+
+  final String available;
+  final String current;
+  final bool hideValues;
+  final String? hint;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = OrganizaDesignTokens.of(context);
+    final theme = Theme.of(context);
+    final largeText = MediaQuery.textScalerOf(context).scale(1) > 1.5;
+    final semanticAvailable = hideValues ? 'valor oculto' : available;
+    final semanticCurrent = hideValues ? 'valor oculto' : current;
+    return Semantics(
+      container: true,
+      label:
+          'Disponível no mês: $semanticAvailable. Saldo atual: $semanticCurrent${hint == null ? '' : '. $hint'}',
+      child: ExcludeSemantics(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (largeText) ...[
+              _HeroWalletIcon(tokens: tokens, theme: theme),
+              SizedBox(height: tokens.spaceMd),
+              Text('Disponível no mês', style: theme.textTheme.titleMedium),
+              SizedBox(height: tokens.spaceSm),
+              _HeroValue(value: available),
+            ] else
+              Row(
+                children: [
+                  _HeroWalletIcon(tokens: tokens, theme: theme),
+                  SizedBox(width: tokens.spaceMd),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Disponível no mês',
+                          style: theme.textTheme.titleMedium,
+                        ),
+                        SizedBox(height: tokens.spaceXs),
+                        _HeroValue(value: available),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            SizedBox(height: tokens.spaceMd),
+            Divider(
+              height: tokens.hairlineThickness,
+              thickness: tokens.hairlineThickness,
+            ),
+            SizedBox(height: tokens.spaceMd),
+            if (hint != null)
+              Text(hint!, style: theme.textTheme.bodyMedium)
+            else if (largeText)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Saldo atual', style: theme.textTheme.bodySmall),
+                  SizedBox(height: tokens.spaceXs),
+                  Text(current, style: theme.textTheme.titleMedium),
+                ],
+              )
+            else
+              Row(
+                children: [
+                  Expanded(
+                    child:
+                        Text('Saldo atual', style: theme.textTheme.bodySmall),
+                  ),
+                  Text(current, style: theme.textTheme.titleMedium),
+                ],
               ),
           ],
         ),
@@ -604,223 +600,694 @@ class _MonthlySummary extends StatelessWidget {
   }
 }
 
-class _SummaryValue extends StatelessWidget {
-  const _SummaryValue({required this.label, required this.value, this.color});
+class _HeroWalletIcon extends StatelessWidget {
+  const _HeroWalletIcon({required this.tokens, required this.theme});
 
-  final String label;
-  final String value;
-  final Color? color;
+  final OrganizaDesignTokens tokens;
+  final ThemeData theme;
 
   @override
-  Widget build(BuildContext context) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+  Widget build(BuildContext context) => Container(
+        width: tokens.quickActionDiameter,
+        height: tokens.quickActionDiameter,
+        decoration: BoxDecoration(
+          color: theme.colorScheme.primary.withValues(alpha: .16),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(
+          Icons.account_balance_wallet_outlined,
+          color: theme.colorScheme.primary,
+        ),
+      );
+}
+
+class _HeroValue extends StatelessWidget {
+  const _HeroValue({required this.value});
+
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => Text(
+        value,
+        style: Theme.of(context).textTheme.displaySmall?.copyWith(
+          fontWeight: FontWeight.w800,
+          fontFeatures: const [FontFeature.tabularFigures()],
+        ),
+      );
+}
+
+class _HeroSurface extends StatelessWidget {
+  const _HeroSurface({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = OrganizaDesignTokens.of(context);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [tokens.heroSurfaceStrong, tokens.heroSurface],
+        ),
+        borderRadius: BorderRadius.circular(tokens.radiusLg),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.primary.withValues(alpha: .28),
+          width: tokens.hairlineThickness,
+        ),
+      ),
+      child: Padding(
+        padding: EdgeInsets.all(tokens.spaceLg),
+        child: child,
+      ),
+    );
+  }
+}
+
+class _Tip extends StatelessWidget {
+  const _Tip({required this.onDismiss, required this.onAction});
+
+  final VoidCallback onDismiss;
+  final VoidCallback onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = OrganizaDesignTokens.of(context);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(
+          Icons.lightbulb_outline_rounded,
+          color: Theme.of(context).colorScheme.primary,
+        ),
+        SizedBox(width: tokens.spaceSm),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Faça sua primeira conta',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              SizedBox(height: tokens.spaceXs),
+              const Text(
+                'Assim você acompanha seu saldo desde o primeiro lançamento.',
+              ),
+              Wrap(
+                spacing: tokens.spaceSm,
+                children: [
+                  TextButton(
+                    onPressed: onAction,
+                    child: const Text('Criar conta'),
+                  ),
+                  TextButton(
+                    onPressed: onDismiss,
+                    child: const Text('Dispensar'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _EmptyDashboard extends StatelessWidget {
+  const _EmptyDashboard({
+    required this.onNewAccount,
+    required this.onNewTransaction,
+  });
+
+  final VoidCallback onNewAccount;
+  final VoidCallback onNewTransaction;
+
+  @override
+  Widget build(BuildContext context) => HairlineSection(
+        title: 'Comece pelo básico',
+        child: Wrap(
+          spacing: OrganizaDesignTokens.of(context).spaceSm,
+          runSpacing: OrganizaDesignTokens.of(context).spaceSm,
+          children: [
+            FilledButton.icon(
+              onPressed: onNewAccount,
+              icon: const Icon(Icons.account_balance_outlined),
+              label: const Text('Criar primeira conta'),
+            ),
+            OutlinedButton.icon(
+              onPressed: onNewTransaction,
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Registrar primeiro lançamento'),
+            ),
+          ],
+        ),
+      );
+}
+
+class _OverdueNotice extends StatelessWidget {
+  const _OverdueNotice({
+    required this.count,
+    required this.totalInCents,
+    required this.hideValues,
+    required this.onPressed,
+  });
+
+  final int count;
+  final int totalInCents;
+  final bool hideValues;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = OrganizaDesignTokens.of(context);
+    final label = count == 1 ? '1 conta atrasada' : '$count contas atrasadas';
+    final value =
+        hideValues ? '••••••' : FinancialRules.formatBrl(totalInCents);
+    return Semantics(
+      button: true,
+      label: '$label, total $value. Ver lançamentos',
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(tokens.radiusSm),
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: tokens.spaceSm),
+          child: Row(
+            children: [
+              Icon(
+                Icons.warning_amber_rounded,
+                color: Theme.of(context).colorScheme.error,
+              ),
+              SizedBox(width: tokens.spaceSm),
+              Expanded(
+                child: Text(
+                  '$label · $value',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                ),
+              ),
+              const Icon(Icons.chevron_right_rounded),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EssentialsSection extends StatelessWidget {
+  const _EssentialsSection({
+    required this.invoice,
+    required this.subscription,
+    required this.budget,
+    required this.cardStyle,
+    required this.hideValues,
+    required this.onOpenCards,
+    required this.onOpenSubscriptions,
+    required this.onOpenBudgets,
+  });
+
+  final _NextInvoice? invoice;
+  final _NextSubscription? subscription;
+  final _BudgetSummary? budget;
+  final bool cardStyle;
+  final bool hideValues;
+  final VoidCallback onOpenCards;
+  final VoidCallback onOpenSubscriptions;
+  final VoidCallback onOpenBudgets;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = OrganizaDesignTokens.of(context);
+    final rows = Column(
+      children: [
+        _EssentialRow(
+          icon: Icons.credit_card_outlined,
+          label: 'Próxima fatura',
+          description: invoice == null
+              ? 'Adicione um cartão para acompanhar'
+              : '${invoice!.card.name} · vence em ${shortDate(invoice!.dueDate)}',
+          value: invoice == null
+              ? null
+              : _visibleMoney(invoice!.amountInCents, hideValues),
+          cardStyle: cardStyle,
+          onPressed: onOpenCards,
+        ),
+        _EssentialRow(
+          icon: Icons.autorenew_rounded,
+          label: 'Próxima assinatura',
+          description: subscription == null
+              ? 'Nenhuma assinatura ativa'
+              : '${subscription!.subscription.name} · ${shortDate(subscription!.billingDate)}',
+          value: subscription == null
+              ? null
+              : _visibleMoney(
+                  subscription!.subscription.amountInCents,
+                  hideValues,
+                ),
+          cardStyle: cardStyle,
+          onPressed: onOpenSubscriptions,
+        ),
+        _EssentialRow(
+          icon: Icons.donut_small_rounded,
+          label: 'Orçamento do mês',
+          description: budget == null
+              ? 'Defina limites para saber quanto ainda pode gastar'
+              : '${budget!.usedPercent}% do limite utilizado',
+          value: budget == null
+              ? null
+              : 'Restam ${_visibleMoney(budget!.remainingInCents, hideValues)}',
+          progress: budget?.progress,
+          cardStyle: cardStyle,
+          onPressed: onOpenBudgets,
+        ),
+      ],
+    );
+    if (!cardStyle) {
+      return HairlineSection(title: 'Próximos passos', child: rows);
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Próximos passos', style: Theme.of(context).textTheme.titleLarge),
+        SizedBox(height: tokens.spaceMd),
+        rows,
+      ],
+    );
+  }
+}
+
+class _EssentialRow extends StatelessWidget {
+  const _EssentialRow({
+    required this.icon,
+    required this.label,
+    required this.description,
+    required this.value,
+    required this.cardStyle,
+    required this.onPressed,
+    this.progress,
+  });
+
+  final IconData icon;
+  final String label;
+  final String description;
+  final String? value;
+  final bool cardStyle;
+  final VoidCallback onPressed;
+  final double? progress;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = OrganizaDesignTokens.of(context);
+    final largeText = MediaQuery.textScalerOf(context).scale(1) > 1.5;
+    final details = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: Theme.of(context).textTheme.titleSmall),
+        SizedBox(height: tokens.spaceXs),
+        Text(description, style: Theme.of(context).textTheme.bodySmall),
+        if (largeText && value != null) ...[
+          SizedBox(height: tokens.spaceXs),
+          Text(value!, style: Theme.of(context).textTheme.labelLarge),
+        ],
+        if (progress != null) ...[
+          SizedBox(height: tokens.spaceSm),
+          LinearProgressIndicator(
+            value: progress,
+            minHeight: tokens.hairlineThickness * 4,
+            borderRadius: BorderRadius.circular(tokens.radiusSm),
+          ),
+        ],
+      ],
+    );
+    final row = Semantics(
+      button: true,
+      label: '$label. $description${value == null ? '' : '. $value'}',
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(
+          cardStyle ? tokens.radiusMd : tokens.radiusSm,
+        ),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: tokens.minTapTarget),
+          child: Padding(
+            padding: EdgeInsets.symmetric(vertical: tokens.spaceMd),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(icon, color: Theme.of(context).colorScheme.primary),
+                SizedBox(width: tokens.spaceSm),
+                Expanded(child: details),
+                if (!largeText && value != null) ...[
+                  SizedBox(width: tokens.spaceSm),
+                  Flexible(
+                    child: Text(
+                      value!,
+                      textAlign: TextAlign.end,
+                      style: Theme.of(context).textTheme.labelLarge,
+                    ),
+                  ),
+                ],
+                SizedBox(width: tokens.spaceXs),
+                const Icon(Icons.chevron_right_rounded),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    if (!cardStyle) return row;
+    return Padding(
+      padding: EdgeInsets.only(bottom: tokens.spaceSm),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainer,
+          borderRadius: BorderRadius.circular(tokens.radiusMd),
+          border: Border.all(color: Theme.of(context).dividerColor),
+        ),
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: tokens.spaceMd),
+          child: row,
+        ),
+      ),
+    );
+  }
+}
+
+class _RecentSection extends StatelessWidget {
+  const _RecentSection({
+    required this.title,
+    required this.items,
+    required this.accounts,
+    required this.hideValues,
+    required this.emptyText,
+    required this.onSeeAll,
+  });
+
+  final String title;
+  final List<TransactionRecord> items;
+  final List<Account> accounts;
+  final bool hideValues;
+  final String emptyText;
+  final VoidCallback onSeeAll;
+
+  @override
+  Widget build(BuildContext context) => HairlineSection(
+        title: title,
+        trailing: items.isEmpty
+            ? null
+            : TextButton(onPressed: onSeeAll, child: const Text('Ver todas')),
+        child: items.isEmpty
+            ? _InlineEmpty(
+                icon: Icons.receipt_long_outlined,
+                text: emptyText,
+              )
+            : Column(
+                children: [
+                  for (final item in items.take(5))
+                    _RecentTransactionRow(
+                      item: item,
+                      account: _findAccount(accounts, item.accountId),
+                      hideValues: hideValues,
+                    ),
+                ],
+              ),
+      );
+}
+
+class _RecentTransactionRow extends StatelessWidget {
+  const _RecentTransactionRow({
+    required this.item,
+    required this.account,
+    required this.hideValues,
+  });
+
+  final TransactionRecord item;
+  final Account? account;
+  final bool hideValues;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = OrganizaDesignTokens.of(context);
+    final income = item.type == TransactionType.income;
+    final value = hideValues
+        ? '••••••'
+        : '${income ? '+' : '−'}${FinancialRules.formatBrl(item.amountInCents)}';
+    final largeText = MediaQuery.textScalerOf(context).scale(1) > 1.5;
+    return Semantics(
+      label:
+          '${income ? 'Entrada' : 'Despesa'}: ${item.description}, ${shortDate(item.occurredOn)}, $value',
+      child: Padding(
+        padding: EdgeInsets.symmetric(vertical: tokens.spaceSm),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            InstitutionMark(
+              institution: account?.institution ?? AccountInstitution.generic,
+              customIconKey: account?.customIconKey,
+              size: tokens.quickActionDiameter - tokens.spaceMd,
+            ),
+            SizedBox(width: tokens.spaceSm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.description.isEmpty ? item.category : item.description,
+                    maxLines: largeText ? 2 : 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                  SizedBox(height: tokens.spaceXs),
+                  Text(
+                    '${shortDate(item.occurredOn)} · ${account?.name ?? item.category}',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  if (largeText) ...[
+                    SizedBox(height: tokens.spaceXs),
+                    _TransactionValue(value: value, income: income),
+                  ],
+                ],
+              ),
+            ),
+            if (!largeText) ...[
+              SizedBox(width: tokens.spaceSm),
+              _TransactionValue(value: value, income: income),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TransactionValue extends StatelessWidget {
+  const _TransactionValue({required this.value, required this.income});
+
+  final String value;
+  final bool income;
+
+  @override
+  Widget build(BuildContext context) => Text(
+        value,
+        textAlign: TextAlign.end,
+        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              color: income
+                  ? OrganizaDesignTokens.of(context).positive
+                  : Theme.of(context).colorScheme.onSurface,
+              fontWeight: FontWeight.w800,
+            ),
+      );
+}
+
+class _ReportLink extends StatelessWidget {
+  const _ReportLink({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+        width: double.infinity,
+        child: OutlinedButton.icon(
+          onPressed: onPressed,
+          icon: const Icon(Icons.query_stats_rounded),
+          label: const Text('Ver relatório mensal completo'),
+        ),
+      );
+}
+
+class _InlineEmpty extends StatelessWidget {
+  const _InlineEmpty({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Row(
         children: [
-          Text(
-            label,
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-              fontSize: 12.5,
-            ),
-          ),
-          const SizedBox(height: 5),
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.fade,
-            style: TextStyle(
-              color: color,
-              fontSize: 17,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
+          Icon(icon, color: Theme.of(context).colorScheme.onSurfaceVariant),
+          SizedBox(width: OrganizaDesignTokens.of(context).spaceSm),
+          Expanded(child: Text(text)),
         ],
       );
 }
 
-class _AccountsPanel extends StatelessWidget {
-  const _AccountsPanel({required this.store, required this.hideValues});
-
-  final OrganizaStore store;
-  final bool hideValues;
-
-  @override
-  Widget build(BuildContext context) => Panel(
-        title: 'Suas contas',
-        subtitle:
-            '${store.accounts.length} cadastrada${store.accounts.length == 1 ? '' : 's'}',
-        child: store.accounts.isEmpty
-            ? const EmptyState(
-                icon: Icons.account_balance_wallet_outlined,
-                title: 'Nenhuma conta',
-                description: 'Cadastre uma conta para acompanhar seus saldos.',
-              )
-            : Column(
-                children: store.accounts.take(4).map((account) {
-                  return DataListRow(
-                    icon: Icons.account_balance_outlined,
-                    leading: InstitutionMark(institution: account.institution),
-                    title: account.name,
-                    subtitle: institutionName(account.institution),
-                    value: hideValues
-                        ? '••••••'
-                        : FinancialRules.formatBrl(
-                            FinancialRules.accountBalance(
-                                account, store.transactions),
-                          ),
-                  );
-                }).toList(),
-              ),
-      );
-}
-
-class _TransactionsPanel extends StatelessWidget {
-  const _TransactionsPanel({
-    required this.store,
-    required this.hideValues,
-    required this.onAdd,
+class _NextInvoice {
+  const _NextInvoice({
+    required this.card,
+    required this.dueDate,
+    required this.amountInCents,
   });
 
-  final OrganizaStore store;
-  final bool hideValues;
-  final VoidCallback onAdd;
-
-  @override
-  Widget build(BuildContext context) => Panel(
-        title: 'Movimentações recentes',
-        subtitle: 'Últimos lançamentos registrados',
-        trailing: TextButton(onPressed: onAdd, child: const Text('Adicionar')),
-        child: store.transactions.isEmpty
-            ? EmptyState(
-                icon: Icons.receipt_long_outlined,
-                title: 'Sem movimentações',
-                description: 'Registre sua primeira receita ou despesa.',
-                actionLabel: 'Nova transação',
-                onAction: onAdd,
-              )
-            : Column(
-                children: store.transactions.take(6).map((item) {
-                  return TransactionListRow(item: item, hideValues: hideValues);
-                }).toList(),
-              ),
-      );
+  final CreditCard card;
+  final DateTime dueDate;
+  final int amountInCents;
 }
 
-class _CardSnapshot extends StatelessWidget {
-  const _CardSnapshot({
-    required this.store,
-    required this.hideValues,
-    required this.onOpenCards,
+class _NextSubscription {
+  const _NextSubscription({
+    required this.subscription,
+    required this.billingDate,
   });
 
-  final OrganizaStore store;
-  final bool hideValues;
-  final VoidCallback onOpenCards;
+  final Subscription subscription;
+  final DateTime billingDate;
+}
 
-  @override
-  Widget build(BuildContext context) {
-    final card = store.creditCards.firstOrNull;
-    final invoice = card == null
-        ? 0
-        : CreditCardRules.currentInvoiceTotal(
-            card, store.cardPurchases, DateTime.now());
-    return Panel(
-      title: 'Cartões',
-      subtitle: card == null
-          ? 'Controle de limite e fatura'
-          : '${card.name} •••• ${card.lastFour}',
-      trailing: TextButton(
-          onPressed: onOpenCards,
-          child: Text(card == null ? 'Começar' : 'Ver cartões')),
-      child: card == null
-          ? const EmptyState(
-              icon: Icons.credit_card_outlined,
-              title: 'Nenhum cartão',
-              description: 'Cadastre cartões sem armazenar dados sensíveis.',
-            )
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Fatura em aberto',
-                    style: TextStyle(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant)),
-                const SizedBox(height: 6),
-                Text(
-                  hideValues ? '••••••' : FinancialRules.formatBrl(invoice),
-                  style: Theme.of(context)
-                      .textTheme
-                      .headlineSmall
-                      ?.copyWith(fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 16),
-                LinearProgressIndicator(
-                  value: CreditCardRules.usageRatio(
-                      card, store.cardPurchases, DateTime.now()),
-                  minHeight: 8,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                const SizedBox(height: 9),
-                Row(
-                  children: [
-                    Text('Limite usado',
-                        style: TextStyle(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurfaceVariant)),
-                    const Spacer(),
-                    Text('Fecha dia ${card.closingDay}'),
-                  ],
-                ),
-              ],
-            ),
+class _BudgetSummary {
+  const _BudgetSummary({
+    required this.remainingInCents,
+    required this.progress,
+  });
+
+  final int remainingInCents;
+  final double progress;
+  int get usedPercent => (progress * 100).round();
+}
+
+_NextInvoice? _nextInvoice(OrganizaStore store, DateTime reference) {
+  _NextInvoice? result;
+  for (final card in store.creditCards) {
+    var dueDate = _safeDate(reference.year, reference.month, card.dueDay);
+    if (dueDate.isBefore(_dateOnly(reference))) {
+      dueDate = _safeDate(reference.year, reference.month + 1, card.dueDay);
+    }
+    final closingMonthOffset = card.dueDay > card.closingDay ? 0 : -1;
+    final closingDate = _safeDate(
+      dueDate.year,
+      dueDate.month + closingMonthOffset,
+      card.closingDay,
     );
-  }
-}
-
-class _TasksPanel extends StatelessWidget {
-  const _TasksPanel({
-    required this.store,
-    required this.onAdd,
-    required this.onDeleteTask,
-  });
-
-  final OrganizaStore store;
-  final VoidCallback onAdd;
-  final Future<void> Function(String id) onDeleteTask;
-
-  @override
-  Widget build(BuildContext context) {
-    final pending = store.tasks.where((task) => !task.isDone).toList();
-    return Panel(
-      title: 'Tarefas',
-      subtitle: '${pending.length} pendente${pending.length == 1 ? '' : 's'}',
-      trailing: IconButton(
-          onPressed: onAdd,
-          tooltip: 'Nova tarefa',
-          icon: const Icon(Icons.add_rounded)),
-      child: pending.isEmpty
-          ? const EmptyState(
-              icon: Icons.task_alt_rounded,
-              title: 'Tudo em dia',
-              description: 'Nenhuma tarefa pendente.',
-            )
-          : Column(
-              children: pending.take(3).map((task) {
-                return CheckboxListTile(
-                  contentPadding: EdgeInsets.zero,
-                  value: task.isDone,
-                  onChanged: (value) {
-                    if (value != null) store.toggleTask(task, value);
-                  },
-                  title: Text(task.title),
-                  controlAffinity: ListTileControlAffinity.leading,
-                  secondary: IconButton(
-                    onPressed: () => onDeleteTask(task.id),
-                    tooltip: 'Excluir tarefa',
-                    icon: const Icon(Icons.delete_outline_rounded, size: 18),
-                  ),
-                );
-              }).toList(),
-            ),
+    final candidate = _NextInvoice(
+      card: card,
+      dueDate: dueDate,
+      amountInCents: CreditCardRules.currentInvoiceTotal(
+        card,
+        store.cardPurchases,
+        closingDate,
+      ),
     );
+    if (result == null || candidate.dueDate.isBefore(result.dueDate)) {
+      result = candidate;
+    }
   }
+  return result;
 }
+
+_NextSubscription? _nextSubscription(
+  Iterable<Subscription> subscriptions,
+  DateTime reference,
+) {
+  _NextSubscription? result;
+  for (final subscription in subscriptions.where((item) => item.isActive)) {
+    var billingDate =
+        _safeDate(reference.year, reference.month, subscription.billingDay);
+    if (billingDate.isBefore(_dateOnly(reference))) {
+      billingDate = _safeDate(
+        reference.year,
+        reference.month + 1,
+        subscription.billingDay,
+      );
+    }
+    final candidate = _NextSubscription(
+      subscription: subscription,
+      billingDate: billingDate,
+    );
+    if (result == null || candidate.billingDate.isBefore(result.billingDate)) {
+      result = candidate;
+    }
+  }
+  return result;
+}
+
+_BudgetSummary? _budgetSummary(OrganizaStore store, DateTime month) {
+  final budgets = store.budgets
+      .where((item) => item.year == month.year && item.month == month.month)
+      .toList();
+  if (budgets.isEmpty) return null;
+  final limit = budgets.fold(0, (total, item) => total + item.limitInCents);
+  final spent = budgets.fold(
+    0,
+    (total, item) =>
+        total + FinancialRules.budgetSpent(item, store.transactions),
+  );
+  final remaining = limit - spent;
+  return _BudgetSummary(
+    remainingInCents: remaining < 0 ? 0 : remaining,
+    progress: limit <= 0 ? 0 : (spent / limit).clamp(0, 1).toDouble(),
+  );
+}
+
+List<TransactionRecord> _monthTransactions(
+  Iterable<TransactionRecord> source,
+  DateTime month,
+) =>
+    source
+        .where((item) =>
+            item.occurredOn.year == month.year &&
+            item.occurredOn.month == month.month)
+        .toList();
+
+List<TransactionRecord> _recentTransactions(
+  Iterable<TransactionRecord> source,
+  TransactionType type,
+) {
+  final result =
+      source.where((item) => item.type == type && item.isSettled).toList()
+        ..sort((a, b) {
+          final byDate = b.occurredOn.compareTo(a.occurredOn);
+          return byDate != 0 ? byDate : b.createdAt.compareTo(a.createdAt);
+        });
+  return result.take(5).toList();
+}
+
+Account? _findAccount(Iterable<Account> accounts, String id) {
+  for (final account in accounts) {
+    if (account.id == id) return account;
+  }
+  return null;
+}
+
+String _visibleMoney(int cents, bool hideValues) =>
+    hideValues ? '••••••' : FinancialRules.formatBrl(cents);
+
+DateTime _referenceForMonth(DateTime month, DateTime today) =>
+    month.year == today.year && month.month == today.month
+        ? today
+        : DateTime(month.year, month.month);
+
+DateTime _safeDate(int year, int month, int day) {
+  final normalized = DateTime(year, month);
+  final lastDay = DateTime(normalized.year, normalized.month + 1, 0).day;
+  return DateTime(normalized.year, normalized.month, day.clamp(1, lastDay));
+}
+
+DateTime _monthStart(DateTime value) => DateTime(value.year, value.month);
+DateTime _shiftMonth(DateTime value, int amount) =>
+    DateTime(value.year, value.month + amount);
+DateTime _dateOnly(DateTime value) =>
+    DateTime(value.year, value.month, value.day);

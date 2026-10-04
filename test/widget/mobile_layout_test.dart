@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:organiza/application/organiza_store.dart';
 import 'package:organiza/domain/models.dart';
 import 'package:organiza/presentation/organiza_app.dart';
+import 'package:organiza/presentation/shared_widgets.dart';
 
 void main() {
   testWidgets('navegação mobile alcança todos os módulos', (tester) async {
@@ -13,6 +14,7 @@ void main() {
 
     final store = OrganizaStore.inMemory();
     addTearDown(store.dispose);
+    store.saveProfile(name: 'Pessoa teste', incomeInCents: 500000);
     store.addAccount('Conta principal', 485000,
         institution: AccountInstitution.nubank);
     store.addTransaction(
@@ -42,8 +44,11 @@ void main() {
       OrganizaApp(store: store),
     );
     await tester.pumpAndSettle();
-    expect(find.byType(NavigationBar), findsOneWidget);
-    expect(find.text('Resumo financeiro'), findsOneWidget);
+    expect(find.byType(AppBottomNav), findsOneWidget);
+    expect(find.byKey(const ValueKey('bottom-nav-primary-action')),
+        findsOneWidget);
+    expect(find.byTooltip('Nova transação'), findsOneWidget);
+    expect(find.text('Disponível no mês'), findsOneWidget);
 
     for (final label in [
       'Contas',
@@ -67,7 +72,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(drawerItem);
       await tester.pumpAndSettle();
-      expect(find.byType(NavigationBar), findsOneWidget);
+      expect(find.byType(AppBottomNav), findsOneWidget);
       expect(tester.takeException(), isNull, reason: label);
       expect(find.text(label), findsWidgets);
       if (label == 'Investimentos') {
@@ -89,14 +94,14 @@ void main() {
 
     for (final label in ['Finanças', 'Organizar', 'Relatórios']) {
       await tester.tap(find.descendant(
-          of: find.byType(NavigationBar), matching: find.text(label)));
+          of: find.byType(AppBottomNav), matching: find.text(label)));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull, reason: label);
     }
     await tester.tap(find.descendant(
-        of: find.byType(NavigationBar), matching: find.text('Início')));
+        of: find.byType(AppBottomNav), matching: find.text('Início')));
     await tester.pumpAndSettle();
-    expect(find.text('Resumo financeiro'), findsOneWidget);
+    expect(find.text('Disponível no mês'), findsOneWidget);
     await tester.tap(find.byTooltip('Abrir navegação'));
     await tester.pumpAndSettle();
     final settings = find.descendant(
@@ -118,10 +123,10 @@ void main() {
     expect(store.mobileQuickPages, [0, 1, 6, 7]);
     expect(
         find.descendant(
-            of: find.byType(NavigationBar), matching: find.text('Metas')),
+            of: find.byType(AppBottomNav), matching: find.text('Metas')),
         findsOneWidget);
     await tester.tap(find.descendant(
-        of: find.byType(NavigationBar), matching: find.text('Nova')));
+        of: find.byType(AppBottomNav), matching: find.text('Nova')));
     await tester.pumpAndSettle();
     expect(find.text('Nova transação'), findsWidgets);
     expect(tester.takeException(), isNull);

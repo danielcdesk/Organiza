@@ -6,7 +6,7 @@ import 'organiza_theme.dart';
 
 EdgeInsets pagePadding(BuildContext context) =>
     MediaQuery.sizeOf(context).width < 600
-        ? const EdgeInsets.fromLTRB(16, 18, 16, 32)
+        ? const EdgeInsets.fromLTRB(14, 14, 14, 26)
         : const EdgeInsets.fromLTRB(34, 30, 34, 44);
 
 class PageHeading extends StatelessWidget {
@@ -24,68 +24,80 @@ class PageHeading extends StatelessWidget {
   final List<Widget> actions;
 
   @override
-  Widget build(BuildContext context) => Wrap(
-        alignment: WrapAlignment.spaceBetween,
-        crossAxisAlignment: WrapCrossAlignment.end,
-        spacing: 20,
-        runSpacing: 16,
-        children: [
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 620),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (eyebrow.isNotEmpty) ...[
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: OrganizaTheme.orange.withValues(alpha: .09),
-                      borderRadius: BorderRadius.circular(99),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 6,
-                          height: 6,
-                          decoration: const BoxDecoration(
-                            color: OrganizaTheme.orange,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Flexible(
-                            child: Text(
-                          eyebrow,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        )),
-                      ],
-                    ),
+  Widget build(BuildContext context) {
+    final compact = MediaQuery.sizeOf(context).width < 600;
+    return Wrap(
+      alignment: WrapAlignment.spaceBetween,
+      crossAxisAlignment: WrapCrossAlignment.end,
+      spacing: 20,
+      runSpacing: 16,
+      children: [
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 620),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (eyebrow.isNotEmpty) ...[
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .primary
+                        .withValues(alpha: .09),
+                    borderRadius: BorderRadius.circular(99),
                   ),
-                  const SizedBox(height: 10),
-                ],
-                Text(title, style: Theme.of(context).textTheme.headlineMedium),
-                const SizedBox(height: 6),
-                Text(
-                  description,
-                  style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 6,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.primary,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Flexible(
+                          child: Text(
+                        eyebrow,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      )),
+                    ],
+                  ),
                 ),
+                const SizedBox(height: 10),
               ],
-            ),
+              Text(
+                title,
+                style: compact
+                    ? Theme.of(context).textTheme.titleLarge
+                    : Theme.of(context).textTheme.headlineMedium,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                description,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  fontSize: compact ? 12.5 : null,
+                ),
+              ),
+            ],
           ),
-          if (actions.isNotEmpty)
-            Wrap(spacing: 9, runSpacing: 9, children: actions),
-        ],
-      );
+        ),
+        if (actions.isNotEmpty)
+          Wrap(spacing: 9, runSpacing: 9, children: actions),
+      ],
+    );
+  }
 }
 
 class Panel extends StatelessWidget {
@@ -103,54 +115,62 @@ class Panel extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) => Card(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              LayoutBuilder(builder: (context, constraints) {
-                final heading = Column(
+  Widget build(BuildContext context) {
+    final compact = MediaQuery.sizeOf(context).width < 600;
+    return Card(
+      child: Padding(
+        padding: EdgeInsets.all(compact ? 15 : 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            LayoutBuilder(builder: (context, constraints) {
+              final heading = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: Theme.of(context).textTheme.titleMedium),
+                  if (subtitle != null) ...[
+                    const SizedBox(height: 3),
+                    Text(subtitle!,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          fontSize: 13,
+                        )),
+                  ],
+                ],
+              );
+              if (constraints.maxWidth < 400) {
+                return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: Theme.of(context).textTheme.titleMedium),
-                    if (subtitle != null) ...[
-                      const SizedBox(height: 3),
-                      Text(subtitle!,
-                          style: TextStyle(
-                            color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
-                            fontSize: 13,
-                          )),
+                    heading,
+                    if (trailing != null) ...[
+                      const SizedBox(height: 12),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: trailing!,
+                      ),
                     ],
                   ],
                 );
-                if (constraints.maxWidth < 400) {
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      heading,
-                      if (trailing != null) ...[
-                        const SizedBox(height: 12),
-                        SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: trailing!,
-                        ),
-                      ],
-                    ],
-                  );
-                }
-                return Row(children: [
-                  Expanded(child: heading),
-                  if (trailing != null) trailing!,
-                ]);
-              }),
-              const SizedBox(height: 17),
-              child,
-            ],
-          ),
+              }
+              return Row(children: [
+                Expanded(child: heading),
+                if (trailing != null)
+                  Flexible(
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: trailing!,
+                    ),
+                  ),
+              ]);
+            }),
+            const SizedBox(height: 17),
+            child,
+          ],
         ),
-      );
+      ),
+    );
+  }
 }
 
 class EmptyState extends StatelessWidget {
@@ -225,10 +245,12 @@ class InstitutionMark extends StatelessWidget {
     super.key,
     required this.institution,
     this.size = 36,
+    this.customIconKey,
   });
 
   final AccountInstitution institution;
   final double size;
+  final String? customIconKey;
 
   @override
   Widget build(BuildContext context) {
@@ -247,6 +269,34 @@ class InstitutionMark extends StatelessWidget {
           size: size * .48,
           color: Theme.of(context).colorScheme.onSurfaceVariant,
         ),
+      );
+    }
+    if (institution == AccountInstitution.custom) {
+      return Container(
+        width: size,
+        height: size,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(size * .31),
+          border: Border.all(color: Colors.white.withValues(alpha: .22)),
+        ),
+        child: Icon(_customInstitutionIcon(customIconKey),
+            size: size * .48, color: Colors.white),
+      );
+    }
+    final assetPath = institutionAssetPath(institution);
+    if (assetPath.isEmpty) {
+      return Container(
+        width: size,
+        height: size,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(size * .31),
+          border: Border.all(color: Colors.white.withValues(alpha: .22)),
+        ),
+        child: _InstitutionGlyph(institution: institution, size: size),
       );
     }
     return Container(
@@ -325,6 +375,23 @@ class _InstitutionGlyph extends StatelessWidget {
       AccountInstitution.bancoDoBrasil => Text('BB',
           style: textStyle.copyWith(
               color: const Color(0xFF173E8F), fontSize: size * .26)),
+      AccountInstitution.bancoPan =>
+        Text('pan', style: textStyle.copyWith(fontSize: size * .28)),
+      AccountInstitution.picpay => Icon(Icons.account_balance_wallet_rounded,
+          color: Colors.white, size: size * .5),
+      AccountInstitution.mercadoPago =>
+        Icon(Icons.shopping_bag_rounded, color: Colors.white, size: size * .48),
+      AccountInstitution.neon => Text('n', style: textStyle),
+      AccountInstitution.original => Text('o', style: textStyle),
+      AccountInstitution.safra =>
+        Text('safra', style: textStyle.copyWith(fontSize: size * .22)),
+      AccountInstitution.sicredi =>
+        Icon(Icons.eco_rounded, color: Colors.white, size: size * .52),
+      AccountInstitution.sicoob => Icon(Icons.account_balance_rounded,
+          color: Colors.white, size: size * .5),
+      AccountInstitution.bv => Text('bv', style: textStyle),
+      AccountInstitution.xp => Text('xp', style: textStyle),
+      AccountInstitution.custom => const SizedBox.shrink(),
       AccountInstitution.generic => const SizedBox.shrink(),
     };
   }
@@ -372,8 +439,6 @@ class DataListRow extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                           Text(title,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
                               style:
                                   const TextStyle(fontWeight: FontWeight.w600)),
                           const SizedBox(height: 4),
@@ -386,8 +451,6 @@ class DataListRow extends StatelessWidget {
                   ]),
                   const SizedBox(height: 7),
                   Text(subtitle,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                           fontSize: 12,
                           color:
@@ -404,15 +467,11 @@ class DataListRow extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       subtitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                         fontSize: 13,
@@ -456,10 +515,10 @@ class TransactionListRow extends StatelessWidget {
     final income = item.type == TransactionType.income;
     final transfer = item.type == TransactionType.transfer;
     final color = income
-        ? OrganizaTheme.green
+        ? Theme.of(context).colorScheme.secondary
         : transfer
             ? Theme.of(context).colorScheme.primary
-            : OrganizaTheme.red;
+            : Theme.of(context).colorScheme.error;
     final schedule = switch (item.scheduleType) {
       TransactionScheduleType.single => 'Único',
       TransactionScheduleType.recurring => 'Recorrente',
@@ -469,7 +528,9 @@ class TransactionListRow extends StatelessWidget {
     return DataListRow(
       leading: account == null
           ? null
-          : InstitutionMark(institution: account!.institution),
+          : InstitutionMark(
+              institution: account!.institution,
+              customIconKey: account?.customIconKey),
       icon: income
           ? Icons.south_west_rounded
           : transfer
@@ -487,34 +548,469 @@ class TransactionListRow extends StatelessWidget {
   }
 }
 
-class StatusPill extends StatelessWidget {
-  const StatusPill({super.key, required this.label});
+enum StatusKind { confirmed, pending, overdue, neutral }
 
+class StatusPill extends StatelessWidget {
+  const StatusPill({super.key, required this.label, this.kind});
+
+  final String label;
+  final StatusKind? kind;
+
+  StatusKind get _effectiveKind =>
+      kind ??
+      switch (label.toLowerCase()) {
+        'confirmado' || 'concluída' => StatusKind.confirmed,
+        'pendente' => StatusKind.pending,
+        'atrasado' || 'atrasada' => StatusKind.overdue,
+        _ => StatusKind.neutral,
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final tokens = OrganizaDesignTokens.of(context);
+    final color = switch (_effectiveKind) {
+      StatusKind.confirmed => tokens.positive,
+      StatusKind.pending => tokens.warning,
+      StatusKind.overdue => scheme.error,
+      StatusKind.neutral => tokens.neutral,
+    };
+    final icon = switch (_effectiveKind) {
+      StatusKind.confirmed => Icons.check_circle_outline_rounded,
+      StatusKind.pending => Icons.schedule_rounded,
+      StatusKind.overdue => Icons.warning_amber_rounded,
+      StatusKind.neutral => Icons.info_outline_rounded,
+    };
+    return Semantics(
+      label: label,
+      container: true,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: tokens.spaceLg - tokens.spaceSm, color: color),
+          SizedBox(width: tokens.spaceSm),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class HeroAmount extends StatelessWidget {
+  const HeroAmount({
+    super.key,
+    required this.label,
+    required this.value,
+    this.subtitle,
+    this.hideValues = false,
+  });
+
+  final String label;
+  final String value;
+  final String? subtitle;
+  final bool hideValues;
+
+  @override
+  Widget build(BuildContext context) {
+    final hidden = hideValues ? 'Valores ocultos' : value;
+    final textTheme = Theme.of(context).textTheme;
+    return Semantics(
+      container: true,
+      label: '$label: $hidden${subtitle == null ? '' : '. $subtitle'}',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: textTheme.titleMedium),
+          SizedBox(height: OrganizaDesignTokens.of(context).spaceSm),
+          Text(
+            hideValues ? '••••••' : value,
+            style: textTheme.displaySmall?.copyWith(
+              fontWeight: FontWeight.w800,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+          if (subtitle != null) ...[
+            SizedBox(height: OrganizaDesignTokens.of(context).spaceXs),
+            Text(subtitle!, style: textTheme.bodyMedium),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+enum DeltaTone { positive, negative, neutral }
+
+class DeltaText extends StatelessWidget {
+  const DeltaText({
+    super.key,
+    required this.value,
+    required this.semanticValue,
+    required this.tone,
+    this.label,
+  });
+
+  final String value;
+  final String semanticValue;
+  final DeltaTone tone;
+  final String? label;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = OrganizaDesignTokens.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    final color = switch (tone) {
+      DeltaTone.positive => tokens.positive,
+      DeltaTone.negative => scheme.error,
+      DeltaTone.neutral => tokens.neutral,
+    };
+    final icon = switch (tone) {
+      DeltaTone.positive => Icons.trending_up_rounded,
+      DeltaTone.negative => Icons.trending_down_rounded,
+      DeltaTone.neutral => Icons.trending_flat_rounded,
+    };
+    return Semantics(
+      label: '${label == null ? '' : '$label: '}$semanticValue',
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color),
+          SizedBox(width: tokens.spaceXs),
+          Text(value,
+              style: Theme.of(context)
+                  .textTheme
+                  .labelLarge
+                  ?.copyWith(color: color, fontWeight: FontWeight.w800)),
+        ],
+      ),
+    );
+  }
+}
+
+class SegmentedRange<T> extends StatelessWidget {
+  const SegmentedRange({
+    super.key,
+    required this.options,
+    required this.selected,
+    required this.onChanged,
+    this.label = 'Período',
+  });
+
+  final List<T> options;
+  final T selected;
+  final ValueChanged<T> onChanged;
   final String label;
 
   @override
-  Widget build(BuildContext context) => Row(
-        mainAxisSize: MainAxisSize.min,
+  Widget build(BuildContext context) {
+    final tokens = OrganizaDesignTokens.of(context);
+    return Semantics(
+      container: true,
+      label: label,
+      child: Wrap(
+        spacing: tokens.spaceXs,
+        runSpacing: tokens.spaceXs,
         children: [
-          Container(
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primary,
-              shape: BoxShape.circle,
+          for (final option in options)
+            Semantics(
+              selected: option == selected,
+              button: true,
+              label:
+                  '${option.toString()}${option == selected ? ', selecionado' : ''}',
+              child: ChoiceChip(
+                label: Text(option.toString()),
+                selected: option == selected,
+                onSelected: (_) => onChanged(option),
+                padding: EdgeInsets.symmetric(
+                  horizontal: tokens.spaceSm,
+                  vertical: tokens.spaceXs,
+                ),
+                materialTapTargetSize: MaterialTapTargetSize.padded,
+              ),
             ),
-          ),
-          const SizedBox(width: 7),
-          Text(
-            label,
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
         ],
-      );
+      ),
+    );
+  }
+}
+
+enum QuickActionTone { neutral, brand, positive }
+
+class QuickActionItem {
+  const QuickActionItem({
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+    this.semanticLabel,
+    this.tone = QuickActionTone.neutral,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onPressed;
+  final String? semanticLabel;
+  final QuickActionTone tone;
+}
+
+class QuickActionGrid extends StatelessWidget {
+  const QuickActionGrid({super.key, required this.actions});
+
+  final List<QuickActionItem> actions;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = OrganizaDesignTokens.of(context);
+    Color actionColor(QuickActionTone tone) => switch (tone) {
+          QuickActionTone.neutral =>
+            Theme.of(context).colorScheme.onSurfaceVariant,
+          QuickActionTone.brand => Theme.of(context).colorScheme.primary,
+          QuickActionTone.positive => tokens.positive,
+        };
+    return GridView.count(
+      crossAxisCount: 4,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      mainAxisSpacing: tokens.spaceSm,
+      crossAxisSpacing: tokens.spaceSm,
+      mainAxisExtent: tokens.quickActionDiameter + tokens.spaceLg,
+      children: [
+        for (final action in actions)
+          Semantics(
+            button: true,
+            label: action.semanticLabel ?? action.label,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: tokens.minTapTarget),
+              child: InkWell(
+                key: ValueKey('quick-action-${action.label}'),
+                onTap: action.onPressed,
+                borderRadius: BorderRadius.circular(tokens.radiusMd),
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: tokens.spaceXs),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: tokens.quickActionDiameter,
+                        height: tokens.quickActionDiameter,
+                        decoration: BoxDecoration(
+                          color:
+                              actionColor(action.tone).withValues(alpha: .12),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color:
+                                actionColor(action.tone).withValues(alpha: .32),
+                          ),
+                        ),
+                        child: Icon(
+                          action.icon,
+                          color: actionColor(action.tone),
+                        ),
+                      ),
+                      SizedBox(height: tokens.spaceSm),
+                      Flexible(
+                        child: Text(
+                          action.label,
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.labelLarge,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class HairlineSection extends StatelessWidget {
+  const HairlineSection({
+    super.key,
+    required this.title,
+    required this.child,
+    this.trailing,
+  });
+
+  final String title;
+  final Widget child;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = OrganizaDesignTokens.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: Text(title, style: Theme.of(context).textTheme.titleLarge),
+            ),
+            if (trailing != null) trailing!,
+          ],
+        ),
+        SizedBox(height: tokens.spaceSm),
+        Divider(
+            height: tokens.hairlineThickness,
+            thickness: tokens.hairlineThickness),
+        SizedBox(height: tokens.spaceSm),
+        child,
+      ],
+    );
+  }
+}
+
+class AppBottomNavItem {
+  const AppBottomNavItem({
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+    this.semanticLabel,
+    this.primaryAction = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onPressed;
+  final String? semanticLabel;
+  final bool primaryAction;
+}
+
+class AppBottomNav extends StatelessWidget {
+  const AppBottomNav({
+    super.key,
+    required this.items,
+    required this.currentIndex,
+  }) : assert(items.length <= 5);
+
+  final List<AppBottomNavItem> items;
+  final int currentIndex;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = OrganizaDesignTokens.of(context);
+    return Material(
+      color: Theme.of(context).colorScheme.surface,
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: tokens.navHeight,
+          child: Row(
+            children: [
+              for (var index = 0; index < items.length; index++)
+                Expanded(
+                  child: Semantics(
+                    button: true,
+                    selected:
+                        !items[index].primaryAction && index == currentIndex,
+                    label:
+                        '${items[index].semanticLabel ?? items[index].label}${!items[index].primaryAction && index == currentIndex ? ', selecionado' : ''}',
+                    child: InkWell(
+                      key: items[index].primaryAction
+                          ? const ValueKey('bottom-nav-primary-action')
+                          : null,
+                      onTap: items[index].onPressed,
+                      child: items[index].primaryAction
+                          ? _PrimaryBottomAction(item: items[index])
+                          : Center(
+                              child: Container(
+                                constraints: BoxConstraints(
+                                  minWidth: tokens.minTapTarget,
+                                  minHeight: tokens.minTapTarget,
+                                ),
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: tokens.spaceSm,
+                                  vertical: tokens.spaceXs,
+                                ),
+                                decoration: index == currentIndex
+                                    ? BoxDecoration(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .primary
+                                            .withValues(alpha: .16),
+                                        borderRadius: BorderRadius.circular(
+                                            tokens.radiusLg),
+                                      )
+                                    : null,
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(items[index].icon),
+                                    Text(
+                                      items[index].label,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .labelSmall,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PrimaryBottomAction extends StatelessWidget {
+  const _PrimaryBottomAction({required this.item});
+
+  final AppBottomNavItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = OrganizaDesignTokens.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    return Tooltip(
+      message: item.semanticLabel ?? item.label,
+      child: Transform.translate(
+        offset: Offset(0, -tokens.spaceXs),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: tokens.quickActionDiameter,
+              height: tokens.quickActionDiameter,
+              decoration: BoxDecoration(
+                color: scheme.primary,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: scheme.surface,
+                  width: tokens.hairlineThickness * 3,
+                ),
+              ),
+              child: Icon(item.icon, color: scheme.onPrimary),
+            ),
+            Text(
+              item.label,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: scheme.primary,
+                    fontWeight: FontWeight.w800,
+                  ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 String shortDate(DateTime date) =>
@@ -539,7 +1035,8 @@ String sentenceCase(String value) => value.isEmpty
     ? value
     : '${value.substring(0, 1).toUpperCase()}${value.substring(1)}';
 
-String institutionName(AccountInstitution institution) => switch (institution) {
+String institutionName(AccountInstitution institution, [String? customName]) =>
+    switch (institution) {
       AccountInstitution.generic => 'Banco',
       AccountInstitution.nubank => 'Nubank',
       AccountInstitution.inter => 'Inter',
@@ -548,6 +1045,19 @@ String institutionName(AccountInstitution institution) => switch (institution) {
       AccountInstitution.bradesco => 'Bradesco',
       AccountInstitution.santander => 'Santander',
       AccountInstitution.bancoDoBrasil => 'Banco do Brasil',
+      AccountInstitution.bancoPan => 'Banco PAN',
+      AccountInstitution.picpay => 'PicPay',
+      AccountInstitution.mercadoPago => 'Mercado Pago',
+      AccountInstitution.neon => 'Neon',
+      AccountInstitution.original => 'Banco Original',
+      AccountInstitution.safra => 'Safra',
+      AccountInstitution.sicredi => 'Sicredi',
+      AccountInstitution.sicoob => 'Sicoob',
+      AccountInstitution.bv => 'Banco BV',
+      AccountInstitution.xp => 'XP',
+      AccountInstitution.custom => customName?.trim().isNotEmpty == true
+          ? customName!.trim()
+          : 'Banco personalizado',
     };
 
 String institutionMark(AccountInstitution institution) => switch (institution) {
@@ -558,6 +1068,17 @@ String institutionMark(AccountInstitution institution) => switch (institution) {
       AccountInstitution.bradesco => 'bra',
       AccountInstitution.santander => 'san',
       AccountInstitution.bancoDoBrasil => 'bb',
+      AccountInstitution.bancoPan => 'pan',
+      AccountInstitution.picpay => 'pay',
+      AccountInstitution.mercadoPago => 'mp',
+      AccountInstitution.neon => 'n',
+      AccountInstitution.original => 'o',
+      AccountInstitution.safra => 'saf',
+      AccountInstitution.sicredi => 'sic',
+      AccountInstitution.sicoob => 'sco',
+      AccountInstitution.bv => 'bv',
+      AccountInstitution.xp => 'xp',
+      AccountInstitution.custom => '',
       AccountInstitution.generic => '',
     };
 
@@ -570,6 +1091,17 @@ Color institutionColor(AccountInstitution institution, BuildContext context) =>
       AccountInstitution.bradesco => const Color(0xFFCC092F),
       AccountInstitution.santander => const Color(0xFFEC0000),
       AccountInstitution.bancoDoBrasil => const Color(0xFFFFDF00),
+      AccountInstitution.bancoPan => const Color(0xFF00AEEF),
+      AccountInstitution.picpay => const Color(0xFF21C25E),
+      AccountInstitution.mercadoPago => const Color(0xFF009EE3),
+      AccountInstitution.neon => const Color(0xFF00D7FF),
+      AccountInstitution.original => const Color(0xFF00AEEF),
+      AccountInstitution.safra => const Color(0xFFB28A43),
+      AccountInstitution.sicredi => const Color(0xFF3DAE2B),
+      AccountInstitution.sicoob => const Color(0xFF007E3A),
+      AccountInstitution.bv => const Color(0xFF24449C),
+      AccountInstitution.xp => const Color(0xFF111111),
+      AccountInstitution.custom => OrganizaTheme.orange,
       AccountInstitution.generic => Theme.of(context)
           .colorScheme
           .surfaceContainerHighest
@@ -585,7 +1117,29 @@ String institutionAssetPath(AccountInstitution institution) =>
       AccountInstitution.bradesco => 'assets/banks/bradesco.png',
       AccountInstitution.santander => 'assets/banks/santander.png',
       AccountInstitution.bancoDoBrasil => 'assets/banks/banco-do-brasil.png',
+      AccountInstitution.bancoPan => '',
+      AccountInstitution.picpay => '',
+      AccountInstitution.mercadoPago => '',
+      AccountInstitution.neon => '',
+      AccountInstitution.original => '',
+      AccountInstitution.safra => '',
+      AccountInstitution.sicredi => '',
+      AccountInstitution.sicoob => '',
+      AccountInstitution.bv => '',
+      AccountInstitution.xp => '',
+      AccountInstitution.custom => '',
       AccountInstitution.generic => '',
+    };
+
+IconData _customInstitutionIcon(String? key) => switch (key) {
+      'wallet' => Icons.account_balance_wallet_rounded,
+      'bank' => Icons.account_balance_rounded,
+      'payments' => Icons.payments_rounded,
+      'savings' => Icons.savings_rounded,
+      'business' => Icons.business_rounded,
+      'store' => Icons.storefront_rounded,
+      'phone' => Icons.phone_android_rounded,
+      _ => Icons.account_balance_wallet_rounded,
     };
 
 String investmentTypeName(InvestmentType type) => switch (type) {

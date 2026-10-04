@@ -43,5 +43,9 @@ class ReportExportService {
     return file;
   }
 
-  String _escape(String value) => '"${value.replaceAll('"', '""')}"';
+  String _escape(String value) {
+    final safe =
+        value.isNotEmpty && '=+-@'.contains(value[0]) ? "'$value" : value;
+    return '"${safe.replaceAll('"', '""')}"';
+  }
 }

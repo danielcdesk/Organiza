@@ -1,5 +1,11 @@
 # Estado conhecido como bom
 
+## Estado verificado — build 15 (28/09/2026)
+
+- `flutter analyze` sem problemas, `flutter test` com 45 testes aprovados e os dois fluxos de integração Windows aprovados.
+- AAB gerado com `targetSdk 36`; o APK não declara `android.permission.INTERNET` e o manifesto usa `android:allowBackup="false"`.
+- Artefatos disponíveis em `builds/local/v0.7.1+10-build-15-technical-hardening/` e `builds/github/v0.7.1+10-build-15-technical-hardening/`.
+
 ## 2026-09-18 — Organiza 0.7.1
 
 - Planejamento e Orçamento têm um único ponto de entrada, Organização, tanto na barra lateral desktop quanto no menu móvel.

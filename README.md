@@ -115,7 +115,7 @@ O **Organiza** reúne contas, lançamentos, cartões, orçamentos, assinaturas, 
 
 ### ✅ Android: instalar o aplicativo
 
-[Baixe o APK Android 0.7.1](https://github.com/danielcdesk/Organiza/releases/download/v0.7.1/Organiza-Android-0.7.1.apk), copie-o para o celular e abra-o pelo gerenciador de arquivos. O Android pode pedir autorização para instalar apps dessa origem. Após a instalação, abra **Organiza**; não é necessário criar conta nem ter internet. Atualizações usam a mesma chave de release.
+[Baixe o APK Android 0.7.1](https://github.com/danielcdesk/Organiza/releases/download/v0.7.1/Organiza-Android-0.7.1.apk), copie-o para o celular e abra-o pelo gerenciador de arquivos. O Android pode pedir autorização para instalar apps dessa origem. No primeiro uso, o Organiza pede um perfil local com nome e renda; não há conta online nem internet obrigatória. Atualizações usam a mesma chave de release.
 
 O APK contém todos os módulos, com menu lateral dividido por áreas, quatro atalhos configuráveis em Configurações e botão central de nova transação. Esta versão foi compilada para Android; **não há pacote iOS**, pois a compilação e assinatura para iPhone exigem macOS e a toolchain da Apple.
 
@@ -163,7 +163,7 @@ Na versão 0.7.1, a previsão do dashboard usa o saldo atual e as receitas/despe
 
 A taxa de investimento informada pelo usuário continua separada da variação acumulada simples. Não há crédito automático de rendimentos ou consulta de cotações. O salário recorrente gera uma ocorrência pendente no dia cadastrado, para confirmação manual.
 
-Validação da versão 0.7.1: análise estática, **41 testes Flutter** e os dois fluxos de integração Windows aprovados, cobrindo a área unificada, previsão, edição, desfazer, filtros, preferências, migrações e navegação móvel. Consulte as [notas da versão](docs/releases/v0.7.1.md) para evidências dos pacotes. A validação do layout compacto no Windows não substitui instalação e teste em Android físico.
+Validação da build técnica `v0.7.1+10-build-15-technical-hardening`: formatação, análise estática sem problemas, **45 testes Flutter**, dois fluxos de integração Windows aprovados, AAB gerado com `targetSdk 36` e manifesto sem permissão de internet. O emulador conectado nesta máquina usa ABI x86 de 32 bits, que não é suportada pelo Flutter estável atual; use x86_64 ou arm64 para instalar o APK.
 
 Consulte o [estado conhecido como bom](docs/known_good_state.md) e a [estratégia de testes](docs/testing_strategy.md) para os contratos de regressão.
 
@@ -232,7 +232,7 @@ windows/           # runner nativo do Flutter
 - pagamento e histórico definitivo de faturas;
 - edição de categorias, datas e limites de orçamentos;
 - baixa e alteração de séries recorrentes em lote;
-- backup e restauração com confirmação;
+- backup e restauração criptografados com confirmação;
 - importação de extratos e notas;
 - integração bancária e cotações somente mediante arquitetura explícita de consentimento e privacidade.
 

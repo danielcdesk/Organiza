@@ -3,7 +3,7 @@ import 'package:organiza/database/app_database.dart';
 import 'package:organiza/domain/models.dart';
 
 void main() {
-  test('migração 1 para 11 preserva dados e habilita novos módulos', () {
+  test('migração local preserva dados e habilita novos módulos', () {
     final database = AppDatabase.openInMemoryFromVersion1ForTest();
     addTearDown(database.close);
     final now = DateTime(2026, 9, 10);
@@ -69,7 +69,7 @@ void main() {
       createdAt: now,
     ));
 
-    expect(database.schemaVersion, 11);
+    expect(database.schemaVersion, 15);
     expect(database.loadAccounts().single.name, 'Principal');
     expect(
         database.loadAccounts().single.institution, AccountInstitution.generic);

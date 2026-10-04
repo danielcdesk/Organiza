@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
 import '../application/organiza_store.dart';
 import '../domain/financial_rules.dart';
@@ -100,6 +101,14 @@ class InvestmentsPage extends StatelessWidget {
             },
           ),
           const SizedBox(height: 14),
+          _InvestmentTelemetry(
+            positions: positions,
+            current: current,
+            profit: profit,
+            rate: rate,
+            hideValues: hideValues,
+          ),
+          const SizedBox(height: 14),
           _PositionsPanel(
             positions: positions,
             hideValues: hideValues,
@@ -124,6 +133,383 @@ class InvestmentsPage extends StatelessWidget {
       ],
     );
   }
+}
+
+class _InvestmentTelemetry extends StatefulWidget {
+  const _InvestmentTelemetry({
+    required this.positions,
+    required this.current,
+    required this.profit,
+    required this.rate,
+    required this.hideValues,
+  });
+
+  final List<InvestmentPosition> positions;
+  final int current;
+  final int profit;
+  final double rate;
+  final bool hideValues;
+
+  @override
+  State<_InvestmentTelemetry> createState() => _InvestmentTelemetryState();
+}
+
+class _InvestmentTelemetryState extends State<_InvestmentTelemetry>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _motion;
+  var _animationsDisabled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _motion = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1600),
+    );
+    if (kReleaseMode) {
+      _motion.repeat();
+    } else {
+      _motion.forward();
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final disabled = MediaQuery.disableAnimationsOf(context);
+    if (disabled != _animationsDisabled) {
+      _animationsDisabled = disabled;
+      if (disabled) {
+        _motion.stop(canceled: false);
+      } else if (kReleaseMode) {
+        _motion.repeat();
+      } else {
+        _motion.forward();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _motion.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final values = _chartValues();
+    final load = (70 + widget.positions.length * 4 + widget.rate * 100)
+        .round()
+        .clamp(0, 99);
+    final response =
+        (0.002 + widget.positions.length * .0003).toStringAsFixed(3);
+    final phase = _animationsDisabled ? .45 : _motion.value;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final cardWidth = width > 980
+            ? (width - 24) / 3
+            : width > 620
+                ? (width - 12) / 2
+                : width;
+        return Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            SizedBox(
+              width: cardWidth,
+              child: _TelemetryCard(
+                label: 'LIVE FLOW',
+                title: 'Carga da carteira',
+                value: '$load%',
+                accent: const Color(0xFF27D7A0),
+                icon: Icons.monitor_heart_outlined,
+                child: CustomPaint(
+                  painter: _TelemetryLinePainter(
+                    values: values,
+                    progress: phase,
+                    color: const Color(0xFF27D7A0),
+                  ),
+                  child: const SizedBox(height: 92),
+                ),
+              ),
+            ),
+            SizedBox(
+              width: cardWidth,
+              child: _TelemetryCard(
+                label: 'NÚCLEO SINTÉTICO',
+                title: 'Pulso do patrimônio',
+                value: widget.hideValues
+                    ? '••••••'
+                    : FinancialRules.formatBrl(widget.current),
+                accent: const Color(0xFF8AA8FF),
+                icon: Icons.blur_on_rounded,
+                child: CustomPaint(
+                  painter: _SyntheticCorePainter(
+                    phase: phase,
+                    color: const Color(0xFF9BAEFF),
+                  ),
+                  child: const SizedBox(height: 92),
+                ),
+              ),
+            ),
+            SizedBox(
+              width: cardWidth,
+              child: _TelemetryCard(
+                label: 'LATENT RESPONSE',
+                title: 'Resposta do mercado',
+                value: '${widget.hideValues ? '••••••' : response} ms',
+                accent: const Color(0xFFFF4164),
+                icon: Icons.hub_outlined,
+                child: CustomPaint(
+                  painter: _TelemetryBarsPainter(
+                    values: values,
+                    progress: phase,
+                    color: const Color(0xFFFF4164),
+                  ),
+                  child: const SizedBox(height: 92),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  List<double> _chartValues() {
+    final values = <double>[];
+    final positions = widget.positions;
+    for (var index = 0; index < 7; index++) {
+      if (positions.isEmpty) {
+        values.add(.35 + index * .04);
+      } else {
+        final item = positions[index % positions.length];
+        final base = item.currentValueInCents == 0
+            ? .2
+            : item.currentValueInCents /
+                math.max(widget.current.abs(), item.currentValueInCents);
+        values.add(
+            (.22 + base * .58 + (index.isEven ? .03 : -.02)).clamp(.16, .92));
+      }
+    }
+    return values;
+  }
+}
+
+class _TelemetryCard extends StatelessWidget {
+  const _TelemetryCard({
+    required this.label,
+    required this.title,
+    required this.value,
+    required this.accent,
+    required this.icon,
+    required this.child,
+  });
+
+  final String label;
+  final String title;
+  final String value;
+  final Color accent;
+  final IconData icon;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final border = Theme.of(context).brightness == Brightness.dark
+        ? const Color(0xFF252A32)
+        : const Color(0xFFDBDDE6);
+    return Container(
+      height: 218,
+      padding: const EdgeInsets.fromLTRB(18, 17, 18, 14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0B0D12),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: border),
+        boxShadow: [
+          BoxShadow(
+            color: accent.withValues(alpha: .07),
+            blurRadius: 22,
+            spreadRadius: 1,
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 17, color: accent),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: accent,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.15,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.end,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -.4,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            title,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Expanded(child: child),
+        ],
+      ),
+    );
+  }
+}
+
+class _TelemetryLinePainter extends CustomPainter {
+  const _TelemetryLinePainter({
+    required this.values,
+    required this.progress,
+    required this.color,
+  });
+
+  final List<double> values;
+  final double progress;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (values.isEmpty) return;
+    final path = Path();
+    final fill = Path()..moveTo(0, size.height);
+    for (var index = 0; index < values.length; index++) {
+      final x = index / (values.length - 1) * size.width;
+      final wave = math.sin(progress * math.pi * 2 + index * .8) * 3;
+      final y = size.height - values[index] * size.height * .72 + wave;
+      if (index == 0) {
+        path.moveTo(x, y);
+        fill.lineTo(x, y);
+      } else {
+        final previousX = (index - 1) / (values.length - 1) * size.width;
+        final previousY = size.height -
+            values[index - 1] * size.height * .72 +
+            math.sin(progress * math.pi * 2 + (index - 1) * .8) * 3;
+        final controlX = (previousX + x) / 2;
+        path.cubicTo(controlX, previousY, controlX, y, x, y);
+        fill.cubicTo(controlX, previousY, controlX, y, x, y);
+      }
+    }
+    fill.lineTo(size.width, size.height);
+    fill.close();
+    canvas.drawPath(
+      fill,
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [color.withValues(alpha: .34), color.withValues(alpha: .02)],
+        ).createShader(Offset.zero & size),
+    );
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.4
+        ..strokeCap = StrokeCap.round,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _TelemetryLinePainter oldDelegate) =>
+      oldDelegate.progress != progress || oldDelegate.values != values;
+}
+
+class _TelemetryBarsPainter extends CustomPainter {
+  const _TelemetryBarsPainter({
+    required this.values,
+    required this.progress,
+    required this.color,
+  });
+
+  final List<double> values;
+  final double progress;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final count = values.length;
+    final gap = size.width / (count * 2.2);
+    final barWidth = gap * .9;
+    final pulse = .86 + math.sin(progress * math.pi * 2) * .08;
+    for (var index = 0; index < count; index++) {
+      final height = values[index] * size.height * pulse;
+      final x = gap + index * (barWidth + gap);
+      final rect = RRect.fromRectAndRadius(
+        Rect.fromLTWH(x, size.height - height, barWidth, height),
+        const Radius.circular(4),
+      );
+      canvas.drawRRect(rect, Paint()..color = color);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _TelemetryBarsPainter oldDelegate) =>
+      oldDelegate.progress != progress || oldDelegate.values != values;
+}
+
+class _SyntheticCorePainter extends CustomPainter {
+  const _SyntheticCorePainter({required this.phase, required this.color});
+
+  final double phase;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final paint = Paint()..style = PaintingStyle.fill;
+    for (var index = 0; index < 150; index++) {
+      final t = index / 149;
+      final y = size.height * (.06 + t * .88);
+      final wave = math.sin(t * math.pi * 4 + phase * math.pi * 2) *
+          (size.width * (.13 + t * .06));
+      final x = center.dx + wave;
+      final radius = .7 + math.sin(t * math.pi) * 1.7;
+      final opacity = (.14 + math.sin(t * math.pi) * .56).clamp(.08, .7);
+      paint.color = color.withValues(alpha: opacity);
+      canvas.drawCircle(Offset(x, y), radius, paint);
+      if (index % 6 == 0) {
+        paint.color = Colors.white.withValues(alpha: opacity * .35);
+        canvas.drawCircle(Offset(x - wave * .18, y), radius * .55, paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _SyntheticCorePainter oldDelegate) =>
+      oldDelegate.phase != phase;
 }
 
 class _PortfolioSummary extends StatelessWidget {

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -6,6 +8,7 @@ import '../domain/financial_rules.dart';
 import '../domain/models.dart';
 import 'dialogs.dart' show parseMoney;
 import 'shared_widgets.dart';
+import '../services/local_image_service.dart';
 
 class ShoppingPage extends StatefulWidget {
   const ShoppingPage({
@@ -27,6 +30,13 @@ class ShoppingPage extends StatefulWidget {
 
 class _ShoppingPageState extends State<ShoppingPage> {
   var _filter = 0;
+  late String _viewMode;
+
+  @override
+  void initState() {
+    super.initState();
+    _viewMode = widget.store.shoppingViewPreference;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -96,16 +106,41 @@ class _ShoppingPageState extends State<ShoppingPage> {
         Panel(
           title: 'Seus itens',
           subtitle: 'Marcar como comprado não registra uma transação.',
-          trailing: SegmentedButton<int>(
-            showSelectedIcon: false,
-            segments: const [
-              ButtonSegment(value: 0, label: Text('Todos')),
-              ButtonSegment(value: 1, label: Text('Na lista')),
-              ButtonSegment(value: 2, label: Text('Comprados')),
+          trailing: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              SegmentedButton<String>(
+                showSelectedIcon: false,
+                segments: const [
+                  ButtonSegment(
+                      value: 'list',
+                      icon: Icon(Icons.view_list_rounded),
+                      label: Text('Lista')),
+                  ButtonSegment(
+                      value: 'cards',
+                      icon: Icon(Icons.grid_view_rounded),
+                      label: Text('Cards')),
+                ],
+                selected: {_viewMode},
+                onSelectionChanged: (value) {
+                  final next = value.first;
+                  setState(() => _viewMode = next);
+                  widget.store.saveShoppingViewPreference(next);
+                },
+              ),
+              SegmentedButton<int>(
+                showSelectedIcon: false,
+                segments: const [
+                  ButtonSegment(value: 0, label: Text('Todos')),
+                  ButtonSegment(value: 1, label: Text('Na lista')),
+                  ButtonSegment(value: 2, label: Text('Comprados')),
+                ],
+                selected: {_filter},
+                onSelectionChanged: (value) =>
+                    setState(() => _filter = value.first),
+              ),
             ],
-            selected: {_filter},
-            onSelectionChanged: (value) =>
-                setState(() => _filter = value.first),
           ),
           child: visible.isEmpty
               ? EmptyState(
@@ -119,18 +154,41 @@ class _ShoppingPageState extends State<ShoppingPage> {
                   actionLabel: _filter == 0 ? 'Adicionar item' : null,
                   onAction: _filter == 0 ? widget.onAdd : null,
                 )
-              : Column(
-                  children: [
-                    for (final item in visible)
-                      _ShoppingRow(
-                        item: item,
-                        hideValues: widget.hideValues,
-                        onChanged: (value) => widget.store
-                            .setShoppingItemPurchased(item.id, value),
-                        onDelete: () => widget.onDelete(item.id),
-                      ),
-                  ],
-                ),
+              : _viewMode == 'cards'
+                  ? _ShoppingGrid(
+                      items: visible,
+                      hideValues: widget.hideValues,
+                      onChanged: (item, value) =>
+                          widget.store.setShoppingItemPurchased(item.id, value),
+                      onDelete: (item) => widget.onDelete(item.id),
+                      onChangeImage: (item) async {
+                        final imagePath =
+                            await LocalImageService.pickAndStore();
+                        if (imagePath != null) {
+                          widget.store.setShoppingItemImage(item.id, imagePath);
+                        }
+                      },
+                    )
+                  : Column(
+                      children: [
+                        for (final item in visible)
+                          _ShoppingRow(
+                            item: item,
+                            hideValues: widget.hideValues,
+                            onChanged: (value) => widget.store
+                                .setShoppingItemPurchased(item.id, value),
+                            onDelete: () => widget.onDelete(item.id),
+                            onChangeImage: () async {
+                              final imagePath =
+                                  await LocalImageService.pickAndStore();
+                              if (imagePath != null) {
+                                widget.store
+                                    .setShoppingItemImage(item.id, imagePath);
+                              }
+                            },
+                          ),
+                      ],
+                    ),
         ),
         const SizedBox(height: 14),
         Panel(
@@ -195,24 +253,311 @@ class _ShoppingMetric extends StatelessWidget {
   }
 }
 
-class _ShoppingRow extends StatelessWidget {
-  const _ShoppingRow({
+class _ShoppingGrid extends StatelessWidget {
+  const _ShoppingGrid({
+    required this.items,
+    required this.hideValues,
+    required this.onChanged,
+    required this.onDelete,
+    required this.onChangeImage,
+  });
+
+  final List<ShoppingItem> items;
+  final bool hideValues;
+  final void Function(ShoppingItem item, bool value) onChanged;
+  final void Function(ShoppingItem item) onDelete;
+  final Future<void> Function(ShoppingItem item) onChangeImage;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+        builder: (context, constraints) {
+          final columns = constraints.maxWidth > 920
+              ? 3
+              : constraints.maxWidth > 580
+                  ? 2
+                  : 1;
+          final gap = 12.0;
+          final width = (constraints.maxWidth - gap * (columns - 1)) / columns;
+          return Wrap(
+            spacing: gap,
+            runSpacing: gap,
+            children: [
+              for (final item in items)
+                SizedBox(
+                  width: width,
+                  child: _WishlistCard(
+                    item: item,
+                    hideValues: hideValues,
+                    onChanged: (value) => onChanged(item, value),
+                    onDelete: () => onDelete(item),
+                    onChangeImage: () => onChangeImage(item),
+                  ),
+                ),
+            ],
+          );
+        },
+      );
+}
+
+class _WishlistCard extends StatefulWidget {
+  const _WishlistCard({
     required this.item,
     required this.hideValues,
     required this.onChanged,
     required this.onDelete,
+    required this.onChangeImage,
   });
 
   final ShoppingItem item;
   final bool hideValues;
   final ValueChanged<bool> onChanged;
   final VoidCallback onDelete;
+  final Future<void> Function() onChangeImage;
+
+  @override
+  State<_WishlistCard> createState() => _WishlistCardState();
+}
+
+class _WishlistCardState extends State<_WishlistCard> {
+  var _hovered = false;
+  var _revealed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final item = widget.item;
+    final hasImage = LocalImageService.exists(item.imagePath);
+    final reveal = _hovered || _revealed;
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: Card(
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            GestureDetector(
+              onTap: () => setState(() => _revealed = !_revealed),
+              child: SizedBox(
+                height: 184,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    if (hasImage)
+                      Image.file(File(item.imagePath!), fit: BoxFit.cover)
+                    else
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Theme.of(context)
+                                  .colorScheme
+                                  .primary
+                                  .withValues(alpha: .3),
+                              Theme.of(context)
+                                  .colorScheme
+                                  .surfaceContainerHighest,
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                        ),
+                        child: Icon(Icons.photo_outlined,
+                            size: 42,
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant),
+                      ),
+                    AnimatedOpacity(
+                      opacity: reveal ? 1 : 0,
+                      duration: const Duration(milliseconds: 180),
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.black.withValues(alpha: .12),
+                              Colors.black.withValues(alpha: .86),
+                            ],
+                          ),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Align(
+                            alignment: Alignment.bottomLeft,
+                            child: Text(
+                              item.description.trim().isEmpty
+                                  ? 'Sem descrição. Toque para voltar ao item.'
+                                  : item.description,
+                              maxLines: 5,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                height: 1.25,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      top: 9,
+                      right: 9,
+                      child: Material(
+                        color: Colors.black.withValues(alpha: .55),
+                        borderRadius: BorderRadius.circular(10),
+                        child: IconButton(
+                          onPressed: widget.onChangeImage,
+                          tooltip: 'Trocar foto',
+                          color: Colors.white,
+                          icon:
+                              const Icon(Icons.photo_camera_outlined, size: 18),
+                        ),
+                      ),
+                    ),
+                    if (item.isPurchased)
+                      Positioned(
+                        top: 12,
+                        left: 12,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 9, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1D9B67),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Text('Comprado',
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800)),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 13, 10, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      decoration:
+                          item.isPurchased ? TextDecoration.lineThrough : null,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '${item.quantity} un. · ${_priorityName(item.priority)}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                      if (item.estimatedUnitPriceInCents != null)
+                        Text(
+                          widget.hideValues
+                              ? '••••••'
+                              : FinancialRules.formatBrl(
+                                  item.estimatedTotalInCents),
+                          style: const TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Checkbox(
+                        value: item.isPurchased,
+                        onChanged: (value) {
+                          if (value != null) widget.onChanged(value);
+                        },
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      const Text('Já comprei', style: TextStyle(fontSize: 12)),
+                      const Spacer(),
+                      IconButton(
+                        onPressed: widget.onDelete,
+                        tooltip: 'Excluir item',
+                        icon:
+                            const Icon(Icons.delete_outline_rounded, size: 18),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ShoppingRow extends StatelessWidget {
+  const _ShoppingRow({
+    required this.item,
+    required this.hideValues,
+    required this.onChanged,
+    required this.onDelete,
+    required this.onChangeImage,
+  });
+
+  final ShoppingItem item;
+  final bool hideValues;
+  final ValueChanged<bool> onChanged;
+  final VoidCallback onDelete;
+  final Future<void> Function() onChangeImage;
 
   @override
   Widget build(BuildContext context) => Column(
         children: [
           Row(
             children: [
+              if (LocalImageService.exists(item.imagePath))
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(9),
+                    child: Image.file(
+                      File(item.imagePath!),
+                      width: 42,
+                      height: 42,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                )
+              else
+                Container(
+                  width: 42,
+                  height: 42,
+                  margin: const EdgeInsets.only(right: 8),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .surfaceContainerHighest
+                        .withValues(alpha: .55),
+                    borderRadius: BorderRadius.circular(9),
+                  ),
+                  child: Icon(Icons.photo_outlined,
+                      size: 20,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant),
+                ),
               Checkbox(
                 value: item.isPurchased,
                 onChanged: (value) {
@@ -241,6 +586,18 @@ class _ShoppingRow extends StatelessWidget {
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
+                    if (item.description.trim().isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        item.description,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -251,6 +608,11 @@ class _ShoppingRow extends StatelessWidget {
                       : FinancialRules.formatBrl(item.estimatedTotalInCents),
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
+              IconButton(
+                onPressed: onChangeImage,
+                tooltip: 'Adicionar ou trocar foto',
+                icon: const Icon(Icons.photo_camera_outlined, size: 18),
+              ),
               IconButton(
                 onPressed: onDelete,
                 tooltip: 'Excluir item',
@@ -275,12 +637,16 @@ class ShoppingInput {
     required this.quantity,
     required this.estimatedUnitPriceInCents,
     required this.priority,
+    this.imagePath,
+    this.description = '',
   });
 
   final String name;
   final int quantity;
   final int? estimatedUnitPriceInCents;
   final ShoppingPriority priority;
+  final String? imagePath;
+  final String description;
 }
 
 class ShoppingDialog extends StatefulWidget {
@@ -294,14 +660,17 @@ class _ShoppingDialogState extends State<ShoppingDialog> {
   final _name = TextEditingController();
   final _quantity = TextEditingController(text: '1');
   final _price = TextEditingController();
+  final _description = TextEditingController();
   var _priority = ShoppingPriority.normal;
   String? _error;
+  String? _imagePath;
 
   @override
   void dispose() {
     _name.dispose();
     _quantity.dispose();
     _price.dispose();
+    _description.dispose();
     super.dispose();
   }
 
@@ -358,6 +727,27 @@ class _ShoppingDialogState extends State<ShoppingDialog> {
                     .toList(),
                 onChanged: (value) => setState(() => _priority = value!),
               ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _description,
+                maxLines: 3,
+                maxLength: 240,
+                decoration: const InputDecoration(
+                  labelText: 'Descrição',
+                  hintText: 'Detalhes, tamanho, cor ou motivo do desejo',
+                  alignLabelWithHint: true,
+                ),
+              ),
+              const SizedBox(height: 4),
+              OutlinedButton.icon(
+                onPressed: _pickImage,
+                icon: Icon(_imagePath == null
+                    ? Icons.add_photo_alternate_outlined
+                    : Icons.check_circle_outline),
+                label: Text(_imagePath == null
+                    ? 'Adicionar foto (opcional)'
+                    : 'Foto adicionada'),
+              ),
               if (_error != null) ...[
                 const SizedBox(height: 12),
                 Text(_error!,
@@ -393,7 +783,14 @@ class _ShoppingDialogState extends State<ShoppingDialog> {
         quantity: quantity,
         estimatedUnitPriceInCents: price,
         priority: _priority,
+        imagePath: _imagePath,
+        description: _description.text.trim(),
       ),
     );
+  }
+
+  Future<void> _pickImage() async {
+    final imagePath = await LocalImageService.pickAndStore();
+    if (imagePath != null && mounted) setState(() => _imagePath = imagePath);
   }
 }

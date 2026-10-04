@@ -5,6 +5,9 @@
 .packages
 .pub-cache/
 build/
+builds/
+.puro.json
+*.log
 
 # Native tool output
 windows/flutter/ephemeral/
@@ -44,3 +47,7 @@ logs/
 .DS_Store
 Thumbs.db
 coverage/
+test/**/failures/
+
+# Mantido localmente até a credencial do GitHub permitir atualizar workflows.
+.github/workflows/ci.yml

@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -16,9 +18,13 @@ import 'dialogs.dart';
 import 'investments_page.dart';
 import 'goals_page.dart';
 import 'organiza_theme.dart';
+import 'organiza_icons.dart';
 import 'reports_page.dart';
 import 'shared_widgets.dart';
 import 'shopping_page.dart';
+import 'profile_setup_page.dart';
+import 'welcome_page.dart';
+import 'debug_component_catalog_page.dart';
 import '../services/report_export_service.dart';
 
 class OrganizaApp extends StatefulWidget {
@@ -31,14 +37,14 @@ class OrganizaApp extends StatefulWidget {
 }
 
 class _OrganizaAppState extends State<OrganizaApp> {
-  ThemeMode _themeMode = ThemeMode.light;
+  ThemeMode _themeMode = ThemeMode.dark;
 
   @override
   void initState() {
     super.initState();
     _themeMode = ThemeMode.values.firstWhere(
       (mode) => mode.name == widget.store.themePreference,
-      orElse: () => ThemeMode.light,
+      orElse: () => ThemeMode.dark,
     );
   }
 
@@ -57,6 +63,10 @@ class _OrganizaAppState extends State<OrganizaApp> {
         themeMode: _themeMode,
         theme: OrganizaTheme.light(),
         darkTheme: OrganizaTheme.dark(),
+        routes: {
+          if (kDebugMode)
+            '/debug/components': (_) => const DebugComponentCatalogPage(),
+        },
         home: OrganizaShell(
           store: widget.store,
           onThemeChanged: _changeTheme,
@@ -83,20 +93,21 @@ class _OrganizaShellState extends State<OrganizaShell> {
   var _collapsed = false;
   var _hideValues = false;
   var _isFullscreen = false;
+  var _welcomeStarted = false;
 
   static const _pages = <_PageDefinition>[
-    _PageDefinition('Visão geral', Icons.space_dashboard_outlined),
-    _PageDefinition('Finanças', Icons.swap_vert_circle_outlined),
-    _PageDefinition('Contas', Icons.account_balance_wallet_outlined),
-    _PageDefinition('Cartões', Icons.credit_card_outlined),
-    _PageDefinition('Orçamento', Icons.donut_large_outlined),
-    _PageDefinition('Investimentos', Icons.show_chart_outlined),
-    _PageDefinition('Organização', Icons.dashboard_customize_outlined),
-    _PageDefinition('Metas', Icons.flag_outlined),
-    _PageDefinition('Relatórios', Icons.bar_chart_rounded),
-    _PageDefinition('Configurações', Icons.tune_rounded),
-    _PageDefinition('Assinaturas', Icons.autorenew_rounded),
-    _PageDefinition('Lista de desejos', Icons.shopping_bag_outlined),
+    _PageDefinition('Visão geral', OrganizaIconName.dashboard),
+    _PageDefinition('Finanças', OrganizaIconName.transactions),
+    _PageDefinition('Contas', OrganizaIconName.wallet),
+    _PageDefinition('Cartões', OrganizaIconName.creditCard),
+    _PageDefinition('Orçamento', OrganizaIconName.budget),
+    _PageDefinition('Investimentos', OrganizaIconName.investments),
+    _PageDefinition('Organização', OrganizaIconName.organization),
+    _PageDefinition('Metas', OrganizaIconName.goals),
+    _PageDefinition('Relatórios', OrganizaIconName.reports),
+    _PageDefinition('Configurações', OrganizaIconName.settings),
+    _PageDefinition('Assinaturas', OrganizaIconName.subscriptions),
+    _PageDefinition('Lista de desejos', OrganizaIconName.shopping),
   ];
 
   @override
@@ -121,210 +132,266 @@ class _OrganizaShellState extends State<OrganizaShell> {
     if (mounted) setState(() {});
   }
 
+  void _completeFirstProfile(
+      String name, int incomeInCents, String? photoPath) {
+    widget.store.saveProfile(
+      name: name,
+      incomeInCents: incomeInCents,
+      photoPath: photoPath,
+    );
+    if (mounted) setState(() => _page = 0);
+  }
+
   @override
-  Widget build(BuildContext context) => Shortcuts(
-        shortcuts: const <ShortcutActivator, Intent>{
-          SingleActivator(LogicalKeyboardKey.keyK, control: true):
-              _SearchIntent(),
-          SingleActivator(LogicalKeyboardKey.keyN, control: true):
-              _TransactionIntent(),
-          SingleActivator(LogicalKeyboardKey.keyN, control: true, shift: true):
-              _TaskIntent(),
-          SingleActivator(LogicalKeyboardKey.comma, control: true):
-              _SettingsIntent(),
-          SingleActivator(LogicalKeyboardKey.f11): _FullscreenIntent(),
+  Widget build(BuildContext context) {
+    if (widget.store.profileName.isEmpty) {
+      if (!_welcomeStarted) {
+        return WelcomePage(
+          onStart: () => setState(() => _welcomeStarted = true),
+          onRestore: _restoreEncryptedBackup,
+          onPrivacy: _showPrivacyPolicy,
+        );
+      }
+      return ProfileSetupPage(onComplete: _completeFirstProfile);
+    }
+    return Shortcuts(
+      shortcuts: const <ShortcutActivator, Intent>{
+        SingleActivator(LogicalKeyboardKey.keyK, control: true):
+            _SearchIntent(),
+        SingleActivator(LogicalKeyboardKey.keyN, control: true):
+            _TransactionIntent(),
+        SingleActivator(LogicalKeyboardKey.keyN, control: true, shift: true):
+            _TaskIntent(),
+        SingleActivator(LogicalKeyboardKey.comma, control: true):
+            _SettingsIntent(),
+        SingleActivator(LogicalKeyboardKey.f11): _FullscreenIntent(),
+      },
+      child: Actions(
+        actions: <Type, Action<Intent>>{
+          _SearchIntent:
+              CallbackAction<_SearchIntent>(onInvoke: (_) => _openSearch()),
+          _TransactionIntent: CallbackAction<_TransactionIntent>(
+              onInvoke: (_) => _openTransactionDialog()),
+          _TaskIntent:
+              CallbackAction<_TaskIntent>(onInvoke: (_) => _openTaskDialog()),
+          _SettingsIntent: CallbackAction<_SettingsIntent>(
+              onInvoke: (_) => setState(() => _page = 9)),
+          _FullscreenIntent: CallbackAction<_FullscreenIntent>(
+              onInvoke: (_) => _toggleFullscreen()),
         },
-        child: Actions(
-          actions: <Type, Action<Intent>>{
-            _SearchIntent:
-                CallbackAction<_SearchIntent>(onInvoke: (_) => _openSearch()),
-            _TransactionIntent: CallbackAction<_TransactionIntent>(
-                onInvoke: (_) => _openTransactionDialog()),
-            _TaskIntent:
-                CallbackAction<_TaskIntent>(onInvoke: (_) => _openTaskDialog()),
-            _SettingsIntent: CallbackAction<_SettingsIntent>(
-                onInvoke: (_) => setState(() => _page = 9)),
-            _FullscreenIntent: CallbackAction<_FullscreenIntent>(
-                onInvoke: (_) => _toggleFullscreen()),
-          },
-          child: Focus(
-            autofocus: true,
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                if (constraints.maxWidth < 600) return _buildMobileShell();
-                final compact = constraints.maxWidth < 1040;
-                return Scaffold(
-                  body: Padding(
-                    padding: const EdgeInsets.all(10),
-                    child: Row(
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(20),
-                          child: _Sidebar(
-                            collapsed: _collapsed || compact,
-                            selected: _page,
-                            pages: _pages,
-                            onSelect: (index) => setState(() => _page = index),
-                            onCollapse: compact
-                                ? null
-                                : () =>
-                                    setState(() => _collapsed = !_collapsed),
-                          ),
+        child: Focus(
+          autofocus: true,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              if (constraints.maxWidth < 600) return _buildMobileShell();
+              final compact = constraints.maxWidth < 1040;
+              return Scaffold(
+                body: Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Row(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
+                        child: _Sidebar(
+                          collapsed: _collapsed || compact,
+                          selected: _page,
+                          pages: _pages,
+                          profileName: widget.store.profileName,
+                          profilePhotoPath: widget.store.profilePhotoPath,
+                          onSelect: (index) => setState(() => _page = index),
+                          onCollapse: compact
+                              ? null
+                              : () => setState(() => _collapsed = !_collapsed),
                         ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Container(
-                            clipBehavior: Clip.antiAlias,
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.surface,
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: Theme.of(context).dividerColor,
-                              ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Container(
+                          clipBehavior: Clip.antiAlias,
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.surface,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: Theme.of(context).dividerColor,
                             ),
-                            child: Column(
-                              children: [
-                                _TopBar(
-                                  title: _pages[_page].label,
-                                  hideValues: _hideValues,
-                                  onSearch: _openSearch,
-                                  onToggleValues: _toggleValues,
-                                  onThemeChanged: widget.onThemeChanged,
-                                  isFullscreen: _isFullscreen,
-                                  onToggleFullscreen: _toggleFullscreen,
-                                ),
-                                Expanded(
-                                  child: AnimatedSwitcher(
-                                    duration:
-                                        MediaQuery.disableAnimationsOf(context)
-                                            ? Duration.zero
-                                            : const Duration(milliseconds: 280),
-                                    switchInCurve: Curves.easeOutCubic,
-                                    switchOutCurve: Curves.easeInCubic,
-                                    transitionBuilder: (child, animation) =>
-                                        FadeTransition(
-                                      opacity: animation,
-                                      child: SlideTransition(
-                                        position: Tween<Offset>(
-                                          begin: const Offset(.018, 0),
-                                          end: Offset.zero,
-                                        ).animate(animation),
-                                        child: child,
-                                      ),
-                                    ),
-                                    child: KeyedSubtree(
-                                      key: ValueKey(_page),
-                                      child: _buildPage(),
+                          ),
+                          child: Column(
+                            children: [
+                              _TopBar(
+                                title: _pages[_page].label,
+                                hideValues: _hideValues,
+                                onSearch: _openSearch,
+                                onToggleValues: _toggleValues,
+                                onThemeChanged: widget.onThemeChanged,
+                                isFullscreen: _isFullscreen,
+                                onToggleFullscreen: _toggleFullscreen,
+                              ),
+                              Expanded(
+                                child: AnimatedSwitcher(
+                                  duration:
+                                      MediaQuery.disableAnimationsOf(context)
+                                          ? Duration.zero
+                                          : const Duration(milliseconds: 280),
+                                  switchInCurve: Curves.easeOutCubic,
+                                  switchOutCurve: Curves.easeInCubic,
+                                  transitionBuilder: (child, animation) =>
+                                      FadeTransition(
+                                    opacity: animation,
+                                    child: SlideTransition(
+                                      position: Tween<Offset>(
+                                        begin: const Offset(.018, 0),
+                                        end: Offset.zero,
+                                      ).animate(animation),
+                                      child: child,
                                     ),
                                   ),
+                                  child: KeyedSubtree(
+                                    key: ValueKey(_page),
+                                    child: _buildPage(),
+                                  ),
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                );
-              },
-            ),
+                ),
+              );
+            },
           ),
         ),
-      );
+      ),
+    );
+  }
 
   Widget _buildMobileShell() {
-    final primaryPages = widget.store.mobileQuickPages;
-    return Scaffold(
-      appBar: AppBar(
-        leading: Builder(
-            builder: (context) => IconButton(
-                tooltip: 'Abrir navegação',
-                icon: const Icon(Icons.menu_rounded),
-                onPressed: () => Scaffold.of(context).openDrawer())),
-        title: Text(_pages[_page].label),
-        actions: [
-          IconButton(
-            tooltip: 'Buscar',
-            onPressed: _openSearch,
-            icon: const Icon(Icons.search_rounded),
-          ),
-          IconButton(
-            tooltip: _hideValues ? 'Mostrar valores' : 'Ocultar valores',
-            onPressed: _toggleValues,
-            icon: Icon(_hideValues
-                ? Icons.visibility_off_outlined
-                : Icons.visibility_outlined),
-          ),
-        ],
-      ),
-      drawer: Drawer(
-        child: SafeArea(
-          child: Column(
-            children: [
-              const ListTile(
-                title: Text('Organiza',
-                    style:
-                        TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
-                subtitle: Text('Seu espaço financeiro'),
+    final mobileTheme = OrganizaTheme.mobile(Theme.of(context));
+    return Theme(
+      data: mobileTheme,
+      child: Builder(builder: (context) {
+        final primaryPages = widget.store.mobileQuickPages;
+        return Scaffold(
+          appBar: AppBar(
+            leading: Builder(
+                builder: (context) => IconButton(
+                    tooltip: 'Abrir navegação',
+                    icon: const Icon(Icons.menu_rounded),
+                    onPressed: () => Scaffold.of(context).openDrawer())),
+            title: Text(_pages[_page].label),
+            actions: [
+              IconButton(
+                tooltip: 'Buscar',
+                onPressed: _openSearch,
+                icon: const Icon(Icons.search_rounded),
               ),
-              const Divider(),
-              Expanded(
-                  child: ListView(children: [
-                _mobileDrawerSection('INÍCIO', [0]),
-                _mobileDrawerSection('FINANÇAS', [1, 2, 3, 5, 10]),
-                _mobileDrawerSection('ORGANIZAÇÃO', [6, 7, 11]),
-                _mobileDrawerSection('ANÁLISE', [8]),
-                _mobileDrawerSection('PREFERÊNCIAS', [9]),
-              ])),
+              if (_page != 0)
+                IconButton(
+                  tooltip: _hideValues ? 'Mostrar valores' : 'Ocultar valores',
+                  onPressed: _toggleValues,
+                  icon: Icon(_hideValues
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined),
+                ),
             ],
           ),
-        ),
-      ),
-      body: SafeArea(
-        child: AnimatedSwitcher(
-          duration: MediaQuery.disableAnimationsOf(context)
-              ? Duration.zero
-              : const Duration(milliseconds: 280),
-          switchInCurve: Curves.easeOutCubic,
-          switchOutCurve: Curves.easeInCubic,
-          transitionBuilder: (child, animation) => FadeTransition(
-            opacity: animation,
-            child: SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(0, .018),
-                end: Offset.zero,
-              ).animate(animation),
-              child: child,
+          drawer: Drawer(
+            child: SafeArea(
+              child: Column(
+                children: [
+                  ListTile(
+                    leading: CircleAvatar(
+                      radius: 22,
+                      backgroundImage: widget.store.profilePhotoPath != null &&
+                              File(widget.store.profilePhotoPath!).existsSync()
+                          ? FileImage(File(widget.store.profilePhotoPath!))
+                          : null,
+                      child: widget.store.profilePhotoPath == null ||
+                              !File(widget.store.profilePhotoPath!).existsSync()
+                          ? const Icon(Icons.person_outline_rounded)
+                          : null,
+                    ),
+                    title: Text(
+                      widget.store.profileName.isEmpty
+                          ? 'Organiza'
+                          : widget.store.profileName,
+                      style: const TextStyle(
+                          fontSize: 20, fontWeight: FontWeight.w700),
+                    ),
+                    subtitle: Text(widget.store.profileName.isEmpty
+                        ? 'Seu espaço financeiro · Perfil local'
+                        : 'Perfil local · somente neste dispositivo'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _openProfileDialog();
+                    },
+                  ),
+                  const Divider(),
+                  Expanded(
+                      child: ListView(children: [
+                    _mobileDrawerSection('INÍCIO', [0]),
+                    _mobileDrawerSection('FINANÇAS', [1, 2, 3, 5, 10]),
+                    _mobileDrawerSection('ORGANIZAÇÃO', [6, 7, 11]),
+                    _mobileDrawerSection('ANÁLISE', [8]),
+                    _mobileDrawerSection('PREFERÊNCIAS', [9]),
+                  ])),
+                ],
+              ),
             ),
           ),
-          child: KeyedSubtree(key: ValueKey(_page), child: _buildPage()),
-        ),
-      ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: primaryPages.contains(_page)
-            ? (primaryPages.indexOf(_page) < 2
-                ? primaryPages.indexOf(_page)
-                : primaryPages.indexOf(_page) + 1)
-            : 0,
-        onDestinationSelected: (index) {
-          if (index == 2) {
-            _openTransactionDialog();
-            return;
-          }
-          setState(() => _page = primaryPages[index < 2 ? index : index - 1]);
-        },
-        destinations: [
-          for (var slot = 0; slot < 5; slot++)
-            NavigationDestination(
-              icon: Icon(slot == 2
-                  ? Icons.add_circle_rounded
-                  : _pages[primaryPages[slot < 2 ? slot : slot - 1]].icon),
-              label: slot == 2
-                  ? 'Nova'
-                  : _mobileNavLabel(primaryPages[slot < 2 ? slot : slot - 1]),
+          body: SafeArea(
+            child: AnimatedSwitcher(
+              duration: MediaQuery.disableAnimationsOf(context)
+                  ? Duration.zero
+                  : const Duration(milliseconds: 280),
+              switchInCurve: Curves.easeOutCubic,
+              switchOutCurve: Curves.easeInCubic,
+              transitionBuilder: (child, animation) => FadeTransition(
+                opacity: animation,
+                child: SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(0, .018),
+                    end: Offset.zero,
+                  ).animate(animation),
+                  child: child,
+                ),
+              ),
+              child: KeyedSubtree(key: ValueKey(_page), child: _buildPage()),
             ),
-        ],
-      ),
+          ),
+          bottomNavigationBar: AppBottomNav(
+            currentIndex: primaryPages.contains(_page)
+                ? (primaryPages.indexOf(_page) < 2
+                    ? primaryPages.indexOf(_page)
+                    : primaryPages.indexOf(_page) + 1)
+                : 0,
+            items: [
+              for (var slot = 0; slot < 5; slot++)
+                AppBottomNavItem(
+                  icon: slot == 2
+                      ? Icons.add_rounded
+                      : _mobileMaterialIcon(
+                          primaryPages[slot < 2 ? slot : slot - 1]),
+                  label: slot == 2
+                      ? 'Nova'
+                      : _mobileNavLabel(
+                          primaryPages[slot < 2 ? slot : slot - 1]),
+                  semanticLabel: slot == 2 ? 'Nova transação' : null,
+                  primaryAction: slot == 2,
+                  onPressed: () {
+                    if (slot == 2) {
+                      _openTransactionDialog();
+                      return;
+                    }
+                    setState(
+                        () => _page = primaryPages[slot < 2 ? slot : slot - 1]);
+                  },
+                ),
+            ],
+          ),
+        );
+      }),
     );
   }
 
@@ -335,6 +402,37 @@ class _OrganizaShellState extends State<OrganizaShell> {
         11 => 'Desejos',
         _ => _pages[page].label,
       };
+
+  IconData _mobileMaterialIcon(int page) => switch (page) {
+        0 => Icons.home_outlined,
+        1 => Icons.swap_horiz_rounded,
+        5 => Icons.insights_outlined,
+        6 => Icons.checklist_rounded,
+        8 => Icons.bar_chart_rounded,
+        11 => Icons.shopping_bag_outlined,
+        _ => Icons.more_horiz_rounded,
+      };
+
+  void _showPrivacyPolicy() {
+    showDialog<void>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Política de privacidade'),
+        content: const SingleChildScrollView(
+          child: Text(
+            'O Organiza guarda seus dados neste aparelho. Não precisamos de uma conta online para você usar o app.\n\n'
+            'Você decide quando criar um backup e onde salvá-lo. Ao restaurar um backup, uma cópia do estado anterior é criada para segurança.',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Fechar'),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _mobileDrawerSection(String title, List<int> indices) =>
       Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -347,7 +445,7 @@ class _OrganizaShellState extends State<OrganizaShell> {
                     letterSpacing: 1))),
         for (final index in indices)
           ListTile(
-              leading: Icon(_pages[index].icon),
+              leading: OrganizaIcon(_pages[index].icon, size: 22),
               title: Text(_pages[index].label),
               selected: index == _page,
               onTap: () {
@@ -361,13 +459,16 @@ class _OrganizaShellState extends State<OrganizaShell> {
             store: widget.store,
             hideValues: _hideValues,
             onNewTransaction: _openTransactionDialog,
-            onNewTask: _openTaskDialog,
-            onDeleteTask: _deleteTask,
             onOpenCards: () => setState(() => _page = 3),
-            onOpenBudgets: () => setState(() => _page = 6),
-            onOpenSubscriptions: () => setState(() => _page = 10),
             onOpenTransactions: () => setState(() => _page = 1),
+            onOpenGoals: () => setState(() => _page = 7),
+            onOpenReports: () => setState(() => _page = 8),
+            onOpenBudgets: () => setState(() => _page = 4),
+            onOpenSubscriptions: () => setState(() => _page = 10),
             onNewAccount: _openAccountDialog,
+            onToggleValues: _toggleValues,
+            onNewIncome: _openTransactionDialog,
+            onTransfer: _openTransactionDialog,
           ),
         1 => TransactionsPage(
             store: widget.store,
@@ -383,6 +484,7 @@ class _OrganizaShellState extends State<OrganizaShell> {
             onAdd: _openAccountDialog,
             onDelete: _deleteAccount,
             onEditBalance: _editAccountBalance,
+            onEdit: _editAccount,
           ),
         3 => CardsPage(
             store: widget.store,
@@ -429,7 +531,13 @@ class _OrganizaShellState extends State<OrganizaShell> {
             onThemeChanged: widget.onThemeChanged,
             themePreference: widget.store.themePreference,
             quickPages: widget.store.mobileQuickPages,
-            onQuickPagesChanged: widget.store.updateMobileQuickPages),
+            onQuickPagesChanged: widget.store.updateMobileQuickPages,
+            profileName: widget.store.profileName,
+            profileIncomeInCents: widget.store.profileIncomeInCents,
+            profilePhotoPath: widget.store.profilePhotoPath,
+            onEditProfile: _openProfileDialog,
+            onExportBackup: _exportEncryptedBackup,
+            onRestoreBackup: _restoreEncryptedBackup),
         10 => SubscriptionsPage(
             store: widget.store,
             onAdd: _openSubscriptionDialog,
@@ -466,6 +574,8 @@ class _OrganizaShellState extends State<OrganizaShell> {
         value.name,
         value.openingCents,
         institution: value.institution,
+        customInstitutionName: value.customInstitutionName,
+        customIconKey: value.customIconKey,
       );
     } on ArgumentError catch (error) {
       _showError(
@@ -488,6 +598,35 @@ class _OrganizaShellState extends State<OrganizaShell> {
       widget.store.setAccountCurrentBalance(id, amount);
     } on ArgumentError catch (error) {
       _showError(error.message.toString());
+    }
+  }
+
+  Future<void> _editAccount(String id) async {
+    final account =
+        widget.store.accounts.where((item) => item.id == id).firstOrNull;
+    if (account == null) return;
+    final currentBalance =
+        FinancialRules.accountBalance(account, widget.store.transactions);
+    final value = await showDialog<AccountInput>(
+      context: context,
+      builder: (_) => AccountDialog(
+        account: account,
+        currentBalanceCents: currentBalance,
+      ),
+    );
+    if (value == null || !mounted) return;
+    try {
+      widget.store.updateAccount(
+        id: account.id,
+        name: value.name,
+        currentBalanceInCents: value.openingCents,
+        institution: value.institution,
+        customInstitutionName: value.customInstitutionName,
+        customIconKey: value.customIconKey,
+      );
+    } on ArgumentError catch (error) {
+      _showError(
+          error.message?.toString() ?? 'Não foi possível editar a conta.');
     }
   }
 
@@ -668,6 +807,8 @@ class _OrganizaShellState extends State<OrganizaShell> {
         quantity: value.quantity,
         estimatedUnitPriceInCents: value.estimatedUnitPriceInCents,
         priority: value.priority,
+        imagePath: value.imagePath,
+        description: value.description,
       );
     } on ArgumentError catch (error) {
       _showError(
@@ -681,6 +822,28 @@ class _OrganizaShellState extends State<OrganizaShell> {
       message: 'O item será removido da lista de desejos/compras.',
     );
     if (confirmed) widget.store.deleteShoppingItem(id);
+  }
+
+  Future<void> _openProfileDialog() async {
+    final value = await showDialog<ProfileInput>(
+      context: context,
+      builder: (_) => ProfileDialog(
+        initialName: widget.store.profileName,
+        initialIncomeInCents: widget.store.profileIncomeInCents,
+        initialPhotoPath: widget.store.profilePhotoPath,
+      ),
+    );
+    if (value == null || !mounted) return;
+    try {
+      widget.store.saveProfile(
+        name: value.name,
+        incomeInCents: value.incomeInCents,
+        photoPath: value.photoPath,
+      );
+    } on ArgumentError catch (error) {
+      _showError(
+          error.message?.toString() ?? 'Não foi possível salvar o perfil.');
+    }
   }
 
   Future<void> _openFinancialGoalDialog() async {
@@ -895,6 +1058,112 @@ class _OrganizaShellState extends State<OrganizaShell> {
     }
   }
 
+  Future<void> _exportEncryptedBackup() async {
+    final password = await _backupPasswordDialog(
+      title: 'Criar backup protegido',
+      confirm: true,
+    );
+    if (password == null) return;
+    try {
+      final file = await widget.store.exportEncryptedBackup(password);
+      if (mounted) _showError('Backup salvo em ${file.path}');
+    } on Object catch (error) {
+      if (mounted) _showError('Não foi possível criar o backup: $error');
+    }
+  }
+
+  Future<void> _restoreEncryptedBackup() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['backup'],
+      withData: false,
+    );
+    final selectedPath = result?.files.single.path;
+    if (selectedPath == null) return;
+    final password = await _backupPasswordDialog(
+      title: 'Restaurar backup protegido',
+    );
+    if (password == null) return;
+    try {
+      final safetyCopy = await widget.store.restoreEncryptedBackup(
+        File(selectedPath),
+        password,
+      );
+      if (mounted) {
+        _showError(
+            'Backup restaurado. Uma cópia do estado anterior foi salva em ${safetyCopy.path}.');
+      }
+    } on Object catch (error) {
+      if (mounted) _showError('Não foi possível restaurar o backup: $error');
+    }
+  }
+
+  Future<String?> _backupPasswordDialog({
+    required String title,
+    bool confirm = false,
+  }) async {
+    final passwordController = TextEditingController();
+    final confirmationController = TextEditingController();
+    try {
+      return await showDialog<String>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(title),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: passwordController,
+                autofocus: true,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'Senha',
+                  helperText: 'Use pelo menos 8 caracteres.',
+                ),
+              ),
+              if (confirm)
+                TextField(
+                  controller: confirmationController,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Confirmar senha',
+                  ),
+                ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final password = passwordController.text;
+                if (password.length < 8 ||
+                    (confirm && password != confirmationController.text)) {
+                  ScaffoldMessenger.of(dialogContext).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                          confirm && password != confirmationController.text
+                              ? 'As senhas não conferem.'
+                              : 'A senha deve ter pelo menos 8 caracteres.'),
+                    ),
+                  );
+                  return;
+                }
+                Navigator.pop(dialogContext, password);
+              },
+              child: const Text('Continuar'),
+            ),
+          ],
+        ),
+      );
+    } finally {
+      passwordController.dispose();
+      confirmationController.dispose();
+    }
+  }
+
   Future<void> _exportReport(DateTime month, bool includePending) async {
     try {
       final transactions = widget.store.transactions.where((item) =>
@@ -936,6 +1205,8 @@ class _Sidebar extends StatelessWidget {
     required this.collapsed,
     required this.selected,
     required this.pages,
+    required this.profileName,
+    required this.profilePhotoPath,
     required this.onSelect,
     required this.onCollapse,
   });
@@ -943,20 +1214,33 @@ class _Sidebar extends StatelessWidget {
   final bool collapsed;
   final int selected;
   final List<_PageDefinition> pages;
+  final String profileName;
+  final String? profilePhotoPath;
   final ValueChanged<int> onSelect;
   final VoidCallback? onCollapse;
 
   @override
   Widget build(BuildContext context) {
     final parentTheme = Theme.of(context);
+    final dark = parentTheme.brightness == Brightness.dark;
+    final sidebarBorder =
+        dark ? const Color(0xFF292B31) : const Color(0xFFE0E1EA);
+    final sidebarText =
+        dark ? const Color(0xFFF7F3EE) : const Color(0xFF292832);
+    final sidebarMuted =
+        dark ? const Color(0xFFA9A6AD) : const Color(0xFF747382);
+    final sidebarSurface =
+        dark ? const Color(0xFF101114) : const Color(0xFFF0F1F7);
+    final sidebarCard =
+        dark ? const Color(0xFF1B1C21) : const Color(0xFFE6E7F0);
     final sidebarTheme = parentTheme.copyWith(
-      dividerColor: const Color(0xFF40302C),
-      colorScheme: const ColorScheme.dark(
+      dividerColor: sidebarBorder,
+      colorScheme: parentTheme.colorScheme.copyWith(
         primary: OrganizaTheme.orange,
-        onPrimary: Colors.white,
-        surface: Color(0xFF211A18),
-        onSurface: Color(0xFFFFF8F5),
-        onSurfaceVariant: Color(0xFFCDBFBA),
+        onPrimary: dark ? const Color(0xFF17110A) : Colors.white,
+        surface: sidebarSurface,
+        onSurface: sidebarText,
+        onSurfaceVariant: sidebarMuted,
       ),
     );
     return Theme(
@@ -968,13 +1252,15 @@ class _Sidebar extends StatelessWidget {
         curve: Curves.easeOutCubic,
         width: collapsed ? 72 : 224,
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
+          gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFF232927), Color(0xFF171B1A)],
+            colors: dark
+                ? const [Color(0xFF18191D), Color(0xFF0E0F11)]
+                : const [Color(0xFFF6F7FB), Color(0xFFE9EAF3)],
           ),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0xFF40302C)),
+          border: Border.all(color: sidebarBorder),
         ),
         child: SafeArea(
           child: Column(
@@ -995,10 +1281,10 @@ class _Sidebar extends StatelessWidget {
                     ),
                     if (!collapsed) ...[
                       const SizedBox(width: 10),
-                      const Text(
+                      Text(
                         'ORGANIZA',
                         style: TextStyle(
-                          color: Color(0xFFFFF8F5),
+                          color: sidebarText,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 1.15,
                         ),
@@ -1010,53 +1296,64 @@ class _Sidebar extends StatelessWidget {
               Expanded(
                   child: ListView(padding: EdgeInsets.zero, children: [
                 _section(context, [0]),
-                _label('FINANÇAS'),
+                _label(context, 'FINANÇAS'),
                 _section(context, [1, 2, 3, 5, 10]),
-                _label('ORGANIZAÇÃO'),
+                _label(context, 'ORGANIZAÇÃO'),
                 _section(context, [6, 7, 11]),
-                _label('ANÁLISE'),
+                _label(context, 'ANÁLISE'),
                 _section(context, [8]),
               ])),
               if (!collapsed)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(12, 2, 12, 2),
                   child: Material(
-                    color: const Color(0xFF303735),
+                    color: sidebarCard,
                     borderRadius: BorderRadius.circular(13),
                     child: InkWell(
                       onTap: () => onSelect(9),
                       borderRadius: BorderRadius.circular(13),
-                      child: const Padding(
+                      child: Padding(
                         padding:
                             EdgeInsets.symmetric(horizontal: 10, vertical: 7),
                         child: Row(
                           children: [
                             CircleAvatar(
                               radius: 13,
-                              backgroundColor: Color(0xFF4B5B54),
-                              child: Icon(Icons.person_outline_rounded,
-                                  size: 16, color: Color(0xFFFFF8F5)),
+                              backgroundColor: dark
+                                  ? const Color(0xFF3B473F)
+                                  : const Color(0xFFD8D9E5),
+                              backgroundImage: profilePhotoPath != null &&
+                                      File(profilePhotoPath!).existsSync()
+                                  ? FileImage(File(profilePhotoPath!))
+                                  : null,
+                              child: profilePhotoPath == null ||
+                                      !File(profilePhotoPath!).existsSync()
+                                  ? Icon(Icons.person_outline_rounded,
+                                      size: 16, color: sidebarText)
+                                  : null,
                             ),
                             SizedBox(width: 9),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text('Perfil local',
+                                  Text(
+                                      profileName.isEmpty
+                                          ? 'Perfil local'
+                                          : profileName,
                                       style: TextStyle(
-                                          color: Color(0xFFFFF8F5),
+                                          color: sidebarText,
                                           fontSize: 12,
                                           fontWeight: FontWeight.w700)),
                                   SizedBox(height: 2),
                                   Text('Somente neste dispositivo',
                                       style: TextStyle(
-                                          color: Color(0xFFCDBFBA),
-                                          fontSize: 10.5)),
+                                          color: sidebarMuted, fontSize: 10.5)),
                                 ],
                               ),
                             ),
                             Icon(Icons.chevron_right_rounded,
-                                color: Color(0xFFCDBFBA), size: 17),
+                                color: sidebarMuted, size: 17),
                           ],
                         ),
                       ),
@@ -1070,7 +1367,7 @@ class _Sidebar extends StatelessWidget {
                   child: IconButton(
                     onPressed: onCollapse,
                     style: IconButton.styleFrom(
-                      foregroundColor: const Color(0xFFE4E4E7),
+                      foregroundColor: sidebarMuted,
                     ),
                     tooltip: collapsed
                         ? 'Expandir barra lateral'
@@ -1089,7 +1386,7 @@ class _Sidebar extends StatelessWidget {
     );
   }
 
-  Widget _label(String text) => collapsed
+  Widget _label(BuildContext context, String text) => collapsed
       ? const SizedBox(height: 18)
       : Padding(
           padding: const EdgeInsets.fromLTRB(20, 10, 12, 4),
@@ -1097,8 +1394,8 @@ class _Sidebar extends StatelessWidget {
             alignment: Alignment.centerLeft,
             child: Text(
               text,
-              style: const TextStyle(
-                color: Color(0xFFC4AFA8),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
                 fontSize: 11,
                 letterSpacing: 1,
                 fontWeight: FontWeight.w700,
@@ -1109,6 +1406,15 @@ class _Sidebar extends StatelessWidget {
 
   Widget _section(BuildContext context, List<int> indices) => Column(
         children: indices.map((index) {
+          final dark = Theme.of(context).brightness == Brightness.dark;
+          final sidebarText =
+              dark ? const Color(0xFFF7F3EE) : const Color(0xFF292832);
+          final sidebarMuted =
+              dark ? const Color(0xFFA9A6AD) : const Color(0xFF747382);
+          final activeBackground =
+              dark ? const Color(0xFF3A250D) : const Color(0xFFE7E6FF);
+          final activeText =
+              dark ? const Color(0xFFFFD7A1) : const Color(0xFF3B3272);
           final page = pages[index];
           final active = selected == index;
           return Padding(
@@ -1116,7 +1422,7 @@ class _Sidebar extends StatelessWidget {
             child: Tooltip(
               message: collapsed ? page.label : '',
               child: Material(
-                color: active ? const Color(0xFFFFF4EF) : Colors.transparent,
+                color: active ? activeBackground : Colors.transparent,
                 borderRadius: BorderRadius.circular(12),
                 child: InkWell(
                   onTap: () => onSelect(index),
@@ -1141,23 +1447,23 @@ class _Sidebar extends StatelessWidget {
                           ),
                           const SizedBox(width: 10),
                         ],
-                        Icon(
+                        OrganizaIcon(
                           page.icon,
                           size: 19,
-                          color: active
-                              ? OrganizaTheme.orange
-                              : const Color(0xFFCDBFBA),
+                          color: active ? OrganizaTheme.orange : sidebarMuted,
                         ),
                         if (!collapsed) ...[
                           const SizedBox(width: 12),
-                          Text(
-                            page.label,
-                            style: TextStyle(
-                              fontWeight:
-                                  active ? FontWeight.w700 : FontWeight.w500,
-                              color: active
-                                  ? const Color(0xFF2A1D1A)
-                                  : const Color(0xFFF2E9E6),
+                          Expanded(
+                            child: Text(
+                              page.label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontWeight:
+                                    active ? FontWeight.w700 : FontWeight.w500,
+                                color: active ? activeText : sidebarText,
+                              ),
                             ),
                           ),
                         ],
@@ -1327,8 +1633,11 @@ class _SearchDialogState extends State<_SearchDialog> {
     final results = <_SearchResult>[];
     for (final account in widget.store.accounts) {
       if (account.name.toLowerCase().contains(_query)) {
-        results.add(_SearchResult(Icons.account_balance_outlined, account.name,
-            'Conta · ${institutionName(account.institution)}', 2));
+        results.add(_SearchResult(
+            Icons.account_balance_outlined,
+            account.name,
+            'Conta · ${institutionName(account.institution, account.customInstitutionName)}',
+            2));
       }
     }
     for (final transaction in widget.store.transactions) {
@@ -1407,7 +1716,7 @@ class _SearchResult {
 class _PageDefinition {
   const _PageDefinition(this.label, this.icon);
   final String label;
-  final IconData icon;
+  final OrganizaIconName icon;
 }
 
 class _SearchIntent extends Intent {

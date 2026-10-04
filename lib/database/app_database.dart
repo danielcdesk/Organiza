@@ -11,14 +11,33 @@ class AppDatabase {
   AppDatabase._(this._database);
 
   final Database _database;
-  static const _schemaVersion = 11;
+  static const _schemaVersion = 15;
+  static const _backupTables = <String>[
+    'accounts',
+    'transactions',
+    'tasks',
+    'credit_cards',
+    'card_purchases',
+    'investments',
+    'budgets',
+    'subscriptions',
+    'salary_allocation',
+    'financial_goals',
+    'finance_categories',
+    'finance_subcategories',
+    'shopping_items',
+    'salary_schedules',
+    'app_settings',
+    'goal_categories',
+  ];
 
   static Future<AppDatabase> open() async {
-    final appDirectory = await getApplicationSupportDirectory();
+    final appDirectory = await _applicationDataDirectory();
     final folder = Directory(path.join(appDirectory.path, 'Organiza'));
     if (!folder.existsSync()) folder.createSync(recursive: true);
+    await _copyLegacyDatabaseIfNeeded(folder);
     final database = sqlite3.open(path.join(folder.path, 'organiza.db'));
-    database.execute('PRAGMA foreign_keys = ON');
+    _configure(database, persistent: true);
     final instance = AppDatabase._(database);
     instance._migrate();
     return instance;
@@ -26,7 +45,7 @@ class AppDatabase {
 
   static AppDatabase openInMemory() {
     final database = sqlite3.openInMemory();
-    database.execute('PRAGMA foreign_keys = ON');
+    _configure(database, persistent: false);
     final instance = AppDatabase._(database);
     instance._migrate();
     return instance;
@@ -34,7 +53,7 @@ class AppDatabase {
 
   static AppDatabase openInMemoryFromVersion1ForTest() {
     final database = sqlite3.openInMemory();
-    database.execute('PRAGMA foreign_keys = ON');
+    _configure(database, persistent: false);
     database.execute('''
       CREATE TABLE accounts (
         id TEXT PRIMARY KEY NOT NULL,
@@ -70,6 +89,102 @@ class AppDatabase {
 
   int get schemaVersion =>
       _database.select('PRAGMA user_version').first['user_version'] as int;
+
+  /// Exports every user table as a versioned, JSON-compatible snapshot.
+  ///
+  /// The snapshot is intentionally separate from the SQLite file so it can be
+  /// encrypted and validated before a restore. It is only accepted for the
+  /// current schema version; older database files must first pass the normal
+  /// SQLite migration path.
+  Map<String, Object?> exportSnapshot() {
+    _database.execute('BEGIN IMMEDIATE');
+    try {
+      final snapshot = <String, Object?>{
+        'schemaVersion': schemaVersion,
+        'tables': <String, Object?>{
+          for (final table in _backupTables) table: _rows(table),
+        },
+      };
+      _database.execute('COMMIT');
+      return snapshot;
+    } catch (_) {
+      _database.execute('ROLLBACK');
+      rethrow;
+    }
+  }
+
+  /// Replaces all user tables atomically after validating the snapshot.
+  void restoreSnapshot(Map<String, dynamic> snapshot) {
+    final version = snapshot['schemaVersion'];
+    if (version != schemaVersion) {
+      throw FormatException(
+          'Backup usa o schema $version; esta instalação usa $schemaVersion.');
+    }
+    final rawTables = snapshot['tables'];
+    if (rawTables is! Map) {
+      throw const FormatException('Backup sem a seção de tabelas.');
+    }
+    final tables = <String, List<Map<String, dynamic>>>{};
+    for (final table in _backupTables) {
+      final rawRows = rawTables[table];
+      if (rawRows is! List) {
+        throw FormatException('Backup sem a tabela $table.');
+      }
+      tables[table] = rawRows.map<Map<String, dynamic>>((row) {
+        if (row is! Map) {
+          throw FormatException('Linha inválida na tabela $table.');
+        }
+        return Map<String, dynamic>.from(row);
+      }).toList();
+    }
+
+    _database.execute('BEGIN IMMEDIATE');
+    try {
+      for (final table in _backupTables.reversed) {
+        _database.execute('DELETE FROM "$table"');
+      }
+      for (final table in _backupTables) {
+        final columns = _tableColumns(table);
+        for (final row in tables[table]!) {
+          if (row.keys.any((key) => !columns.contains(key))) {
+            throw FormatException('Coluna desconhecida na tabela $table.');
+          }
+          if (row.isEmpty) continue;
+          final names = row.keys.toList();
+          final placeholders = List.filled(names.length, '?').join(', ');
+          _database.execute(
+            'INSERT INTO "$table" (${names.join(', ')}) VALUES ($placeholders)',
+            names.map((name) => row[name]).toList(),
+          );
+        }
+      }
+      final foreignKeys = _database.select('PRAGMA foreign_key_check');
+      if (foreignKeys.isNotEmpty) {
+        throw const FormatException('Backup viola integridade referencial.');
+      }
+      final integrity = _database.select('PRAGMA integrity_check').first.values;
+      if (integrity.isEmpty || integrity.first != 'ok') {
+        throw const FormatException(
+            'Backup falhou na verificação de integridade.');
+      }
+      _database.execute('COMMIT');
+    } catch (_) {
+      _database.execute('ROLLBACK');
+      rethrow;
+    }
+  }
+
+  List<Map<String, Object?>> _rows(String table) => _database
+      .select('SELECT * FROM "$table"')
+      .map((row) => <String, Object?>{
+            for (final key in row.keys) key: row[key],
+          })
+      .toList();
+
+  Set<String> _tableColumns(String table) => _database
+      .select('PRAGMA table_info("$table")')
+      .map((row) => row['name'] as String)
+      .toSet();
 
   void _migrate() {
     final current =
@@ -301,6 +416,74 @@ class AppDatabase {
       _seedDefaultCategories();
       _database.execute('PRAGMA user_version = 11');
     }
+    if (current < 12) {
+      _database
+          .execute('ALTER TABLE shopping_items ADD COLUMN image_path TEXT');
+      _database.execute('PRAGMA user_version = 12');
+    }
+    if (current < 13) {
+      _database.execute('''
+        ALTER TABLE accounts ADD COLUMN custom_institution_name TEXT;
+        ALTER TABLE accounts ADD COLUMN custom_icon_key TEXT;
+      ''');
+      _database.execute('PRAGMA user_version = 13');
+    }
+    if (current < 14) {
+      _database.execute(
+          "ALTER TABLE shopping_items ADD COLUMN description TEXT NOT NULL DEFAULT ''");
+      _database.execute('PRAGMA user_version = 14');
+    }
+    if (current < 15) {
+      _database.execute('''
+        DELETE FROM transactions
+        WHERE series_id IS NOT NULL
+          AND rowid NOT IN (
+            SELECT MIN(rowid)
+            FROM transactions
+            WHERE series_id IS NOT NULL
+            GROUP BY series_id, occurred_on
+          );
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_salary_series_date_unique
+          ON transactions(series_id, occurred_on)
+          WHERE series_id IS NOT NULL;
+      ''');
+      _database.execute('PRAGMA user_version = 15');
+    }
+  }
+
+  static Future<Directory> _applicationDataDirectory() async {
+    if (Platform.isWindows) {
+      final local = Platform.environment['LOCALAPPDATA'];
+      if (local != null && local.isNotEmpty) return Directory(local);
+    }
+    return getApplicationSupportDirectory();
+  }
+
+  static Future<void> _copyLegacyDatabaseIfNeeded(
+      Directory targetFolder) async {
+    if (!Platform.isWindows) return;
+    final target = File(path.join(targetFolder.path, 'organiza.db'));
+    if (target.existsSync()) return;
+    final legacyRoot = await getApplicationSupportDirectory();
+    final legacyFolder = Directory(path.join(legacyRoot.path, 'Organiza'));
+    final legacyDatabase = File(path.join(legacyFolder.path, 'organiza.db'));
+    if (!legacyDatabase.existsSync() ||
+        path.normalize(targetFolder.path).toLowerCase() ==
+            path.normalize(legacyFolder.path).toLowerCase()) {
+      return;
+    }
+    await legacyDatabase.copy(target.path);
+    for (final suffix in const ['-wal', '-shm']) {
+      final sidecar = File('${legacyDatabase.path}$suffix');
+      if (sidecar.existsSync()) await sidecar.copy('${target.path}$suffix');
+    }
+  }
+
+  static void _configure(Database database, {required bool persistent}) {
+    database.execute('PRAGMA foreign_keys = ON');
+    database.execute('PRAGMA busy_timeout = 5000');
+    database.execute('PRAGMA synchronous = NORMAL');
+    if (persistent) database.execute('PRAGMA journal_mode = WAL');
   }
 
   void _seedDefaultCategories() {
@@ -451,6 +634,8 @@ class AppDatabase {
             createdAt: DateTime.parse(row['created_at'] as String),
             institution:
                 AccountInstitution.values.byName(row['institution'] as String),
+            customInstitutionName: row['custom_institution_name'] as String?,
+            customIconKey: row['custom_icon_key'] as String?,
           ))
       .toList();
 
@@ -502,6 +687,8 @@ class AppDatabase {
                 row['estimated_unit_price_cents'] as int?,
             priority: ShoppingPriority.values.byName(row['priority'] as String),
             isPurchased: (row['is_purchased'] as int) == 1,
+            imagePath: row['image_path'] as String?,
+            description: row['description'] as String? ?? '',
             createdAt: DateTime.parse(row['created_at'] as String),
           ))
       .toList();
@@ -715,14 +902,33 @@ class AppDatabase {
       .toList();
 
   void insertAccount(Account account) => _database.execute(
-        'INSERT INTO accounts(id, name, opening_balance_cents, created_at, institution) VALUES (?, ?, ?, ?, ?)',
+        '''INSERT INTO accounts(
+          id, name, opening_balance_cents, created_at, institution,
+          custom_institution_name, custom_icon_key
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)''',
         [
           account.id,
           account.name,
           account.openingBalanceInCents,
           account.createdAt.toIso8601String(),
           account.institution.name,
+          account.customInstitutionName,
+          account.customIconKey,
         ],
+      );
+
+  void updateAccountDetails({
+    required String id,
+    required String name,
+    required AccountInstitution institution,
+    String? customInstitutionName,
+    String? customIconKey,
+  }) =>
+      _database.execute(
+        '''UPDATE accounts SET
+          name = ?, institution = ?, custom_institution_name = ?, custom_icon_key = ?
+        WHERE id = ?''',
+        [name, institution.name, customInstitutionName, customIconKey, id],
       );
 
   void updateAccountOpeningBalance(String id, int cents) => _database.execute(
@@ -775,8 +981,9 @@ class AppDatabase {
 
   void insertShoppingItem(ShoppingItem item) => _database.execute(
         '''INSERT INTO shopping_items(
-          id, name, quantity, estimated_unit_price_cents, priority, is_purchased, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?)''',
+          id, name, quantity, estimated_unit_price_cents, priority, is_purchased,
+          image_path, description, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''',
         [
           item.id,
           item.name,
@@ -784,8 +991,15 @@ class AppDatabase {
           item.estimatedUnitPriceInCents,
           item.priority.name,
           item.isPurchased ? 1 : 0,
+          item.imagePath,
+          item.description,
           item.createdAt.toIso8601String(),
         ],
+      );
+
+  void setShoppingItemImage(String id, String? imagePath) => _database.execute(
+        'UPDATE shopping_items SET image_path = ? WHERE id = ?',
+        [imagePath, id],
       );
 
   void setShoppingItemPurchased(String id, bool value) => _database.execute(
@@ -996,6 +1210,17 @@ class AppDatabase {
           allocation.freePercent
         ],
       );
+
+  void transaction(void Function() operation) {
+    _database.execute('BEGIN IMMEDIATE');
+    try {
+      operation();
+      _database.execute('COMMIT');
+    } catch (_) {
+      _database.execute('ROLLBACK');
+      rethrow;
+    }
+  }
 
   void close() => _database.close();
 }

@@ -9,7 +9,8 @@ val releasePassword = System.getenv("ORGANIZA_SIGNING_PASSWORD")
 
 android {
     namespace = "com.danielcdesk.organiza"
-    compileSdk = flutter.compileSdkVersion
+    // file_picker's Android lifecycle bridge is built against API 36.
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

@@ -9,6 +9,17 @@ enum AccountInstitution {
   bradesco,
   santander,
   bancoDoBrasil,
+  bancoPan,
+  picpay,
+  mercadoPago,
+  neon,
+  original,
+  safra,
+  sicredi,
+  sicoob,
+  bv,
+  xp,
+  custom,
 }
 
 class Account {
@@ -18,6 +29,8 @@ class Account {
     required this.openingBalanceInCents,
     required this.createdAt,
     this.institution = AccountInstitution.generic,
+    this.customInstitutionName,
+    this.customIconKey,
   });
 
   final String id;
@@ -25,6 +38,8 @@ class Account {
   final int openingBalanceInCents;
   final DateTime createdAt;
   final AccountInstitution institution;
+  final String? customInstitutionName;
+  final String? customIconKey;
 }
 
 class TransactionRecord {
@@ -92,6 +107,8 @@ class ShoppingItem {
     this.estimatedUnitPriceInCents,
     this.priority = ShoppingPriority.normal,
     this.isPurchased = false,
+    this.imagePath,
+    this.description = '',
   });
 
   final String id;
@@ -100,6 +117,8 @@ class ShoppingItem {
   final int? estimatedUnitPriceInCents;
   final ShoppingPriority priority;
   final bool isPurchased;
+  final String? imagePath;
+  final String description;
   final DateTime createdAt;
 
   int get estimatedTotalInCents => quantity * (estimatedUnitPriceInCents ?? 0);

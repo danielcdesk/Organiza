@@ -1,14 +1,26 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../domain/models.dart';
 import 'shared_widgets.dart';
+import '../services/local_image_service.dart';
 
 class AccountInput {
-  const AccountInput(this.name, this.openingCents, this.institution);
+  const AccountInput({
+    required this.name,
+    required this.openingCents,
+    required this.institution,
+    this.customInstitutionName,
+    this.customIconKey,
+  });
+
   final String name;
   final int openingCents;
   final AccountInstitution institution;
+  final String? customInstitutionName;
+  final String? customIconKey;
 }
 
 class TransactionEditDialog extends StatefulWidget {
@@ -76,7 +88,14 @@ class _TransactionEditDialogState extends State<TransactionEditDialog> {
 }
 
 class AccountDialog extends StatefulWidget {
-  const AccountDialog({super.key});
+  const AccountDialog({
+    super.key,
+    this.account,
+    this.currentBalanceCents,
+  });
+
+  final Account? account;
+  final int? currentBalanceCents;
 
   @override
   State<AccountDialog> createState() => _AccountDialogState();
@@ -143,67 +162,134 @@ class _AccountBalanceDialogState extends State<AccountBalanceDialog> {
 }
 
 class _AccountDialogState extends State<AccountDialog> {
-  final _name = TextEditingController();
-  final _balance = TextEditingController(text: '0,00');
-  var _institution = AccountInstitution.generic;
+  late final TextEditingController _name;
+  late final TextEditingController _balance;
+  late final TextEditingController _customName;
+  late AccountInstitution _institution;
+  late String? _customIconKey;
   String? _error;
+
+  static const _customIcons = <String, (String, IconData)>{
+    'wallet': ('Carteira', Icons.account_balance_wallet_rounded),
+    'bank': ('Banco', Icons.account_balance_rounded),
+    'payments': ('Pagamentos', Icons.payments_rounded),
+    'savings': ('Poupança', Icons.savings_rounded),
+    'business': ('Empresa', Icons.business_rounded),
+    'store': ('Loja', Icons.storefront_rounded),
+    'phone': ('Carteira digital', Icons.phone_android_rounded),
+  };
+
+  @override
+  void initState() {
+    super.initState();
+    final account = widget.account;
+    _name = TextEditingController(text: account?.name ?? '');
+    _balance = TextEditingController(
+      text: _investmentMoneyInput(
+          widget.currentBalanceCents ?? (account == null ? 0 : 0)),
+    );
+    _institution = account?.institution ?? AccountInstitution.generic;
+    _customName =
+        TextEditingController(text: account?.customInstitutionName ?? '');
+    _customIconKey = account?.customIconKey ?? 'wallet';
+  }
 
   @override
   void dispose() {
     _name.dispose();
     _balance.dispose();
+    _customName.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-        title: const Text('Nova conta'),
+        title: Text(widget.account == null ? 'Nova conta' : 'Editar conta'),
         content: SizedBox(
           width: 410,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              DropdownButtonFormField<AccountInstitution>(
-                initialValue: _institution,
-                decoration: const InputDecoration(labelText: 'Instituição'),
-                items: AccountInstitution.values
-                    .map(
-                      (institution) => DropdownMenuItem(
-                        value: institution,
-                        child: Row(
-                          children: [
-                            InstitutionMark(institution: institution, size: 28),
-                            const SizedBox(width: 10),
-                            Text(institutionName(institution)),
-                          ],
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<AccountInstitution>(
+                  initialValue: _institution,
+                  decoration: const InputDecoration(labelText: 'Instituição'),
+                  items: AccountInstitution.values
+                      .map(
+                        (institution) => DropdownMenuItem(
+                          value: institution,
+                          child: Row(
+                            children: [
+                              InstitutionMark(
+                                  institution: institution,
+                                  customIconKey: _customIconKey,
+                                  size: 28),
+                              const SizedBox(width: 10),
+                              Text(institutionName(institution)),
+                            ],
+                          ),
                         ),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (value) => setState(() => _institution = value!),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                  controller: _name,
-                  autofocus: true,
-                  decoration: const InputDecoration(labelText: 'Nome')),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _balance,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                decoration:
-                    const InputDecoration(labelText: 'Saldo inicial (R\$)'),
-              ),
-              _DialogError(_error),
-            ],
+                      )
+                      .toList(),
+                  onChanged: (value) => setState(() => _institution = value!),
+                ),
+                if (_institution == AccountInstitution.custom) ...[
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _customName,
+                    decoration: const InputDecoration(
+                      labelText: 'Nome do banco ou carteira',
+                      prefixIcon: Icon(Icons.edit_outlined),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text('Escolha um ícone',
+                        style: Theme.of(context).textTheme.labelLarge),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _customIcons.entries
+                        .map((entry) => ChoiceChip(
+                              label: Text(entry.value.$1),
+                              avatar: Icon(entry.value.$2, size: 17),
+                              selected: _customIconKey == entry.key,
+                              onSelected: (_) =>
+                                  setState(() => _customIconKey = entry.key),
+                            ))
+                        .toList(),
+                  ),
+                ],
+                const SizedBox(height: 12),
+                TextField(
+                    controller: _name,
+                    autofocus: true,
+                    decoration: const InputDecoration(labelText: 'Nome')),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _balance,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  decoration:
+                      const InputDecoration(labelText: 'Saldo inicial (R\$)'),
+                ),
+                _DialogError(_error),
+              ],
+            ),
           ),
         ),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context),
               child: const Text('Cancelar')),
-          FilledButton(onPressed: _submit, child: const Text('Salvar conta')),
+          FilledButton(
+              onPressed: _submit,
+              child: Text(widget.account == null
+                  ? 'Salvar conta'
+                  : 'Salvar alterações')),
         ],
       );
 
@@ -213,9 +299,20 @@ class _AccountDialogState extends State<AccountDialog> {
       setState(() => _error = 'Preencha o nome e informe um saldo válido.');
       return;
     }
+    if (_institution == AccountInstitution.custom &&
+        _customName.text.trim().isEmpty) {
+      setState(() => _error = 'Informe o nome do banco personalizado.');
+      return;
+    }
     Navigator.pop(
       context,
-      AccountInput(_name.text, cents, _institution),
+      AccountInput(
+        name: _name.text,
+        openingCents: cents,
+        institution: _institution,
+        customInstitutionName: _customName.text.trim(),
+        customIconKey: _customIconKey,
+      ),
     );
   }
 }
@@ -699,7 +796,10 @@ class _AccountOption extends StatelessWidget {
   Widget build(BuildContext context) => SizedBox(
         width: MediaQuery.sizeOf(context).width < 600 ? 130 : 220,
         child: Row(children: [
-          InstitutionMark(institution: account.institution, size: 25),
+          InstitutionMark(
+              institution: account.institution,
+              customIconKey: account.customIconKey,
+              size: 25),
           const SizedBox(width: 9),
           Expanded(
               child: Text(account.name,
@@ -1994,4 +2094,149 @@ int? parseMoney(String raw) {
     return null;
   }
   return (value * 100).round();
+}
+
+class ProfileInput {
+  const ProfileInput({
+    required this.name,
+    required this.incomeInCents,
+    this.photoPath,
+  });
+
+  final String name;
+  final int incomeInCents;
+  final String? photoPath;
+}
+
+class ProfileDialog extends StatefulWidget {
+  const ProfileDialog({
+    super.key,
+    this.initialName = '',
+    this.initialIncomeInCents = 0,
+    this.initialPhotoPath,
+  });
+
+  final String initialName;
+  final int initialIncomeInCents;
+  final String? initialPhotoPath;
+
+  @override
+  State<ProfileDialog> createState() => _ProfileDialogState();
+}
+
+class _ProfileDialogState extends State<ProfileDialog> {
+  late final _name = TextEditingController(text: widget.initialName);
+  late final _income = TextEditingController(
+    text: widget.initialIncomeInCents == 0
+        ? ''
+        : (widget.initialIncomeInCents / 100)
+            .toStringAsFixed(2)
+            .replaceAll('.', ','),
+  );
+  String? _photoPath;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _photoPath = widget.initialPhotoPath;
+  }
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _income.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        title: const Text('Seu perfil local'),
+        content: SizedBox(
+          width: 440,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _profilePreview(context),
+                const SizedBox(height: 18),
+                TextField(
+                  controller: _name,
+                  autofocus: true,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(
+                    labelText: 'Como podemos chamar você?',
+                    prefixIcon: Icon(Icons.person_outline_rounded),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _income,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: 'Quanto você ganha por mês?',
+                    prefixIcon: Icon(Icons.payments_outlined),
+                    prefixText: 'R\$ ',
+                    helperText: 'Fica salvo somente neste dispositivo.',
+                  ),
+                ),
+                _DialogError(_error),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton.icon(
+            onPressed: _submit,
+            icon: const Icon(Icons.check_rounded, size: 18),
+            label: const Text('Salvar perfil'),
+          ),
+        ],
+      );
+
+  Widget _profilePreview(BuildContext context) => Column(
+        children: [
+          CircleAvatar(
+            radius: 38,
+            backgroundColor:
+                Theme.of(context).colorScheme.primary.withValues(alpha: .16),
+            backgroundImage: LocalImageService.exists(_photoPath)
+                ? FileImage(File(_photoPath!))
+                : null,
+            child: LocalImageService.exists(_photoPath)
+                ? null
+                : Icon(Icons.person_outline_rounded,
+                    size: 35, color: Theme.of(context).colorScheme.primary),
+          ),
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            onPressed: _pickPhoto,
+            icon: const Icon(Icons.add_a_photo_outlined, size: 18),
+            label: Text(_photoPath == null ? 'Adicionar foto' : 'Trocar foto'),
+          ),
+        ],
+      );
+
+  Future<void> _pickPhoto() async {
+    final path = await LocalImageService.pickAndStore();
+    if (path != null && mounted) setState(() => _photoPath = path);
+  }
+
+  void _submit() {
+    final name = _name.text.trim();
+    final income = parseMoney(_income.text) ?? 0;
+    if (name.isEmpty) {
+      setState(() => _error = 'Informe seu nome.');
+      return;
+    }
+    Navigator.pop(
+      context,
+      ProfileInput(name: name, incomeInCents: income, photoPath: _photoPath),
+    );
+  }
 }

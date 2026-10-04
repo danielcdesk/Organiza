@@ -5,6 +5,7 @@ Este diretório concentra as decisões de produto, regras financeiras, qualidade
 ## Produto e arquitetura
 
 - [Arquitetura](architecture.md): camadas e responsabilidades do aplicativo.
+- [Dossiê técnico](technical_dossier.md): stack, módulos, banco, fluxos, testes e diagnóstico preliminar para revisão especializada.
 - [Matriz de funcionalidades](feature_matrix.md): módulos disponíveis e escopo.
 - [Regras financeiras](financial_rules.md): como valores, saldos, previsão e rentabilidade são tratados.
 - [Base de pesquisa](research_basis.md): princípios que orientaram as funcionalidades.
@@ -16,6 +17,9 @@ Este diretório concentra as decisões de produto, regras financeiras, qualidade
 - [Estado conhecido como bom](known_good_state.md)
 - [Base de erros conhecidos](error_knowledge_base.md)
 - [Registro de mudanças](change_log.md)
+- [Política de privacidade](privacy_policy.md)
+- [Modelo de ameaças](threat_model.md)
+- [Checklist de publicação](release_checklist.md)
 
 ## Releases
 

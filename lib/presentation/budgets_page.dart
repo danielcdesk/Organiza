@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../application/organiza_store.dart';
 import '../domain/financial_rules.dart';
 import '../domain/models.dart';
-import 'organiza_theme.dart';
 import 'shared_widgets.dart';
 
 class BudgetsPage extends StatelessWidget {
@@ -124,15 +123,15 @@ class _BudgetSummary extends StatelessWidget {
                 child: _Metric(
                     label: 'Já utilizado',
                     value: FinancialRules.formatBrl(spent),
-                    color: OrganizaTheme.orange)),
+                    color: Theme.of(context).colorScheme.primary)),
             _Divider(),
             Expanded(
                 child: _Metric(
                     label: remaining >= 0 ? 'Disponível' : 'Acima do limite',
                     value: FinancialRules.formatBrl(remaining),
                     color: remaining >= 0
-                        ? const Color(0xFF258A5A)
-                        : const Color(0xFFC94D4D))),
+                        ? Theme.of(context).colorScheme.secondary
+                        : Theme.of(context).colorScheme.error)),
           ],
         ),
       ),
@@ -182,10 +181,10 @@ class _BudgetRow extends StatelessWidget {
         budget.limitInCents == 0 ? 0.0 : spent / budget.limitInCents;
     final over = spent > budget.limitInCents;
     final color = over
-        ? const Color(0xFFC94D4D)
+        ? Theme.of(context).colorScheme.error
         : progress > .8
-            ? OrganizaTheme.orange
-            : const Color(0xFF258A5A);
+            ? Theme.of(context).colorScheme.primary
+            : Theme.of(context).colorScheme.secondary;
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
       child: Column(
@@ -204,10 +203,14 @@ class _BudgetRow extends StatelessWidget {
                       fontSize: 12,
                       color: Theme.of(context).colorScheme.onSurfaceVariant)),
               const SizedBox(width: 6),
-              IconButton(
-                  tooltip: 'Excluir orçamento',
-                  onPressed: onDelete,
-                  icon: const Icon(Icons.delete_outline_rounded, size: 18)),
+              Semantics(
+                button: true,
+                label: 'Excluir orçamento',
+                child: IconButton(
+                    tooltip: 'Excluir orçamento',
+                    onPressed: onDelete,
+                    icon: const Icon(Icons.delete_outline_rounded, size: 18)),
+              ),
             ],
           ),
           const SizedBox(height: 10),
