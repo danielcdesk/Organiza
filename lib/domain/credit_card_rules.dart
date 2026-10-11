@@ -48,6 +48,22 @@ class CreditCardRules {
     return base + (oneBasedIndex <= remainder ? 1 : 0);
   }
 
+  static DateTime installmentClosingDate(
+      CreditCard card, CardPurchase purchase, int oneBasedIndex) {
+    final first = _firstClosingDate(card, purchase.purchasedOn);
+    return _safeDate(
+        first.year, first.month + oneBasedIndex - 1, card.closingDay);
+  }
+
+  static DateTime invoiceDueDate(CreditCard card, DateTime closingDate) {
+    final offset = card.dueDay <= card.closingDay ? 1 : 0;
+    return _safeDate(closingDate.year, closingDate.month + offset, card.dueDay);
+  }
+
+  static DateTime cycleStart(CreditCard card, DateTime closingDate) =>
+      _safeDate(closingDate.year, closingDate.month - 1, card.closingDay)
+          .add(const Duration(days: 1));
+
   static int outstandingBalance(
     CreditCard card,
     Iterable<CardPurchase> purchases,

@@ -59,6 +59,7 @@ class TransactionRecord {
     this.installmentNumber = 1,
     this.installmentCount = 1,
     this.isSettled = true,
+    this.cardInvoiceId,
   });
 
   final String id;
@@ -76,6 +77,7 @@ class TransactionRecord {
   final int installmentNumber;
   final int installmentCount;
   final bool isSettled;
+  final String? cardInvoiceId;
 }
 
 enum TransactionScheduleType { single, recurring, installment }
@@ -159,6 +161,8 @@ class CardPurchase {
     required this.purchasedOn,
     required this.installments,
     required this.createdAt,
+    this.category = 'Outros',
+    this.subcategory = 'Geral',
   });
 
   final String id;
@@ -168,6 +172,34 @@ class CardPurchase {
   final DateTime purchasedOn;
   final int installments;
   final DateTime createdAt;
+  final String category;
+  final String subcategory;
+}
+
+enum CardInvoiceStatus { open, closed, paid }
+
+class CardInvoice {
+  const CardInvoice({
+    required this.id,
+    required this.cardId,
+    required this.cycleStart,
+    required this.closingDate,
+    required this.dueDate,
+    required this.status,
+    required this.totalInCents,
+    this.paidOn,
+    this.paymentAccountId,
+  });
+
+  final String id;
+  final String cardId;
+  final DateTime cycleStart;
+  final DateTime closingDate;
+  final DateTime dueDate;
+  final CardInvoiceStatus status;
+  final int totalInCents;
+  final DateTime? paidOn;
+  final String? paymentAccountId;
 }
 
 enum InvestmentType { fixedIncome, stock, fund, etf, crypto, other }

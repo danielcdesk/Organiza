@@ -11,13 +11,16 @@ class AppDatabase {
   AppDatabase._(this._database);
 
   final Database _database;
-  static const _schemaVersion = 15;
+  static const _schemaVersion = 17;
   static const _backupTables = <String>[
     'accounts',
     'transactions',
     'tasks',
     'credit_cards',
     'card_purchases',
+    'card_invoices',
+    'card_invoice_items',
+    'card_invoice_payments',
     'investments',
     'budgets',
     'subscriptions',
@@ -449,6 +452,75 @@ class AppDatabase {
       ''');
       _database.execute('PRAGMA user_version = 15');
     }
+    if (current < 16) {
+      _database.execute('ALTER TABLE subscriptions ADD COLUMN icon_key TEXT');
+      _database.execute('PRAGMA user_version = 16');
+    }
+    if (current < 17) {
+      transaction(() {
+        _database.execute(
+            'ALTER TABLE transactions ADD COLUMN card_invoice_id TEXT');
+        _database.execute('''
+          CREATE TABLE credit_cards_new (
+            id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, brand TEXT NOT NULL,
+            last_four TEXT NOT NULL CHECK(length(last_four) = 4),
+            limit_cents INTEGER NOT NULL CHECK(limit_cents > 0),
+            closing_day INTEGER NOT NULL CHECK(closing_day BETWEEN 1 AND 31),
+            due_day INTEGER NOT NULL CHECK(due_day BETWEEN 1 AND 31),
+            color_value INTEGER NOT NULL, created_at TEXT NOT NULL
+          );
+          INSERT INTO credit_cards_new SELECT * FROM credit_cards;
+          CREATE TABLE card_purchases_new (
+            id TEXT PRIMARY KEY NOT NULL,
+            card_id TEXT NOT NULL REFERENCES credit_cards_new(id) ON DELETE RESTRICT,
+            description TEXT NOT NULL,
+            amount_cents INTEGER NOT NULL CHECK(amount_cents > 0),
+            purchased_on TEXT NOT NULL,
+            installments INTEGER NOT NULL DEFAULT 1 CHECK(installments BETWEEN 1 AND 48),
+            created_at TEXT NOT NULL,
+            category TEXT NOT NULL DEFAULT 'Outros',
+            subcategory TEXT NOT NULL DEFAULT 'Geral'
+          );
+          INSERT INTO card_purchases_new(
+            id, card_id, description, amount_cents, purchased_on, installments, created_at
+          ) SELECT id, card_id, description, amount_cents, purchased_on, installments, created_at
+            FROM card_purchases;
+          DROP TABLE card_purchases;
+          DROP TABLE credit_cards;
+          ALTER TABLE credit_cards_new RENAME TO credit_cards;
+          ALTER TABLE card_purchases_new RENAME TO card_purchases;
+          CREATE INDEX idx_card_purchases_card_date
+            ON card_purchases(card_id, purchased_on DESC);
+          CREATE TABLE card_invoices (
+            id TEXT PRIMARY KEY NOT NULL,
+            card_id TEXT NOT NULL REFERENCES credit_cards(id) ON DELETE RESTRICT,
+            cycle_start TEXT NOT NULL,
+            closing_date TEXT NOT NULL,
+            due_date TEXT NOT NULL,
+            status TEXT NOT NULL CHECK(status IN ('open', 'closed', 'paid')),
+            created_at TEXT NOT NULL,
+            UNIQUE(card_id, closing_date)
+          );
+          CREATE INDEX idx_card_invoices_due ON card_invoices(status, due_date);
+          CREATE TABLE card_invoice_items (
+            id TEXT PRIMARY KEY NOT NULL,
+            invoice_id TEXT NOT NULL REFERENCES card_invoices(id) ON DELETE CASCADE,
+            purchase_id TEXT NOT NULL REFERENCES card_purchases(id) ON DELETE RESTRICT,
+            installment_number INTEGER NOT NULL CHECK(installment_number > 0),
+            amount_cents INTEGER NOT NULL CHECK(amount_cents > 0),
+            UNIQUE(purchase_id, installment_number)
+          );
+          CREATE TABLE card_invoice_payments (
+            id TEXT PRIMARY KEY NOT NULL,
+            invoice_id TEXT NOT NULL UNIQUE REFERENCES card_invoices(id) ON DELETE RESTRICT,
+            transaction_id TEXT NOT NULL UNIQUE REFERENCES transactions(id) ON DELETE RESTRICT,
+            paid_on TEXT NOT NULL,
+            amount_cents INTEGER NOT NULL CHECK(amount_cents > 0)
+          );
+        ''');
+        _database.execute('PRAGMA user_version = 17');
+      });
+    }
   }
 
   static Future<Directory> _applicationDataDirectory() async {
@@ -657,6 +729,7 @@ class AppDatabase {
             installmentNumber: row['installment_number'] as int,
             installmentCount: row['installment_count'] as int,
             isSettled: (row['is_settled'] as int) == 1,
+            cardInvoiceId: row['card_invoice_id'] as String?,
             occurredOn: DateTime.parse(row['occurred_on'] as String),
             createdAt: DateTime.parse(row['created_at'] as String),
           ))
@@ -718,6 +791,54 @@ class AppDatabase {
             amountInCents: row['amount_cents'] as int,
             purchasedOn: DateTime.parse(row['purchased_on'] as String),
             installments: row['installments'] as int,
+            createdAt: DateTime.parse(row['created_at'] as String),
+            category: row['category'] as String? ?? 'Outros',
+            subcategory: row['subcategory'] as String? ?? 'Geral',
+          ))
+      .toList();
+
+  List<CardInvoice> loadCardInvoices() => _database
+      .select('''
+    SELECT i.*, COALESCE(SUM(ii.amount_cents), 0) AS total_cents,
+           p.paid_on, t.account_id AS payment_account_id
+    FROM card_invoices i
+    LEFT JOIN card_invoice_items ii ON ii.invoice_id = i.id
+    LEFT JOIN card_invoice_payments p ON p.invoice_id = i.id
+    LEFT JOIN transactions t ON t.id = p.transaction_id
+    GROUP BY i.id ORDER BY i.closing_date DESC
+  ''')
+      .map((row) => CardInvoice(
+            id: row['id'] as String,
+            cardId: row['card_id'] as String,
+            cycleStart: DateTime.parse(row['cycle_start'] as String),
+            closingDate: DateTime.parse(row['closing_date'] as String),
+            dueDate: DateTime.parse(row['due_date'] as String),
+            status: CardInvoiceStatus.values.byName(row['status'] as String),
+            totalInCents: row['total_cents'] as int,
+            paidOn: row['paid_on'] == null
+                ? null
+                : DateTime.parse(row['paid_on'] as String),
+            paymentAccountId: row['payment_account_id'] as String?,
+          ))
+      .toList();
+
+  List<TransactionRecord> loadCardInstallmentTransactions() => _database
+      .select('''
+        SELECT ii.id, p.description, ii.amount_cents, p.category, p.subcategory,
+               i.closing_date, i.created_at, i.id AS invoice_id
+        FROM card_invoice_items ii
+        JOIN card_purchases p ON p.id = ii.purchase_id
+        JOIN card_invoices i ON i.id = ii.invoice_id
+      ''')
+      .map((row) => TransactionRecord(
+            id: 'card-installment-${row['id']}',
+            accountId: 'card',
+            type: TransactionType.expense,
+            amountInCents: row['amount_cents'] as int,
+            description: row['description'] as String,
+            category: row['category'] as String,
+            subcategory: row['subcategory'] as String,
+            occurredOn: DateTime.parse(row['closing_date'] as String),
             createdAt: DateTime.parse(row['created_at'] as String),
           ))
       .toList();
@@ -939,8 +1060,9 @@ class AppDatabase {
         '''INSERT INTO transactions(
           id, account_id, destination_account_id, type, amount_cents,
           description, category, subcategory, occurred_on, created_at,
-          schedule_type, series_id, installment_number, installment_count, is_settled
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+          schedule_type, series_id, installment_number, installment_count, is_settled,
+          card_invoice_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
         [
           item.id,
           item.accountId,
@@ -957,6 +1079,7 @@ class AppDatabase {
           item.installmentNumber,
           item.installmentCount,
           item.isSettled ? 1 : 0,
+          item.cardInvoiceId,
         ],
       );
 
@@ -1027,10 +1150,37 @@ class AppDatabase {
         ],
       );
 
+  void updateCreditCard(CreditCard card) => _database.execute('''
+    UPDATE credit_cards SET name = ?, brand = ?, last_four = ?, limit_cents = ?,
+      closing_day = ?, due_day = ?, color_value = ? WHERE id = ?
+  ''', [
+        card.name,
+        card.brand.name,
+        card.lastFour,
+        card.limitInCents,
+        card.closingDay,
+        card.dueDay,
+        card.colorValue,
+        card.id
+      ]);
+
+  void deleteCreditCard(String id) {
+    final hasPurchases = _database
+        .select('SELECT 1 FROM card_purchases WHERE card_id = ? LIMIT 1', [id]);
+    final hasInvoices = _database
+        .select('SELECT 1 FROM card_invoices WHERE card_id = ? LIMIT 1', [id]);
+    if (hasPurchases.isNotEmpty || hasInvoices.isNotEmpty) {
+      throw StateError(
+          'Não é possível excluir um cartão com compras ou faturas.');
+    }
+    _database.execute('DELETE FROM credit_cards WHERE id = ?', [id]);
+  }
+
   void insertCardPurchase(CardPurchase purchase) => _database.execute(
         '''INSERT INTO card_purchases(
-          id, card_id, description, amount_cents, purchased_on, installments, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?)''',
+          id, card_id, description, amount_cents, purchased_on, installments, created_at,
+          category, subcategory
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''',
         [
           purchase.id,
           purchase.cardId,
@@ -1039,8 +1189,140 @@ class AppDatabase {
           purchase.purchasedOn.toIso8601String(),
           purchase.installments,
           purchase.createdAt.toIso8601String(),
+          purchase.category,
+          purchase.subcategory,
         ],
       );
+
+  void updateCardPurchase(CardPurchase purchase) => _database.execute('''
+    UPDATE card_purchases SET card_id = ?, description = ?, amount_cents = ?,
+      purchased_on = ?, installments = ?, category = ?, subcategory = ? WHERE id = ?
+  ''', [
+        purchase.cardId,
+        purchase.description,
+        purchase.amountInCents,
+        purchase.purchasedOn.toIso8601String(),
+        purchase.installments,
+        purchase.category,
+        purchase.subcategory,
+        purchase.id
+      ]);
+
+  void deleteCardPurchase(String id) =>
+      _database.execute('DELETE FROM card_purchases WHERE id = ?', [id]);
+
+  void clearUnpaidInvoiceItems() => _database.execute('''
+    DELETE FROM card_invoice_items WHERE invoice_id IN (
+      SELECT id FROM card_invoices WHERE status != 'paid'
+    )
+  ''');
+
+  void deleteEmptyUnpaidInvoices() => _database.execute('''
+    DELETE FROM card_invoices WHERE status != 'paid'
+      AND id NOT IN (SELECT invoice_id FROM card_invoice_items)
+  ''');
+
+  void closeExpiredCardInvoices(DateTime today) => _database.execute('''
+    UPDATE card_invoices SET status = 'closed'
+    WHERE status = 'open' AND closing_date < ?
+  ''', [_dateOnly(today)]);
+
+  String ensureCardInvoice({
+    required String id,
+    required String cardId,
+    required DateTime cycleStart,
+    required DateTime closingDate,
+    required DateTime dueDate,
+    required CardInvoiceStatus status,
+    required DateTime createdAt,
+  }) {
+    final date = _dateOnly(closingDate);
+    final existing = _database.select(
+        'SELECT id FROM card_invoices WHERE card_id = ? AND closing_date = ?',
+        [cardId, date]);
+    if (existing.isNotEmpty) {
+      final existingId = existing.first['id'] as String;
+      _database.execute(
+          '''UPDATE card_invoices SET cycle_start = ?, due_date = ?,
+        status = CASE WHEN status = 'paid' THEN 'paid' ELSE ? END WHERE id = ?''',
+          [_dateOnly(cycleStart), _dateOnly(dueDate), status.name, existingId]);
+      return existingId;
+    }
+    _database.execute('''INSERT INTO card_invoices(
+      id, card_id, cycle_start, closing_date, due_date, status, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?)''', [
+      id,
+      cardId,
+      _dateOnly(cycleStart),
+      date,
+      _dateOnly(dueDate),
+      status.name,
+      createdAt.toIso8601String()
+    ]);
+    return id;
+  }
+
+  void insertCardInvoiceItem({
+    required String id,
+    required String invoiceId,
+    required String purchaseId,
+    required int installmentNumber,
+    required int amountInCents,
+  }) =>
+      _database.execute('''INSERT INTO card_invoice_items(
+    id, invoice_id, purchase_id, installment_number, amount_cents
+  ) VALUES (?, ?, ?, ?, ?)''',
+          [id, invoiceId, purchaseId, installmentNumber, amountInCents]);
+
+  bool hasCardInvoiceItem(String purchaseId, int installmentNumber) =>
+      _database.select('''SELECT 1 FROM card_invoice_items
+        WHERE purchase_id = ? AND installment_number = ? LIMIT 1''',
+          [purchaseId, installmentNumber]).isNotEmpty;
+
+  void markCardInvoicePaid({
+    required String id,
+    required String invoiceId,
+    required String transactionId,
+    required DateTime paidOn,
+    required int amountInCents,
+  }) {
+    _database.execute('''INSERT INTO card_invoice_payments(
+      id, invoice_id, transaction_id, paid_on, amount_cents
+    ) VALUES (?, ?, ?, ?, ?)''',
+        [id, invoiceId, transactionId, _dateOnly(paidOn), amountInCents]);
+    _database.execute(
+        "UPDATE card_invoices SET status = 'paid' WHERE id = ?", [invoiceId]);
+  }
+
+  String? cardInvoicePaymentTransaction(String invoiceId) {
+    final rows = _database.select(
+        'SELECT transaction_id FROM card_invoice_payments WHERE invoice_id = ?',
+        [invoiceId]);
+    return rows.isEmpty ? null : rows.first['transaction_id'] as String;
+  }
+
+  void reverseCardInvoicePayment(String invoiceId) {
+    final transactionId = cardInvoicePaymentTransaction(invoiceId);
+    if (transactionId == null) throw StateError('Pagamento não encontrado.');
+    _database.execute(
+        'DELETE FROM card_invoice_payments WHERE invoice_id = ?', [invoiceId]);
+    _database.execute('DELETE FROM transactions WHERE id = ?', [transactionId]);
+    _database.execute(
+        "UPDATE card_invoices SET status = 'closed' WHERE id = ?", [invoiceId]);
+  }
+
+  void assertCardPurchaseHasNoPaidInvoice(String id) {
+    final rows = _database.select('''SELECT 1 FROM card_invoice_items ii
+      JOIN card_invoices i ON i.id = ii.invoice_id
+      WHERE ii.purchase_id = ? AND i.status = 'paid' LIMIT 1''', [id]);
+    if (rows.isNotEmpty) {
+      throw StateError(
+          'Estorne o pagamento da fatura antes de alterar esta compra.');
+    }
+  }
+
+  static String _dateOnly(DateTime date) =>
+      DateTime(date.year, date.month, date.day).toIso8601String();
 
   void insertInvestment(InvestmentPosition investment) => _database.execute(
         '''INSERT INTO investments(

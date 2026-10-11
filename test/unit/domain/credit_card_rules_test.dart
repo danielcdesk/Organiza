@@ -84,4 +84,31 @@ void main() {
       390000,
     );
   });
+
+  test('fechamento e vencimento no dia 31 ajustam para fevereiro', () {
+    final card31 = CreditCard(
+      id: 'card-31',
+      name: 'Cartão 31',
+      brand: CardBrand.visa,
+      lastFour: '3131',
+      limitInCents: 100000,
+      closingDay: 31,
+      dueDay: 31,
+      colorValue: 0xFF245943,
+      createdAt: DateTime(2026),
+    );
+    final purchase = CardPurchase(
+      id: 'p',
+      cardId: card31.id,
+      description: 'Teste',
+      amountInCents: 200,
+      purchasedOn: DateTime(2026, 1, 31),
+      installments: 2,
+      createdAt: DateTime(2026),
+    );
+    final closing = CreditCardRules.installmentClosingDate(card31, purchase, 1);
+    expect(closing, DateTime(2026, 1, 31));
+    expect(CreditCardRules.invoiceDueDate(card31, DateTime(2026, 1, 31)),
+        DateTime(2026, 2, 28));
+  });
 }

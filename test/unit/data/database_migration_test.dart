@@ -69,7 +69,7 @@ void main() {
       createdAt: now,
     ));
 
-    expect(database.schemaVersion, 15);
+    expect(database.schemaVersion, 17);
     expect(database.loadAccounts().single.name, 'Principal');
     expect(
         database.loadAccounts().single.institution, AccountInstitution.generic);
@@ -95,6 +95,31 @@ void main() {
     expect(database.loadMobileQuickPages(), [0, 1, 6, 8]);
     expect(database.loadFinanceCategories().any((item) => item.name == 'Pets'),
         isTrue);
+
+    database.insertCreditCard(CreditCard(
+      id: 'card-31',
+      name: 'Fechamento 31',
+      brand: CardBrand.mastercard,
+      lastFour: '3131',
+      limitInCents: 100000,
+      closingDay: 31,
+      dueDay: 31,
+      colorValue: 0xFF245943,
+      createdAt: now,
+    ));
+    database.insertCardPurchase(CardPurchase(
+      id: 'purchase-1',
+      cardId: 'card-31',
+      description: 'Compra antiga',
+      amountInCents: 1234,
+      purchasedOn: now,
+      installments: 2,
+      createdAt: now,
+      category: 'Alimentação',
+      subcategory: 'Mercado',
+    ));
+    expect(database.loadCreditCards().last.closingDay, 31);
+    expect(database.loadCardPurchases().single.category, 'Alimentação');
 
     database.updateInvestment(InvestmentPosition(
       id: 'investment-1',

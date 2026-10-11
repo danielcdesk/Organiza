@@ -18,6 +18,9 @@ class LocalRepository {
   List<ShoppingItem> loadShoppingItems() => _database.loadShoppingItems();
   List<CreditCard> loadCreditCards() => _database.loadCreditCards();
   List<CardPurchase> loadCardPurchases() => _database.loadCardPurchases();
+  List<CardInvoice> loadCardInvoices() => _database.loadCardInvoices();
+  List<TransactionRecord> loadCardInstallmentTransactions() =>
+      _database.loadCardInstallmentTransactions();
   List<InvestmentPosition> loadInvestments() => _database.loadInvestments();
   List<Budget> loadBudgets() => _database.loadBudgets();
   List<Subscription> loadSubscriptions() => _database.loadSubscriptions();
@@ -78,6 +81,66 @@ class LocalRepository {
   void insertCreditCard(CreditCard item) => _database.insertCreditCard(item);
   void insertCardPurchase(CardPurchase item) =>
       _database.insertCardPurchase(item);
+  void updateCreditCard(CreditCard item) => _database.updateCreditCard(item);
+  void deleteCreditCard(String id) => _database.deleteCreditCard(id);
+  void updateCardPurchase(CardPurchase item) =>
+      _database.updateCardPurchase(item);
+  void deleteCardPurchase(String id) => _database.deleteCardPurchase(id);
+  void clearUnpaidInvoiceItems() => _database.clearUnpaidInvoiceItems();
+  void deleteEmptyUnpaidInvoices() => _database.deleteEmptyUnpaidInvoices();
+  void closeExpiredCardInvoices(DateTime today) =>
+      _database.closeExpiredCardInvoices(today);
+  String ensureCardInvoice({
+    required String id,
+    required String cardId,
+    required DateTime cycleStart,
+    required DateTime closingDate,
+    required DateTime dueDate,
+    required CardInvoiceStatus status,
+    required DateTime createdAt,
+  }) =>
+      _database.ensureCardInvoice(
+        id: id,
+        cardId: cardId,
+        cycleStart: cycleStart,
+        closingDate: closingDate,
+        dueDate: dueDate,
+        status: status,
+        createdAt: createdAt,
+      );
+  void insertCardInvoiceItem({
+    required String id,
+    required String invoiceId,
+    required String purchaseId,
+    required int installmentNumber,
+    required int amountInCents,
+  }) =>
+      _database.insertCardInvoiceItem(
+        id: id,
+        invoiceId: invoiceId,
+        purchaseId: purchaseId,
+        installmentNumber: installmentNumber,
+        amountInCents: amountInCents,
+      );
+  bool hasCardInvoiceItem(String purchaseId, int installmentNumber) =>
+      _database.hasCardInvoiceItem(purchaseId, installmentNumber);
+  void markCardInvoicePaid({
+    required String id,
+    required String invoiceId,
+    required String transactionId,
+    required DateTime paidOn,
+    required int amountInCents,
+  }) =>
+      _database.markCardInvoicePaid(
+          id: id,
+          invoiceId: invoiceId,
+          transactionId: transactionId,
+          paidOn: paidOn,
+          amountInCents: amountInCents);
+  void reverseCardInvoicePayment(String invoiceId) =>
+      _database.reverseCardInvoicePayment(invoiceId);
+  void assertCardPurchaseHasNoPaidInvoice(String id) =>
+      _database.assertCardPurchaseHasNoPaidInvoice(id);
   void insertInvestment(InvestmentPosition item) =>
       _database.insertInvestment(item);
   void updateInvestment(InvestmentPosition item) =>
