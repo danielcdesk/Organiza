@@ -90,6 +90,55 @@ class AppDatabase {
     return instance;
   }
 
+  static AppDatabase openInMemoryFromVersion15WithCardForTest() {
+    final database = sqlite3.openInMemory();
+    _configure(database, persistent: false);
+    database.execute('''
+      CREATE TABLE accounts (
+        id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL,
+        opening_balance_cents INTEGER NOT NULL, created_at TEXT NOT NULL
+      );
+      CREATE TABLE transactions (
+        id TEXT PRIMARY KEY NOT NULL, account_id TEXT NOT NULL,
+        destination_account_id TEXT, type TEXT NOT NULL,
+        amount_cents INTEGER NOT NULL, description TEXT NOT NULL,
+        occurred_on TEXT NOT NULL, created_at TEXT NOT NULL,
+        category TEXT NOT NULL DEFAULT 'Outros',
+        subcategory TEXT NOT NULL DEFAULT 'Geral',
+        schedule_type TEXT NOT NULL DEFAULT 'single', series_id TEXT,
+        installment_number INTEGER NOT NULL DEFAULT 1,
+        installment_count INTEGER NOT NULL DEFAULT 1,
+        is_settled INTEGER NOT NULL DEFAULT 1
+      );
+      CREATE TABLE subscriptions (id TEXT PRIMARY KEY NOT NULL);
+      CREATE TABLE credit_cards (
+        id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, brand TEXT NOT NULL,
+        last_four TEXT NOT NULL CHECK(length(last_four) = 4),
+        limit_cents INTEGER NOT NULL CHECK(limit_cents > 0),
+        closing_day INTEGER NOT NULL CHECK(closing_day BETWEEN 1 AND 28),
+        due_day INTEGER NOT NULL CHECK(due_day BETWEEN 1 AND 28),
+        color_value INTEGER NOT NULL, created_at TEXT NOT NULL
+      );
+      CREATE TABLE card_purchases (
+        id TEXT PRIMARY KEY NOT NULL,
+        card_id TEXT NOT NULL REFERENCES credit_cards(id) ON DELETE RESTRICT,
+        description TEXT NOT NULL, amount_cents INTEGER NOT NULL,
+        purchased_on TEXT NOT NULL, installments INTEGER NOT NULL,
+        created_at TEXT NOT NULL
+      );
+      CREATE INDEX idx_card_purchases_card_date
+        ON card_purchases(card_id, purchased_on DESC);
+      INSERT INTO credit_cards VALUES
+        ('legacy-card', 'Cartão antigo', 'visa', '4242', 100000, 10, 17, 123, '2025-01-01');
+      INSERT INTO card_purchases VALUES
+        ('legacy-purchase', 'legacy-card', 'Compra antiga', 2500, '2025-01-02', 1, '2025-01-02');
+      PRAGMA user_version = 15;
+    ''');
+    final instance = AppDatabase._(database);
+    instance._migrate();
+    return instance;
+  }
+
   int get schemaVersion =>
       _database.select('PRAGMA user_version').first['user_version'] as int;
 

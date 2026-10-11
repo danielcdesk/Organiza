@@ -3,6 +3,28 @@ import 'package:organiza/database/app_database.dart';
 import 'package:organiza/domain/models.dart';
 
 void main() {
+  test('migração 15 para 17 preserva cartão e compra existentes', () {
+    final database = AppDatabase.openInMemoryFromVersion15WithCardForTest();
+    addTearDown(database.close);
+    expect(database.schemaVersion, 17);
+    expect(database.loadCreditCards().single.name, 'Cartão antigo');
+    expect(database.loadCreditCards().single.lastFour, '4242');
+    expect(database.loadCardPurchases().single.description, 'Compra antiga');
+    expect(database.loadCardPurchases().single.category, 'Outros');
+    database.insertCreditCard(CreditCard(
+      id: 'card-31',
+      name: 'Fechamento 31',
+      brand: CardBrand.mastercard,
+      lastFour: '3131',
+      limitInCents: 100000,
+      closingDay: 31,
+      dueDay: 31,
+      colorValue: 0xFF245943,
+      createdAt: DateTime(2026),
+    ));
+    expect(database.loadCreditCards().last.closingDay, 31);
+  });
+
   test('migração local preserva dados e habilita novos módulos', () {
     final database = AppDatabase.openInMemoryFromVersion1ForTest();
     addTearDown(database.close);
