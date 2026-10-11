@@ -13,12 +13,24 @@ class CardsPage extends StatefulWidget {
     required this.hideValues,
     required this.onAddCard,
     required this.onAddPurchase,
+    required this.onEditCard,
+    required this.onDeleteCard,
+    required this.onEditPurchase,
+    required this.onDeletePurchase,
+    required this.onPayInvoice,
+    required this.onReverseInvoicePayment,
   });
 
   final OrganizaStore store;
   final bool hideValues;
   final VoidCallback onAddCard;
   final ValueChanged<String?> onAddPurchase;
+  final ValueChanged<String> onEditCard;
+  final ValueChanged<String> onDeleteCard;
+  final ValueChanged<String> onEditPurchase;
+  final ValueChanged<String> onDeletePurchase;
+  final ValueChanged<String> onPayInvoice;
+  final ValueChanged<String> onReverseInvoicePayment;
 
   @override
   State<CardsPage> createState() => _CardsPageState();
@@ -57,6 +69,18 @@ class _CardsPageState extends State<CardsPage> {
               icon: const Icon(Icons.add_rounded, size: 18),
               label: const Text('Registrar compra'),
             ),
+            if (card != null) ...[
+              IconButton(
+                tooltip: 'Editar cartão',
+                onPressed: () => widget.onEditCard(card.id),
+                icon: const Icon(Icons.edit_outlined),
+              ),
+              IconButton(
+                tooltip: 'Excluir cartão',
+                onPressed: () => widget.onDeleteCard(card.id),
+                icon: const Icon(Icons.delete_outline),
+              ),
+            ],
           ],
         ),
         const SizedBox(height: 24),
@@ -182,6 +206,17 @@ class _CardsPageState extends State<CardsPage> {
             purchases: widget.store.cardPurchases,
             hideValues: widget.hideValues,
             onAdd: () => widget.onAddPurchase(card.id),
+            onEdit: widget.onEditPurchase,
+            onDelete: widget.onDeletePurchase,
+          ),
+          const SizedBox(height: 14),
+          _InvoiceHistoryPanel(
+            invoices: widget.store.cardInvoices
+                .where((item) => item.cardId == card.id)
+                .toList(),
+            hideValues: widget.hideValues,
+            onPay: widget.onPayInvoice,
+            onReverse: widget.onReverseInvoicePayment,
           ),
         ],
       ],
@@ -528,12 +563,16 @@ class _PurchasesPanel extends StatelessWidget {
     required this.purchases,
     required this.hideValues,
     required this.onAdd,
+    required this.onEdit,
+    required this.onDelete,
   });
 
   final CreditCard card;
   final List<CardPurchase> purchases;
   final bool hideValues;
   final VoidCallback onAdd;
+  final ValueChanged<String> onEdit;
+  final ValueChanged<String> onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -565,11 +604,70 @@ class _PurchasesPanel extends StatelessWidget {
                       card: card,
                       purchase: purchase,
                       hideValues: hideValues,
+                      onEdit: () => onEdit(purchase.id),
+                      onDelete: () => onDelete(purchase.id),
                     )),
               ],
             ),
     );
   }
+}
+
+class _InvoiceHistoryPanel extends StatelessWidget {
+  const _InvoiceHistoryPanel(
+      {required this.invoices,
+      required this.hideValues,
+      required this.onPay,
+      required this.onReverse});
+  final List<CardInvoice> invoices;
+  final bool hideValues;
+  final ValueChanged<String> onPay;
+  final ValueChanged<String> onReverse;
+
+  @override
+  Widget build(BuildContext context) => Panel(
+        title: 'Histórico de faturas',
+        subtitle:
+            '${invoices.length} ciclo${invoices.length == 1 ? '' : 's'} registrado${invoices.length == 1 ? '' : 's'}',
+        child: invoices.isEmpty
+            ? const Text(
+                'As faturas aparecerão aqui conforme as compras forem registradas.')
+            : Column(
+                children: invoices
+                    .map((invoice) => ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: Icon(invoice.status == CardInvoiceStatus.paid
+                              ? Icons.check_circle_outline
+                              : invoice.status == CardInvoiceStatus.closed
+                                  ? Icons.receipt_long_outlined
+                                  : Icons.hourglass_empty_rounded),
+                          title: Text(
+                              'Fechamento ${shortDate(invoice.closingDate)} • venc. ${shortDate(invoice.dueDate)}'),
+                          subtitle: Text(switch (invoice.status) {
+                            CardInvoiceStatus.open => 'Aberta',
+                            CardInvoiceStatus.closed => 'Fechada',
+                            CardInvoiceStatus.paid =>
+                              'Paga${invoice.paidOn == null ? '' : ' em ${shortDate(invoice.paidOn!)}'}',
+                          }),
+                          trailing:
+                              Row(mainAxisSize: MainAxisSize.min, children: [
+                            Text(hideValues
+                                ? '••••••'
+                                : FinancialRules.formatBrl(
+                                    invoice.totalInCents)),
+                            if (invoice.status == CardInvoiceStatus.closed)
+                              TextButton(
+                                  onPressed: () => onPay(invoice.id),
+                                  child: const Text('Pagar')),
+                            if (invoice.status == CardInvoiceStatus.paid)
+                              IconButton(
+                                  tooltip: 'Estornar pagamento',
+                                  onPressed: () => onReverse(invoice.id),
+                                  icon: const Icon(Icons.undo_rounded)),
+                          ]),
+                        ))
+                    .toList()),
+      );
 }
 
 class _TableHeader extends StatelessWidget {
@@ -601,11 +699,17 @@ class _TableHeader extends StatelessWidget {
 
 class _PurchaseRow extends StatelessWidget {
   const _PurchaseRow(
-      {required this.card, required this.purchase, required this.hideValues});
+      {required this.card,
+      required this.purchase,
+      required this.hideValues,
+      required this.onEdit,
+      required this.onDelete});
 
   final CreditCard card;
   final CardPurchase purchase;
   final bool hideValues;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -649,6 +753,13 @@ class _PurchaseRow extends StatelessWidget {
               textAlign: TextAlign.right,
               style: const TextStyle(fontWeight: FontWeight.w700),
             ),
+          ),
+          PopupMenuButton<String>(
+            onSelected: (value) => value == 'edit' ? onEdit() : onDelete(),
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 'edit', child: Text('Editar')),
+              PopupMenuItem(value: 'delete', child: Text('Excluir')),
+            ],
           ),
         ],
       ),

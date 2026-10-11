@@ -1,8 +1,67 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:clock/clock.dart';
 import 'package:organiza/application/organiza_store.dart';
 import 'package:organiza/domain/models.dart';
 
 void main() {
+  test(
+      'compra cria fatura, pagamento sai da conta uma vez e estorno é reversível',
+      () {
+    final store =
+        OrganizaStore.inMemory(clock: Clock.fixed(DateTime(2026, 2, 20)));
+    addTearDown(store.dispose);
+    store.addAccount('Principal', 100000);
+    store.addCreditCard(
+        name: 'Visa',
+        brand: CardBrand.visa,
+        lastFour: '4242',
+        limitInCents: 500000,
+        closingDay: 10,
+        dueDay: 17,
+        colorValue: 0xFF245943);
+    final card = store.creditCards.single;
+    store.addCardPurchase(
+        cardId: card.id,
+        description: 'Mercado',
+        amountInCents: 12000,
+        installments: 1,
+        purchasedOn: DateTime(2026, 1, 5),
+        category: 'Alimentação',
+        subcategory: 'Mercado');
+    final invoice = store.cardInvoices.single;
+    expect(invoice.status, CardInvoiceStatus.closed);
+    expect(store.reportTransactions.single.category, 'Alimentação');
+    final before = store.balance;
+    store.payCardInvoice(invoice.id, store.accounts.single.id);
+    expect(store.balance, before - 12000);
+    expect(store.reportTransactions, hasLength(1));
+    expect(store.cardInvoices.single.status, CardInvoiceStatus.paid);
+    store.reverseCardInvoicePayment(invoice.id);
+    expect(store.balance, before);
+    expect(store.cardInvoices.single.status, CardInvoiceStatus.closed);
+  });
+
+  test('não aceita excluir cartão com compra/fatura e aceita dias até 31', () {
+    final store =
+        OrganizaStore.inMemory(clock: Clock.fixed(DateTime(2026, 2, 20)));
+    addTearDown(store.dispose);
+    store.addCreditCard(
+        name: 'Visa',
+        brand: CardBrand.visa,
+        lastFour: '4242',
+        limitInCents: 500000,
+        closingDay: 31,
+        dueDay: 31,
+        colorValue: 0xFF245943);
+    final card = store.creditCards.single;
+    store.addCardPurchase(
+        cardId: card.id,
+        description: 'Compra',
+        amountInCents: 12000,
+        installments: 1,
+        purchasedOn: DateTime(2026, 1, 30));
+    expect(() => store.deleteCreditCard(card.id), throwsStateError);
+  });
   test('salário recorrente materializa só a competência vencida e não duplica',
       () {
     final store = OrganizaStore.inMemory();
@@ -237,7 +296,7 @@ void main() {
       description: 'Curso',
       scheduleType: TransactionScheduleType.installment,
       repeatCount: 3,
-      occurredOn: DateTime(2026, 9, 10),
+      occurredOn: DateTime(DateTime.now().year, DateTime.now().month, 10),
     );
 
     expect(store.transactions, hasLength(3));
@@ -248,12 +307,12 @@ void main() {
       10000,
     );
     final september = store.transactions.singleWhere(
-      (item) => item.occurredOn.month == 9,
+      (item) => item.installmentNumber == 1,
     );
     expect(september.isSettled, isTrue);
     expect(
       store.transactions
-          .where((item) => item.occurredOn.month != 9)
+          .where((item) => item.installmentNumber != 1)
           .every((item) => !item.isSettled),
       isTrue,
     );
@@ -266,6 +325,7 @@ void main() {
     addTearDown(store.dispose);
     store.addAccount('Principal', 0);
 
+    final firstMonth = DateTime(DateTime.now().year, DateTime.now().month, 5);
     store.addTransaction(
       accountId: store.accounts.single.id,
       type: TransactionType.income,
@@ -273,13 +333,18 @@ void main() {
       description: 'Salário',
       scheduleType: TransactionScheduleType.recurring,
       repeatCount: 4,
-      occurredOn: DateTime(2026, 9, 5),
+      occurredOn: firstMonth,
     );
 
     expect(store.transactions, hasLength(4));
     expect(
       store.transactions.map((item) => item.occurredOn.month).toSet(),
-      equals({9, 10, 11, 12}),
+      equals({
+        firstMonth.month,
+        DateTime(firstMonth.year, firstMonth.month + 1).month,
+        DateTime(firstMonth.year, firstMonth.month + 2).month,
+        DateTime(firstMonth.year, firstMonth.month + 3).month
+      }),
     );
     expect(store.balance, 500000);
   });

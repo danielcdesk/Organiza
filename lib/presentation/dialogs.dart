@@ -873,7 +873,8 @@ class CardInput {
 }
 
 class CardDialog extends StatefulWidget {
-  const CardDialog({super.key});
+  const CardDialog({super.key, this.card});
+  final CreditCard? card;
 
   @override
   State<CardDialog> createState() => _CardDialogState();
@@ -895,6 +896,21 @@ class _CardDialogState extends State<CardDialog> {
   var _brand = CardBrand.visa;
   var _color = _colors.first;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    final card = widget.card;
+    if (card == null) return;
+    _name.text = card.name;
+    _lastFour.text = card.lastFour;
+    _limit.text =
+        (card.limitInCents / 100).toStringAsFixed(2).replaceAll('.', ',');
+    _closingDay.text = card.closingDay.toString();
+    _dueDay.text = card.dueDay.toString();
+    _brand = card.brand;
+    _color = Color(card.colorValue);
+  }
 
   @override
   void dispose() {
@@ -1013,7 +1029,10 @@ class _CardDialogState extends State<CardDialog> {
           TextButton(
               onPressed: () => Navigator.pop(context),
               child: const Text('Cancelar')),
-          FilledButton(onPressed: _submit, child: const Text('Salvar cartão')),
+          FilledButton(
+              onPressed: _submit,
+              child: Text(
+                  widget.card == null ? 'Salvar cartão' : 'Salvar alterações')),
         ],
       );
 
@@ -1031,16 +1050,16 @@ class _CardDialogState extends State<CardDialog> {
     final validDays = closing != null &&
         due != null &&
         closing >= 1 &&
-        closing <= 28 &&
+        closing <= 31 &&
         due >= 1 &&
-        due <= 28;
+        due <= 31;
     if (_name.text.trim().isEmpty ||
         _lastFour.text.length != 4 ||
         cents == null ||
         cents <= 0 ||
         !validDays) {
       setState(() =>
-          _error = 'Revise nome, quatro dígitos, limite e dias entre 1 e 28.');
+          _error = 'Revise nome, quatro dígitos, limite e dias entre 1 e 31.');
       return;
     }
     Navigator.pop(
@@ -1064,11 +1083,17 @@ class CardPurchaseInput {
     required this.description,
     required this.amountInCents,
     required this.installments,
+    required this.purchasedOn,
+    required this.category,
+    required this.subcategory,
   });
   final String cardId;
   final String description;
   final int amountInCents;
   final int installments;
+  final DateTime purchasedOn;
+  final String category;
+  final String subcategory;
 }
 
 class CardPurchaseDialog extends StatefulWidget {
@@ -1076,10 +1101,12 @@ class CardPurchaseDialog extends StatefulWidget {
     super.key,
     required this.cards,
     this.initialCardId,
+    this.purchase,
   });
 
   final List<CreditCard> cards;
   final String? initialCardId;
+  final CardPurchase? purchase;
 
   @override
   State<CardPurchaseDialog> createState() => _CardPurchaseDialogState();
@@ -1090,12 +1117,26 @@ class _CardPurchaseDialogState extends State<CardPurchaseDialog> {
   final _description = TextEditingController();
   final _amount = TextEditingController();
   final _installments = TextEditingController(text: '1');
+  final _category = TextEditingController(text: 'Outros');
+  final _subcategory = TextEditingController(text: 'Geral');
+  DateTime _purchasedOn = DateTime.now();
   String? _error;
 
   @override
   void initState() {
     super.initState();
-    _cardId = widget.initialCardId ?? widget.cards.first.id;
+    final purchase = widget.purchase;
+    _cardId = purchase?.cardId ?? widget.initialCardId ?? widget.cards.first.id;
+    if (purchase != null) {
+      _description.text = purchase.description;
+      _amount.text = (purchase.amountInCents / 100)
+          .toStringAsFixed(2)
+          .replaceAll('.', ',');
+      _installments.text = purchase.installments.toString();
+      _category.text = purchase.category;
+      _subcategory.text = purchase.subcategory;
+      _purchasedOn = purchase.purchasedOn;
+    }
   }
 
   @override
@@ -1103,12 +1144,15 @@ class _CardPurchaseDialogState extends State<CardPurchaseDialog> {
     _description.dispose();
     _amount.dispose();
     _installments.dispose();
+    _category.dispose();
+    _subcategory.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-        title: const Text('Registrar compra'),
+        title: Text(
+            widget.purchase == null ? 'Registrar compra' : 'Editar compra'),
         content: SizedBox(
           width: 440,
           child: Column(
@@ -1129,6 +1173,26 @@ class _CardPurchaseDialogState extends State<CardPurchaseDialog> {
                   controller: _description,
                   autofocus: true,
                   decoration: const InputDecoration(labelText: 'Descrição')),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: _chooseDate,
+                icon: const Icon(Icons.calendar_month_outlined),
+                label: Text('Data da compra: ${shortDate(_purchasedOn)}'),
+              ),
+              const SizedBox(height: 12),
+              Row(children: [
+                Expanded(
+                    child: TextField(
+                        controller: _category,
+                        decoration:
+                            const InputDecoration(labelText: 'Categoria'))),
+                const SizedBox(width: 12),
+                Expanded(
+                    child: TextField(
+                        controller: _subcategory,
+                        decoration:
+                            const InputDecoration(labelText: 'Subcategoria'))),
+              ]),
               const SizedBox(height: 12),
               Row(
                 children: [
@@ -1161,7 +1225,11 @@ class _CardPurchaseDialogState extends State<CardPurchaseDialog> {
           TextButton(
               onPressed: () => Navigator.pop(context),
               child: const Text('Cancelar')),
-          FilledButton(onPressed: _submit, child: const Text('Salvar compra')),
+          FilledButton(
+              onPressed: _submit,
+              child: Text(widget.purchase == null
+                  ? 'Salvar compra'
+                  : 'Salvar alterações')),
         ],
       );
 
@@ -1185,8 +1253,25 @@ class _CardPurchaseDialogState extends State<CardPurchaseDialog> {
         description: _description.text,
         amountInCents: cents,
         installments: installments,
+        purchasedOn:
+            DateTime(_purchasedOn.year, _purchasedOn.month, _purchasedOn.day),
+        category:
+            _category.text.trim().isEmpty ? 'Outros' : _category.text.trim(),
+        subcategory: _subcategory.text.trim().isEmpty
+            ? 'Geral'
+            : _subcategory.text.trim(),
       ),
     );
+  }
+
+  Future<void> _chooseDate() async {
+    final selected = await showDatePicker(
+      context: context,
+      initialDate: _purchasedOn,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (selected != null) setState(() => _purchasedOn = selected);
   }
 }
 

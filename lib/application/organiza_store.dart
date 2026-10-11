@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 
 import '../data/local_repository.dart';
 import '../domain/financial_rules.dart';
+import '../domain/credit_card_rules.dart';
 import '../domain/models.dart';
 import '../services/backup_service.dart';
 
@@ -38,6 +39,12 @@ class OrganizaStore extends ChangeNotifier {
   List<ShoppingItem> shoppingItems = [];
   List<CreditCard> creditCards = [];
   List<CardPurchase> cardPurchases = [];
+  List<CardInvoice> cardInvoices = [];
+  List<TransactionRecord> cardInstallmentTransactions = [];
+  List<TransactionRecord> get reportTransactions => [
+        ...transactions.where((item) => item.cardInvoiceId == null),
+        ...cardInstallmentTransactions,
+      ];
   List<InvestmentPosition> investments = [];
   List<Budget> budgets = [];
   List<Subscription> subscriptions = [];
@@ -128,6 +135,9 @@ class OrganizaStore extends ChangeNotifier {
     shoppingItems = _repository.loadShoppingItems();
     creditCards = _repository.loadCreditCards();
     cardPurchases = _repository.loadCardPurchases();
+    _rebuildCardInvoices();
+    cardInvoices = _repository.loadCardInvoices();
+    cardInstallmentTransactions = _repository.loadCardInstallmentTransactions();
     investments = _repository.loadInvestments();
     budgets = _repository.loadBudgets();
     subscriptions = _repository.loadSubscriptions();
@@ -138,6 +148,49 @@ class OrganizaStore extends ChangeNotifier {
     goalCategories = _repository.loadGoalCategories();
     mobileQuickPages = _repository.loadMobileQuickPages();
     notifyListeners();
+  }
+
+  void _rebuildCardInvoices() {
+    final now = DateTime(_now.year, _now.month, _now.day);
+    _repository.transaction(() {
+      _repository.clearUnpaidInvoiceItems();
+      _repository.deleteEmptyUnpaidInvoices();
+      _repository.closeExpiredCardInvoices(now);
+      for (final purchase in cardPurchases) {
+        final card =
+            creditCards.where((item) => item.id == purchase.cardId).firstOrNull;
+        if (card == null) continue;
+        for (var index = 1; index <= purchase.installments; index++) {
+          if (_repository.hasCardInvoiceItem(purchase.id, index)) continue;
+          final closing =
+              CreditCardRules.installmentClosingDate(card, purchase, index);
+          final previous = DateTime(
+              closing.year,
+              closing.month - 1,
+              card.closingDay
+                  .clamp(1, DateTime(closing.year, closing.month, 0).day));
+          final status = now.isAfter(closing)
+              ? CardInvoiceStatus.closed
+              : CardInvoiceStatus.open;
+          final invoiceId = _repository.ensureCardInvoice(
+            id: _id(),
+            cardId: card.id,
+            cycleStart: previous.add(const Duration(days: 1)),
+            closingDate: closing,
+            dueDate: CreditCardRules.invoiceDueDate(card, closing),
+            status: status,
+            createdAt: _now,
+          );
+          _repository.insertCardInvoiceItem(
+            id: _id(),
+            invoiceId: invoiceId,
+            purchaseId: purchase.id,
+            installmentNumber: index,
+            amountInCents: CreditCardRules.installmentAmount(purchase, index),
+          );
+        }
+      }
+    });
   }
 
   int get balance => FinancialRules.currentBalance(accounts, transactions);
@@ -467,9 +520,9 @@ class OrganizaStore extends ChangeNotifier {
     if (!FinancialRules.isValidAmount(limitInCents)) {
       throw ArgumentError('Informe um limite válido.');
     }
-    if (closingDay < 1 || closingDay > 28 || dueDay < 1 || dueDay > 28) {
+    if (closingDay < 1 || closingDay > 31 || dueDay < 1 || dueDay > 31) {
       throw ArgumentError(
-          'Fechamento e vencimento devem estar entre os dias 1 e 28.');
+          'Fechamento e vencimento devem estar entre os dias 1 e 31.');
     }
     _repository.insertCreditCard(CreditCard(
       id: _id(),
@@ -490,6 +543,9 @@ class OrganizaStore extends ChangeNotifier {
     required String description,
     required int amountInCents,
     required int installments,
+    DateTime? purchasedOn,
+    String category = 'Outros',
+    String subcategory = 'Geral',
   }) {
     if (creditCards.every((card) => card.id != cardId)) {
       throw ArgumentError('Cartão não encontrado.');
@@ -508,10 +564,120 @@ class OrganizaStore extends ChangeNotifier {
       cardId: cardId,
       description: description.trim(),
       amountInCents: amountInCents,
-      purchasedOn: _now,
+      purchasedOn: _dateOnly(purchasedOn ?? _now),
       installments: installments,
       createdAt: _now,
+      category: category,
+      subcategory: subcategory,
     ));
+    reload();
+  }
+
+  void editCardPurchase({
+    required String id,
+    required String cardId,
+    required String description,
+    required int amountInCents,
+    required int installments,
+    required DateTime purchasedOn,
+    required String category,
+    required String subcategory,
+  }) {
+    _repository.assertCardPurchaseHasNoPaidInvoice(id);
+    if (creditCards.every((card) => card.id != cardId)) {
+      throw ArgumentError('Cartão não encontrado.');
+    }
+    if (description.trim().isEmpty ||
+        !FinancialRules.isValidAmount(amountInCents)) {
+      throw ArgumentError('Informe uma descrição e um valor válidos.');
+    }
+    if (installments < 1 || installments > 48) {
+      throw ArgumentError('O número de parcelas deve estar entre 1 e 48.');
+    }
+    _repository.transaction(() {
+      _repository.clearUnpaidInvoiceItems();
+      _repository.deleteCardPurchase(id);
+      _repository.insertCardPurchase(CardPurchase(
+        id: id,
+        cardId: cardId,
+        description: description.trim(),
+        amountInCents: amountInCents,
+        purchasedOn: _dateOnly(purchasedOn),
+        installments: installments,
+        createdAt: cardPurchases.firstWhere((item) => item.id == id).createdAt,
+        category: category,
+        subcategory: subcategory,
+      ));
+    });
+    reload();
+  }
+
+  void deleteCardPurchase(String id) {
+    _repository.assertCardPurchaseHasNoPaidInvoice(id);
+    _repository.transaction(() {
+      _repository.clearUnpaidInvoiceItems();
+      _repository.deleteCardPurchase(id);
+    });
+    reload();
+  }
+
+  void editCreditCard(CreditCard card) {
+    _repository.updateCreditCard(card);
+    reload();
+  }
+
+  void deleteCreditCard(String id) {
+    _repository.deleteCreditCard(id);
+    reload();
+  }
+
+  void payCardInvoice(String invoiceId, String accountId) {
+    final invoice =
+        cardInvoices.where((item) => item.id == invoiceId).firstOrNull;
+    if (invoice == null) throw ArgumentError('Fatura não encontrada.');
+    if (invoice.status != CardInvoiceStatus.closed) {
+      throw StateError('A fatura só pode ser paga após o fechamento.');
+    }
+    if (invoice.totalInCents <= 0) {
+      throw StateError('A fatura não tem valor para pagar.');
+    }
+    if (accounts.every((account) => account.id != accountId)) {
+      throw ArgumentError('Conta não encontrada.');
+    }
+    final card = creditCards.firstWhere((item) => item.id == invoice.cardId);
+    final transactionId = _id();
+    final transaction = TransactionRecord(
+      id: transactionId,
+      accountId: accountId,
+      type: TransactionType.expense,
+      amountInCents: invoice.totalInCents,
+      description: 'Pagamento fatura ${card.name}',
+      category: 'Pagamento de fatura',
+      subcategory: card.name,
+      occurredOn: _dateOnly(_now),
+      createdAt: _now,
+      cardInvoiceId: invoice.id,
+    );
+    _repository.transaction(() {
+      _repository.insertTransaction(transaction);
+      _repository.markCardInvoicePaid(
+          id: _id(),
+          invoiceId: invoice.id,
+          transactionId: transactionId,
+          paidOn: _now,
+          amountInCents: invoice.totalInCents);
+    });
+    reload();
+  }
+
+  void reverseCardInvoicePayment(String invoiceId) {
+    final invoice =
+        cardInvoices.where((item) => item.id == invoiceId).firstOrNull;
+    if (invoice?.status != CardInvoiceStatus.paid) {
+      throw StateError('A fatura não possui pagamento para estornar.');
+    }
+    _repository
+        .transaction(() => _repository.reverseCardInvoicePayment(invoiceId));
     reload();
   }
 
