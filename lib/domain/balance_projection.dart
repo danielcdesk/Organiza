@@ -46,6 +46,7 @@ class BalanceProjection {
     required Iterable<TransactionRecord> transactions,
     required Iterable<SalarySchedule> salaries,
     required Clock clock,
+    Iterable<CardInvoice> cardInvoices = const <CardInvoice>[],
     int horizonDays = 90,
   }) {
     if (horizonDays < 1) {
@@ -115,7 +116,22 @@ class BalanceProjection {
       (eventsByDate[event.date] ??= []).add(event);
     }
 
+    final obligationsByDate = <DateTime, int>{};
+    for (final invoice in cardInvoices) {
+      if (invoice.status != CardInvoiceStatus.closed ||
+          invoice.totalInCents <= 0) {
+        continue;
+      }
+      final date = _effectiveDate(invoice.dueDate, today);
+      if (!date.isAfter(lastDay)) {
+        obligationsByDate.update(
+            date, (amount) => amount + invoice.totalInCents,
+            ifAbsent: () => invoice.totalInCents);
+      }
+    }
+
     final points = <BalanceProjectionPoint>[];
+    var unassignedCardOutflows = 0;
     DateTime? firstNegativeDate;
     int? firstNegativeBalance;
     for (var offset = 0; offset < horizonDays; offset++) {
@@ -123,7 +139,9 @@ class BalanceProjection {
       for (final event in eventsByDate[date] ?? const <_ProjectionEvent>[]) {
         _applyEvent(balances, event);
       }
-      final total = balances.values.fold<int>(0, (sum, value) => sum + value);
+      unassignedCardOutflows += obligationsByDate[date] ?? 0;
+      final total = balances.values.fold<int>(0, (sum, value) => sum + value) -
+          unassignedCardOutflows;
       final point = BalanceProjectionPoint(
         date: date,
         balanceInCents: total,

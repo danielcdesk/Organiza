@@ -68,6 +68,30 @@ void main() {
     expect(result.firstNegativeDate, isNull);
   });
 
+  test('fatura fechada não paga reduz o consolidado no vencimento', () {
+    final result = BalanceProjection.calculate(
+      accounts: [account('main', 10000)],
+      transactions: const [],
+      salaries: const [],
+      clock: fixedClock,
+      cardInvoices: [
+        CardInvoice(
+          id: 'invoice',
+          cardId: 'card',
+          cycleStart: DateTime(2025, 12, 1),
+          closingDate: DateTime(2025, 12, 31),
+          dueDate: DateTime(2026, 1, 5),
+          status: CardInvoiceStatus.closed,
+          totalInCents: 2500,
+        )
+      ],
+      horizonDays: 10,
+    );
+    expect(result.points[3].balanceInCents, 10000);
+    expect(result.points[4].balanceInCents, 7500);
+    expect(result.points[4].accountBalancesInCents['main'], 10000);
+  });
+
   test('despesa grande no dia 10 marca o primeiro dia negativo', () {
     final result = BalanceProjection.calculate(
       accounts: [account('main', 10000)],

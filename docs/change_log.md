@@ -1,5 +1,14 @@
 # Registro de mudanças
 
+## 2026-10-11 — Compras e faturas de cartão integradas
+
+- Compras agora aceitam data, categoria e subcategoria e podem ser editadas/removidas antes de uma fatura associada ser paga. Cartões podem ser editados; exclusão é bloqueada quando existem compras ou faturas.
+- Faturas materializadas por ciclo registram estado aberta, fechada ou paga; cada parcela é vinculada a um ciclo. Dias de fechamento/vencimento aceitam 1–31 e ajustam para o último dia do mês, sem perda das informações antigas na migração.
+- Pagamento integral registra uma única saída na conta escolhida; o histórico mantém o vínculo e o estorno remove a saída e reabre a fatura. Pagamento parcial ficou fora desta entrega.
+- Relatórios e orçamentos reconhecem parcelas pela competência da fatura e categoria original, sem duplicar o pagamento; a previsão inclui faturas fechadas ainda não pagas.
+- Schema local 17, com novas tabelas incluídas nos snapshots de backup. Nenhum número completo ou CVV é armazenado.
+- Validado com `flutter analyze` e a suíte completa (`flutter test`).
+
 ## 2026-09-18 — Organiza 0.7.1, navegação de Organização unificada
 
 - Orçamento deixou de ser um item paralelo no menu. Planejamento e limites mensais agora têm um único acesso: **Organização**.

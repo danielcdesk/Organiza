@@ -119,7 +119,7 @@ Está em `lib/presentation/`. Os widgets recebem uma instância de `OrganizaStor
 - `overview_widgets.dart`: previsão de fechamento, agenda de pendências, gráfico de fluxo, primeiros passos e observação de orçamento.
 - `basic_pages.dart`: histórico de transações, contas, planejamento salarial, configurações e estado de recurso futuro.
 - `budgets_page.dart`: consumo e limites mensais por categoria.
-- `cards_page.dart`: cartões, ciclo, fatura atual, limite, compras e parcelas.
+- `cards_page.dart`: cartões, ciclo, fatura atual, limite, compras, histórico e pagamento/estorno de faturas.
 - `investments_page.dart`: carteira manual, telemetria visual animada, alocação, posições e renda fixa.
 - `goals_page.dart`: metas, progresso e aportes.
 - `reports_page.dart`: seleção de mês, realizado/previsto, métricas, tendência, pizza de categorias, ranking e mapa anual.
@@ -185,7 +185,8 @@ O banco persistente fica no diretório privado de suporte da aplicação, separa
 | `TaskItem` | título, vencimento opcional, concluída | Tarefas do planejamento/dashboard |
 | `ShoppingItem` | nome, quantidade, preço, prioridade, comprada, imagem, descrição | Lista de desejos/compras |
 | `CreditCard` | nome, bandeira, quatro últimos dígitos, limite, fechamento, vencimento, cor | Cartão e ciclo de fatura |
-| `CardPurchase` | cartão, descrição, total, data, parcelas | Compra manual no cartão |
+| `CardPurchase` | cartão, descrição, total, data, parcelas, categoria e subcategoria | Compra manual no cartão |
+| `CardInvoice` | cartão, ciclo, fechamento, vencimento, estado, total e pagamento | Histórico materializado de faturas |
 | `InvestmentPosition` | nome, classe, aplicado, atual, renda fixa, emissor, vencimento, taxa e dia de crédito | Carteira manual |
 | `Budget` | categoria, limite, ano e mês | Orçamento mensal |
 | `Subscription` | nome, valor, cobrança, categoria, ativo | Compromisso recorrente manual |
@@ -208,7 +209,7 @@ O banco persistente fica no diretório privado de suporte da aplicação, separa
 
 ## 6. Banco SQLite e migrações
 
-O schema atual no código é a versão **15**. As migrações são incrementais e não removem dados históricos.
+O schema atual no código é a versão **17**. As migrações são incrementais; a migração 17 reconstrói as tabelas de cartões/compras preservando as linhas existentes para ampliar os dias permitidos e cria as tabelas de fatura, itens e pagamentos.
 
 | Versão | Alteração |
 |---:|---|
@@ -227,12 +228,14 @@ O schema atual no código é a versão **15**. As migrações são incrementais 
 | 13 | nome e ícone customizados para instituição da conta |
 | 14 | descrição da lista de desejos |
 | 15 | índice único para impedir duas ocorrências da mesma série na mesma data |
+| 16 | chave de ícone opcional para assinaturas |
+| 17 | fechamento/vencimento de cartão entre 1 e 31, categoria/subcategoria de compra, faturas, parcelas por ciclo e pagamentos reversíveis |
 
 Constraints e índices relevantes:
 
 - `foreign_keys` está habilitado.
 - Valores monetários têm constraints de positividade ou não negatividade conforme o caso.
-- Dias de fechamento e vencimento de cartão ficam entre 1 e 28.
+- Dias de fechamento e vencimento de cartão aceitam 1 a 31; datas inexistentes são ajustadas ao último dia do mês.
 - Parcelas ficam entre 1 e 48 no cartão e entre 2 e 60 em lançamentos parcelados.
 - Orçamento tem unicidade por categoria, ano e mês.
 - Categoria/subcategoria têm unicidade sem diferenciação de maiúsculas/minúsculas.
@@ -257,7 +260,9 @@ O projeto também oferece `AppDatabase.openInMemory()` e um banco em memória qu
 - Ajustar o saldo atual recalcula o saldo inicial pela diferença e preserva o histórico de movimentações.
 - Orçamento soma despesas confirmadas da categoria no mesmo mês. O indicador visual é limitado a 100%, mas o valor excedente continua explícito.
 - Cartão guarda apenas quatro últimos dígitos; nunca armazena número completo, CVV ou senha.
-- Fatura atual é a soma das parcelas da compra no ciclo atual. Pagamento definitivo e histórico de faturas ainda não existem.
+- Cada parcela está vinculada a uma fatura por cartão e data de fechamento. Estados são aberta, fechada e paga; o pagamento integral cria uma única saída de caixa, vinculada à fatura, e o estorno remove a saída e reabre a fatura.
+- Orçamentos e relatórios reconhecem cada parcela na competência de fechamento da sua fatura, com a categoria/subcategoria da compra; o pagamento da fatura fica fora do consumo analítico para não duplicar despesas.
+- A previsão consolida faturas fechadas não pagas no vencimento. Como a conta de pagamento ainda não foi escolhida, esse compromisso reduz o saldo consolidado, sem atribuí-lo a uma conta individual.
 - Investimento é uma posição manual: o usuário informa aplicado e atual. O retorno é uma variação acumulada simples; taxa cadastrada e dia de crédito são informativos e não geram rendimento automático.
 - Distribuição salarial considera a categoria `Salário` e precisa totalizar exatamente 100%.
 - Lista de desejos não altera o saldo financeiro quando o item é marcado como comprado.
@@ -278,7 +283,7 @@ Cadastro de conta com saldo inicial, instituição visual e ícone. A conta pode
 
 ### Cartões
 
-Cadastro do cartão com nome, bandeira, quatro últimos dígitos, limite, fechamento e vencimento. Compras podem ser parceladas. A tela calcula ciclo corrente, valor da fatura aberta, saldo comprometido, limite disponível e proporção de uso.
+Cadastro e edição de cartões com nome, bandeira, quatro últimos dígitos, limite, fechamento e vencimento; cartões com compra/fatura não podem ser apagados. Compras podem ser datadas e classificadas, e editadas/excluídas antes de qualquer fatura associada estar paga. Cada parcela é persistida na fatura do seu ciclo. A tela mantém histórico, permite pagamento integral por uma conta e estorno, calcula saldo comprometido/limite e projeta faturas pendentes.
 
 ### Organização e orçamento
 
@@ -383,7 +388,7 @@ O fluxo integrado está em `integration_test/first_use_flow_test.dart` e cobre p
 - Não há golden tests para proteger o visual desktop/mobile.
 - Não há benchmark com o volume-alvo de 10.000 transações e 1.000 tarefas.
 - A cobertura de acessibilidade está baseada em semântica pontual e testes de presença; não há auditoria automatizada de contraste, leitor de tela ou navegação por teclado em todas as telas.
-- A documentação histórica de releases ainda pode citar contagens antigas; o código atual está no schema 15 e a suíte atual tem 45 testes.
+- A documentação histórica de releases ainda pode citar contagens antigas; o código atual está no schema 17. A suíte foi rodada novamente para a entrega de 2026-10-11.
 
 ## 12. Build, distribuição e organização de artefatos
 
@@ -440,7 +445,7 @@ Também gera instaladores auxiliares para emulador Android, um `LEIA-ME.txt`, co
 
 ### Prioridade alta
 
-**P0 — Alinhar documentação e fonte.** Atualizar `README`, `docs/architecture.md`, `docs/known_good_state.md`, matriz e release notes para refletirem schema 15, a política de privacidade, o modelo de ameaças e as funcionalidades mais recentes. Incluir um comando de auditoria que confira versão do `pubspec.yaml`, schema e documentação.
+**P0 — Alinhar documentação e fonte.** Revisar também documentos de arquitetura e estado conhecido quando a próxima auditoria completa for feita; este dossiê, matriz e changelog registram o schema 17 e o fluxo de faturas.
 
 **P0 — Definir uma política de backup real.** O fluxo local agora tem snapshot versionado, restauração transacional e backup criptografado. Ainda é necessário conectar a UI de confirmação e decidir se haverá merge ou apenas substituição integral.
 
@@ -460,7 +465,7 @@ Também gera instaladores auxiliares para emulador Android, um `LEIA-ME.txt`, co
 
 **P1 — Segurança local.** Backups têm proteção AES-GCM/Argon2id e o comportamento do Windows está documentado no modelo de ameaças. Falta avaliar SQLCipher, proteção da chave e uma opção para exportar CSV protegido.
 
-**P2 — Completar cartões.** Se o produto continuar tratando cartão como módulo financeiro completo, adicionar pagamento, fechamento e histórico de faturas; caso contrário, deixar explícito na UI que é uma projeção manual.
+**P2 — Completar cartões.** O fluxo de faturas, pagamento e histórico foi implementado; uma evolução futura pode adicionar pagamento parcial e conciliação de valores.
 
 **P2 — CI/CD.** O pipeline inicial valida formatação, análise, testes e builds Windows/Android sem assinatura oficial. Falta publicar artefatos e executar integração em um emulador controlado.
 

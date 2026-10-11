@@ -42,17 +42,17 @@ class _ReportsPageState extends State<ReportsPage> {
       _selectedMonth.month - 1,
     );
     final data = _monthlyDataUntil(
-      widget.store.transactions,
+      widget.store.reportTransactions,
       _selectedMonth,
       _months,
       includePending: _includePending,
     );
     final monthTransactions = _transactionsForMonth(
-      widget.store.transactions,
+      widget.store.reportTransactions,
       _selectedMonth,
     );
     final previousTransactions = _transactionsForMonth(
-      widget.store.transactions,
+      widget.store.reportTransactions,
       previousMonth,
     );
     final visibleMonthTransactions = _visibleTransactions(
@@ -246,7 +246,7 @@ class _ReportsPageState extends State<ReportsPage> {
         ),
         const SizedBox(height: 14),
         _SpendingRoadmap(
-            transactions: widget.store.transactions,
+            transactions: widget.store.reportTransactions,
             subscriptions: widget.store.subscriptions,
             hideValues: hide,
             year: _selectedMonth.year,

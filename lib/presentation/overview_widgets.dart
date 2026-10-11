@@ -73,6 +73,7 @@ class _BalanceProjectionCardState extends State<BalanceProjectionCard> {
       accounts: widget.store.accounts,
       transactions: widget.store.transactions,
       salaries: widget.store.salarySchedules,
+      cardInvoices: widget.store.cardInvoices,
       clock: widget.store.clock,
       horizonDays: _horizonDays,
     );
@@ -850,9 +851,11 @@ class BudgetWatch extends StatelessWidget {
             b.year == now.year && b.month == now.month && b.limitInCents > 0)
         .toList()
       ..sort((a, b) =>
-          (FinancialRules.budgetSpent(b, store.transactions) / b.limitInCents)
-              .compareTo(FinancialRules.budgetSpent(a, store.transactions) /
-                  a.limitInCents));
+          (FinancialRules.budgetSpent(b, store.reportTransactions) /
+                  b.limitInCents)
+              .compareTo(
+                  FinancialRules.budgetSpent(a, store.reportTransactions) /
+                      a.limitInCents));
     if (budgets.isEmpty) return const SizedBox.shrink();
     return Padding(
         padding: const EdgeInsets.only(bottom: 16),
@@ -864,7 +867,7 @@ class BudgetWatch extends StatelessWidget {
           child: Column(
               children: budgets.take(3).map((budget) {
             final spent =
-                FinancialRules.budgetSpent(budget, store.transactions);
+                FinancialRules.budgetSpent(budget, store.reportTransactions);
             final ratio = spent / budget.limitInCents;
             final color = ratio >= 1
                 ? Theme.of(context).colorScheme.error

@@ -45,6 +45,11 @@
 | Assinaturas editáveis e pausáveis | Sim | Sim | Sim | Sim | 2026-09-16 |
 | Categorias de metas e orçamento criadas pelo usuário | Sim | Sim | Não | Sim | 2026-09-16 |
 | Pizza interativa de despesas por categoria | Sim | Sim | Sim | Sim | 2026-09-16 |
-| Pagamento e histórico de faturas | Não | Não | Não | Não | — |
+| Compras no cartão com data, categoria/subcategoria e CRUD | Sim | Sim | Sim | Sim | 2026-10-11 |
+| Edição e exclusão protegida de cartões | Sim | Sim | Sim | Sim | 2026-10-11 |
+| Faturas por ciclo com histórico aberto/fechado/pago | Sim | Sim | Sim | Sim | 2026-10-11 |
+| Pagamento integral de fatura e estorno atômico | Sim | Sim | Sim | Sim | 2026-10-11 |
+| Compras de cartão em orçamento/relatórios sem duplicação | Sim | Sim | Sim | Sim | 2026-10-11 |
+| Faturas pendentes na previsão de saldo | Sim | Sim | Sim | Sim | 2026-10-11 |
 | Backup JSON | Serviço inicial | Não executado | Não | Não | 2026-09-10 |
 | Build Windows | Sim | — | Sim | Sim | 2026-09-14 |
