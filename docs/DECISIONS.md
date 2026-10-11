@@ -1,5 +1,13 @@
 # Decisões de produto
 
+## Cartões, faturas e competência de consumo (2026-10-11)
+
+- A compra é o fato de consumo. Orçamentos e relatórios classificam cada parcela pela categoria/subcategoria da compra e pela competência da fatura à qual ela pertence (data de fechamento). O pagamento da fatura é apenas saída de caixa e não volta a consumir orçamento nem entra nos totais analíticos de consumo.
+- Cada parcela é vinculada a uma fatura identificada pelo cartão e data de fechamento. A primeira parcela entra no primeiro fechamento no dia da compra ou depois dele; as seguintes avançam mês a mês. Fechamento e vencimento aceitam 1..31 e são limitados ao último dia disponível do mês.
+- Faturas são preservadas como histórico com status aberta, fechada ou paga. A corrente fica aberta até o fechamento; então fica fechada até o pagamento integral. O pagamento registra uma única despesa na conta escolhida e pode ser revertido; reverter remove a saída e reabre a fatura. Pagamento parcial não entra na primeira entrega.
+- Cartão não pode ser excluído se tiver compras, faturas ou pagamentos associados. Compra ligada a fatura paga não pode ser editada/excluída antes de reverter o pagamento.
+- A previsão inclui faturas fechadas não pagas na data de vencimento. Compras não são projetadas de novo como saída de caixa, evitando duplicar a obrigação.
+
 ## Projeção diária de saldo
 
 A projeção diária começa no saldo consolidado confirmado de hoje. Lançamentos
