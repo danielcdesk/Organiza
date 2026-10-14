@@ -62,7 +62,10 @@ void main() {
     expect(find.bySemanticsLabel(RegExp('subiu 5%')), findsOneWidget);
     expect(find.text('Pendente'), findsOneWidget);
     expect(find.text('Mês'), findsOneWidget);
-    expect(tester.getSize(find.byKey(const ValueKey('quick-action-Nova despesa'))).height,
+    expect(
+        tester
+            .getSize(find.byKey(const ValueKey('quick-action-Nova despesa')))
+            .height,
         greaterThanOrEqualTo(48));
     semantics.dispose();
   });

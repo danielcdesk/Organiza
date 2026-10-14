@@ -1,5 +1,14 @@
 # Estado conhecido como bom
 
+## Código 0.9.0+13 — atualização 2.1 (14/10/2026)
+
+- Análise estática sem problemas; 95 testes Flutter e 2 fluxos de integração Windows aprovados.
+- Builds Windows release e Android debug concluídos. O APK de debug não é uma atualização instalável sobre o APK público assinado.
+- SQLite permanece no schema 15. As preferências novas usam `app_settings`, preservando os registros existentes.
+- A instalação em dispositivos físicos, a assinatura Android de release e a publicação de binários 0.9.0 ainda não foram verificadas.
+
+Detalhes: [notas 0.9.0](releases/v0.9.0.md).
+
 ## Estado verificado — build 15 (28/09/2026)
 
 - `flutter analyze` sem problemas, `flutter test` com 45 testes aprovados e os dois fluxos de integração Windows aprovados.

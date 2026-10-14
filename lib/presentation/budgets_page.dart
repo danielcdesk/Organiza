@@ -30,10 +30,12 @@ class BudgetSection extends StatelessWidget {
       {super.key,
       required this.store,
       required this.onAdd,
-      required this.onDelete});
+      required this.onDelete,
+      this.compact = false});
   final OrganizaStore store;
   final VoidCallback onAdd;
   final ValueChanged<String> onDelete;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -51,22 +53,25 @@ class BudgetSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        PageHeading(
-          eyebrow: 'Planejamento mensal',
-          title: 'Orçamento',
-          description:
-              'Defina limites simples por categoria e acompanhe o ritmo dos seus gastos.',
-          actions: [
-            FilledButton.icon(
-              onPressed: onAdd,
-              icon: const Icon(Icons.add_rounded, size: 18),
-              label: const Text('Novo orçamento'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 26),
-        _BudgetSummary(limit: totalLimit, spent: totalSpent),
-        const SizedBox(height: 14),
+        if (!compact)
+          PageHeading(
+            eyebrow: 'Planejamento mensal',
+            title: 'Orçamento',
+            description:
+                'Defina limites simples por categoria e acompanhe o ritmo dos seus gastos.',
+            actions: [
+              FilledButton.icon(
+                onPressed: onAdd,
+                icon: const Icon(Icons.add_rounded, size: 18),
+                label: const Text('Novo orçamento'),
+              ),
+            ],
+          ),
+        if (!compact) const SizedBox(height: 26),
+        if (monthBudgets.isNotEmpty) ...[
+          _BudgetSummary(limit: totalLimit, spent: totalSpent),
+          const SizedBox(height: 14),
+        ],
         if (monthBudgets.isEmpty)
           Panel(
             title: 'Seu mês, no controle',

@@ -20,16 +20,32 @@ void main() {
         description: 'Original',
         occurredOn: now,
         createdAt: now);
-    (int, String)? result;
+    TransactionRecord? result;
+    final account = Account(
+        id: 'a', name: 'Conta', openingBalanceInCents: 0, createdAt: now);
+    final category = FinanceCategory(
+        id: 'category',
+        name: 'Outros',
+        type: TransactionType.expense,
+        createdAt: now);
+    final subcategory = FinanceSubcategory(
+        id: 'subcategory',
+        categoryId: category.id,
+        name: 'Geral',
+        createdAt: now);
     await tester.pumpWidget(MaterialApp(
         theme: OrganizaTheme.light(),
         home: Builder(
             builder: (context) => Scaffold(
                 body: TextButton(
                     onPressed: () async {
-                      result = await showDialog<(int, String)>(
+                      result = await showDialog<TransactionRecord>(
                           context: context,
-                          builder: (_) => TransactionEditDialog(item: item));
+                          builder: (_) => TransactionEditDialog(
+                              item: item,
+                              accounts: [account],
+                              categories: [category],
+                              subcategories: [subcategory]));
                     },
                     child: const Text('Editar'))))));
     await tester.tap(find.text('Editar'));
@@ -42,7 +58,8 @@ void main() {
     await tester.enterText(find.byType(TextField).last, 'Corrigido');
     await tester.tap(find.text('Salvar alteração'));
     await tester.pumpAndSettle();
-    expect(result, (2550, 'Corrigido'));
+    expect(result?.amountInCents, 2550);
+    expect(result?.description, 'Corrigido');
   });
   testWidgets('goals fit a compact viewport', (tester) async {
     tester.view.physicalSize = const Size(390, 844);

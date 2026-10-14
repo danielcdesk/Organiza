@@ -11,30 +11,32 @@ import 'package:organiza/presentation/overview_widgets.dart';
 
 void main() {
   group('contraste do tema', () {
-    for (final brightness in Brightness.values) {
-      test('mantém contraste mínimo em $brightness', () {
-        final scheme = (brightness == Brightness.light
-                ? OrganizaTheme.light()
-                : OrganizaTheme.dark())
-            .colorScheme;
+    for (final accent in OrganizaTheme.accentColors.keys) {
+      for (final brightness in Brightness.values) {
+        test('mantém contraste mínimo em $brightness com $accent', () {
+          final scheme = (brightness == Brightness.light
+                  ? OrganizaTheme.light(accent)
+                  : OrganizaTheme.dark(accent))
+              .colorScheme;
 
-        expect(_contrast(scheme.primary, scheme.surface),
-            greaterThanOrEqualTo(4.5));
-        expect(_contrast(scheme.onPrimary, scheme.primary),
-            greaterThanOrEqualTo(4.5));
-        expect(_contrast(scheme.secondary, scheme.surface),
-            greaterThanOrEqualTo(4.5));
-        expect(_contrast(scheme.onSecondary, scheme.secondary),
-            greaterThanOrEqualTo(4.5));
-        expect(
-            _contrast(scheme.error, scheme.surface), greaterThanOrEqualTo(4.5));
-        expect(_contrast(scheme.onSurface, scheme.surface),
-            greaterThanOrEqualTo(4.5));
-        expect(_contrast(scheme.onSurfaceVariant, scheme.surface),
-            greaterThanOrEqualTo(4.5));
-        expect(
-            _contrast(scheme.outline, scheme.surface), greaterThanOrEqualTo(3));
-      });
+          expect(_contrast(scheme.primary, scheme.surface),
+              greaterThanOrEqualTo(4.5));
+          expect(_contrast(scheme.onPrimary, scheme.primary),
+              greaterThanOrEqualTo(4.5));
+          expect(_contrast(scheme.secondary, scheme.surface),
+              greaterThanOrEqualTo(4.5));
+          expect(_contrast(scheme.onSecondary, scheme.secondary),
+              greaterThanOrEqualTo(4.5));
+          expect(_contrast(scheme.error, scheme.surface),
+              greaterThanOrEqualTo(4.5));
+          expect(_contrast(scheme.onSurface, scheme.surface),
+              greaterThanOrEqualTo(4.5));
+          expect(_contrast(scheme.onSurfaceVariant, scheme.surface),
+              greaterThanOrEqualTo(4.5));
+          expect(_contrast(scheme.outline, scheme.surface),
+              greaterThanOrEqualTo(3));
+        });
+      }
     }
   });
 

@@ -1007,6 +1007,22 @@ class AppDatabase {
         [value ? 1 : 0, id],
       );
 
+  void updateShoppingItem(ShoppingItem item) => _database.execute(
+        '''UPDATE shopping_items SET name = ?, quantity = ?,
+          estimated_unit_price_cents = ?, priority = ?, is_purchased = ?,
+          image_path = ?, description = ? WHERE id = ?''',
+        [
+          item.name,
+          item.quantity,
+          item.estimatedUnitPriceInCents,
+          item.priority.name,
+          item.isPurchased ? 1 : 0,
+          item.imagePath,
+          item.description,
+          item.id,
+        ],
+      );
+
   void deleteShoppingItem(String id) =>
       _database.execute('DELETE FROM shopping_items WHERE id = ?', [id]);
 
@@ -1120,6 +1136,31 @@ class AppDatabase {
       _database.execute(
           'UPDATE transactions SET amount_cents = ?, description = ? WHERE id = ?',
           [cents, description, id]);
+
+  void updateTransaction(TransactionRecord item) => _database.execute(
+        '''UPDATE transactions SET
+          account_id = ?, destination_account_id = ?, type = ?, amount_cents = ?,
+          description = ?, occurred_on = ?, category = ?, subcategory = ?,
+          schedule_type = ?, series_id = ?, installment_number = ?,
+          installment_count = ?, is_settled = ?
+        WHERE id = ?''',
+        [
+          item.accountId,
+          item.destinationAccountId,
+          item.type.name,
+          item.amountInCents,
+          item.description,
+          item.occurredOn.toIso8601String(),
+          item.category,
+          item.subcategory,
+          item.scheduleType.name,
+          item.seriesId,
+          item.installmentNumber,
+          item.installmentCount,
+          item.isSettled ? 1 : 0,
+          item.id,
+        ],
+      );
 
   void insertBudget(Budget budget) => _database.execute(
         '''INSERT INTO budgets(id, category, limit_cents, year, month, created_at)

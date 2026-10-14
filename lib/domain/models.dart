@@ -331,6 +331,51 @@ class SalaryAllocation {
   );
 }
 
+/// A user-defined share of the configured monthly income.
+///
+/// [linkedCategories] connects real expenses to the same monthly limit, so
+/// salary distribution and budget monitoring share one source of truth.
+class SalaryAllocationBucket {
+  const SalaryAllocationBucket({
+    required this.id,
+    required this.name,
+    required this.percent,
+    required this.iconKey,
+    required this.colorValue,
+    required this.sortOrder,
+    required this.linkedCategories,
+    this.isSystem = false,
+  });
+
+  final String id;
+  final String name;
+  final int percent;
+  final String iconKey;
+  final int colorValue;
+  final int sortOrder;
+  final List<String> linkedCategories;
+  final bool isSystem;
+
+  SalaryAllocationBucket copyWith({
+    String? name,
+    int? percent,
+    String? iconKey,
+    int? colorValue,
+    int? sortOrder,
+    List<String>? linkedCategories,
+  }) =>
+      SalaryAllocationBucket(
+        id: id,
+        name: name ?? this.name,
+        percent: percent ?? this.percent,
+        iconKey: iconKey ?? this.iconKey,
+        colorValue: colorValue ?? this.colorValue,
+        sortOrder: sortOrder ?? this.sortOrder,
+        linkedCategories: linkedCategories ?? this.linkedCategories,
+        isSystem: isSystem,
+      );
+}
+
 class FinancialGoal {
   const FinancialGoal({
     required this.id,

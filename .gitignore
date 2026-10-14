@@ -6,12 +6,14 @@
 .pub-cache/
 build/
 builds/
+dist/
 .puro.json
 *.log
 
 # Native tool output
 windows/flutter/ephemeral/
 android/.gradle/
+android/.kotlin/
 android/local.properties
 android/key.properties
 

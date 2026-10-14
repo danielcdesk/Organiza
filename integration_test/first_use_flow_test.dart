@@ -103,8 +103,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Resumo financeiro'), findsOneWidget);
-    expect(find.text('Seu dinheiro no tempo'), findsOneWidget);
+    expect(find.text('Disponível no mês'), findsWidgets);
+    expect(find.text('Movimento do mês'), findsOneWidget);
     expect(tester.takeException(), isNull);
     final output = Directory('build/qa')..createSync(recursive: true);
     await _saveScreenshot(
@@ -122,7 +122,7 @@ void main() {
     await tester.tap(find.text('Finanças').first);
     await tester.pumpAndSettle();
     expect(find.text('Movimentações'), findsOneWidget);
-    expect(find.text('Despesas do mês'), findsWidgets);
+    expect(find.text('Saídas confirmadas'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await _saveScreenshot(
         screenshotKey, File('${output.path}/organiza-transactions.png'));
@@ -271,9 +271,9 @@ void main() {
 
     await tester.tap(find.text('Organização').first);
     await tester.pumpAndSettle();
-    expect(find.text('Salário identificado no mês'), findsOneWidget);
-    expect(find.text('Distribuição sugerida'), findsOneWidget);
-    expect(find.text('R\$ 3.200,00'), findsWidgets);
+    expect(find.text('Renda mensal do perfil'), findsOneWidget);
+    expect(find.text('Distribuição e orçamento'), findsOneWidget);
+    expect(find.text('R\$ 5.000,00'), findsWidgets);
     expect(find.byTooltip('Excluir tarefa'), findsWidgets);
     expect(tester.takeException(), isNull);
     await _saveScreenshot(
@@ -297,7 +297,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Notebook para estudos'), findsOneWidget);
     expect(find.text('Valor estimado'), findsOneWidget);
-    expect(find.byTooltip('Excluir item'), findsOneWidget);
+    expect(find.byTooltip('Ações de Notebook para estudos'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await _saveScreenshot(
       screenshotKey,
@@ -309,7 +309,9 @@ void main() {
     expect(tester.takeException(), isNull);
     await tester.tap(find.text('Cancelar'));
     await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Excluir item'));
+    await tester.tap(find.byTooltip('Ações de Notebook para estudos'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Excluir'));
     await tester.pumpAndSettle();
     expect(find.text('Excluir item?'), findsOneWidget);
     await tester.tap(find.text('Cancelar'));
@@ -360,9 +362,7 @@ void main() {
     await tester.pumpWidget(
         RepaintBoundary(key: screenshotKey, child: OrganizaApp(store: store)));
     await tester.pumpAndSettle();
-    expect(
-        find.descendant(
-            of: find.byType(NavigationBar), matching: find.text('Nova')),
+    expect(find.byKey(const ValueKey('bottom-nav-primary-action')),
         findsOneWidget);
     expect(tester.takeException(), isNull);
     final output = Directory('build/qa')..createSync(recursive: true);

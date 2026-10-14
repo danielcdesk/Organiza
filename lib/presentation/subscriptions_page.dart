@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../application/organiza_store.dart';
 import '../domain/financial_rules.dart';
-import 'organiza_theme.dart';
 import 'shared_widgets.dart';
 
 class SubscriptionsPage extends StatelessWidget {
@@ -65,7 +64,7 @@ class SubscriptionsPage extends StatelessWidget {
                       child: _Metric(
                           label: 'Comprometido por mês',
                           value: FinancialRules.formatBrl(total),
-                          color: OrganizaTheme.orange)),
+                          color: Theme.of(context).colorScheme.primary)),
                   _Divider(),
                   Expanded(
                       child: _Metric(
@@ -96,13 +95,13 @@ class SubscriptionsPage extends StatelessWidget {
                     children: store.subscriptions
                         .map((item) => DataListRow(
                             icon: Icons.autorenew_rounded,
-                            iconColor: OrganizaTheme.orange,
+                            iconColor: Theme.of(context).colorScheme.primary,
                             title: item.name,
                             subtitle:
                                 '${item.category} · ${item.isActive ? 'próxima em ${nextDate(item.billingDay).day}/${nextDate(item.billingDay).month}' : 'pausada'}',
                             value: FinancialRules.formatBrl(item.amountInCents,
                                 signed: true),
-                            valueColor: OrganizaTheme.orange,
+                            valueColor: Theme.of(context).colorScheme.primary,
                             trailing: PopupMenuButton<String>(
                                 tooltip: 'Ações da assinatura',
                                 onSelected: (action) {

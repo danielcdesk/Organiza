@@ -72,6 +72,8 @@ class LocalRepository {
       _database.insertShoppingItem(item);
   void setShoppingItemPurchased(String id, bool value) =>
       _database.setShoppingItemPurchased(id, value);
+  void updateShoppingItem(ShoppingItem item) =>
+      _database.updateShoppingItem(item);
   void setShoppingItemImage(String id, String? imagePath) =>
       _database.setShoppingItemImage(id, imagePath);
   void deleteShoppingItem(String id) => _database.deleteShoppingItem(id);
@@ -99,6 +101,8 @@ class LocalRepository {
   void deleteTransaction(String id) => _database.deleteTransaction(id);
   void updateTransactionDetails(String id, int cents, String description) =>
       _database.updateTransactionDetails(id, cents, description);
+  void updateTransaction(TransactionRecord item) =>
+      _database.updateTransaction(item);
   void deleteBudget(String id) => _database.deleteBudget(id);
   void deleteSubscription(String id) => _database.deleteSubscription(id);
   void deleteFinancialGoal(String id) => _database.deleteFinancialGoal(id);

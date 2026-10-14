@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:clock/clock.dart';
 import 'package:organiza/application/organiza_store.dart';
 import 'package:organiza/domain/models.dart';
 
@@ -29,7 +30,7 @@ void main() {
         amountInCents: 50000,
         description: '',
         category: 'Freelance');
-    expect(store.salaryThisMonth, 300000);
+    expect(store.salaryThisMonth, 0);
     expect(store.incomes, 50000);
   });
 
@@ -226,7 +227,8 @@ void main() {
   });
 
   test('parcelamento divide o total e mantém o saldo futuro como pendente', () {
-    final store = OrganizaStore.inMemory();
+    final store =
+        OrganizaStore.inMemory(clock: Clock.fixed(DateTime(2026, 9, 10, 12)));
     addTearDown(store.dispose);
     store.addAccount('Principal', 100000);
 
@@ -262,7 +264,8 @@ void main() {
 
   test('recorrência cria lançamentos mensais com a primeira ocorrência paga',
       () {
-    final store = OrganizaStore.inMemory();
+    final store =
+        OrganizaStore.inMemory(clock: Clock.fixed(DateTime(2026, 9, 10, 12)));
     addTearDown(store.dispose);
     store.addAccount('Principal', 0);
 
@@ -323,5 +326,146 @@ void main() {
     expect(store.shoppingItems, isEmpty);
     expect(() => store.addShoppingItem(name: '', quantity: 1),
         throwsArgumentError);
+  });
+
+  test('renda do perfil é a fonte única do planejamento', () {
+    final store = OrganizaStore.inMemory();
+    addTearDown(store.dispose);
+    store.addAccount('Principal', 0);
+    store.addTransaction(
+      accountId: store.accounts.single.id,
+      type: TransactionType.income,
+      amountInCents: 900000,
+      description: 'Freelance',
+      category: 'Freelance',
+    );
+    store.saveProfile(name: 'Pessoa', incomeInCents: 450000);
+
+    expect(store.salaryThisMonth, 450000);
+    expect(store.transactions, hasLength(1));
+  });
+
+  test('divisão salarial personalizada acompanha gasto e persiste', () {
+    final store =
+        OrganizaStore.inMemory(clock: Clock.fixed(DateTime(2026, 10, 14, 12)));
+    addTearDown(store.dispose);
+    store.saveProfile(name: 'Pessoa', incomeInCents: 500000);
+    store.addAccount('Principal', 0);
+    store.addSalaryAllocationBucket(
+      name: 'Viagens',
+      percent: 10,
+      iconKey: 'sparkles',
+      colorValue: 0xFF7454C8,
+      linkedCategories: const ['Lazer'],
+    );
+    store.addTransaction(
+      accountId: store.accounts.single.id,
+      type: TransactionType.expense,
+      amountInCents: 12000,
+      description: '',
+      category: 'Lazer',
+      occurredOn: DateTime(2026, 10, 2),
+    );
+    final bucket = store.salaryAllocationBuckets.last;
+
+    expect(store.allocationLimitInCents(bucket), 50000);
+    expect(store.allocationSpentInCents(bucket), 12000);
+    expect(
+        store.allocationSpentInCents(store.salaryAllocationBuckets
+            .firstWhere((item) => item.id == 'free')),
+        0);
+    store.reload();
+    expect(store.salaryAllocationBuckets.last.name, 'Viagens');
+  });
+
+  test('edita todos os campos de lançamento e item de desejo', () {
+    final store = OrganizaStore.inMemory();
+    addTearDown(store.dispose);
+    store.addAccount('Origem', 100000);
+    store.addAccount('Destino', 0);
+    store.addTransaction(
+      accountId: store.accounts.first.id,
+      type: TransactionType.expense,
+      amountInCents: 1000,
+      description: 'Antes',
+    );
+    final transaction = store.transactions.single;
+    store.updateTransaction(TransactionRecord(
+      id: transaction.id,
+      accountId: store.accounts.last.id,
+      type: TransactionType.income,
+      amountInCents: 2500,
+      description: 'Depois',
+      occurredOn: DateTime(2026, 10, 1),
+      createdAt: transaction.createdAt,
+      category: 'Freelance',
+      subcategory: 'Projeto',
+    ));
+    expect(store.transactions.single.accountId, store.accounts.last.id);
+    expect(store.transactions.single.type, TransactionType.income);
+    expect(store.transactions.single.subcategory, 'Projeto');
+
+    store.addShoppingItem(name: 'Notebook', quantity: 1);
+    final item = store.shoppingItems.single;
+    store.updateShoppingItem(
+      id: item.id,
+      name: 'Notebook leve',
+      quantity: 2,
+      estimatedUnitPriceInCents: 350000,
+      priority: ShoppingPriority.high,
+      isPurchased: false,
+      description: 'Para estudos',
+    );
+    expect(store.shoppingItems.single.name, 'Notebook leve');
+    expect(store.shoppingItems.single.estimatedTotalInCents, 700000);
+  });
+
+  test('edição de série altera somente ocorrências futuras quando escolhida',
+      () {
+    final store =
+        OrganizaStore.inMemory(clock: Clock.fixed(DateTime(2026, 9, 10, 12)));
+    addTearDown(store.dispose);
+    store.addAccount('Principal', 0);
+    store.addTransaction(
+      accountId: store.accounts.single.id,
+      type: TransactionType.expense,
+      amountInCents: 30000,
+      description: 'Curso',
+      scheduleType: TransactionScheduleType.installment,
+      repeatCount: 3,
+      occurredOn: DateTime(2026, 9, 10),
+    );
+    final october =
+        store.transactions.singleWhere((item) => item.occurredOn.month == 10);
+    store.updateTransaction(
+      TransactionRecord(
+        id: october.id,
+        accountId: october.accountId,
+        type: october.type,
+        amountInCents: 12000,
+        description: 'Curso reajustado',
+        occurredOn: october.occurredOn,
+        createdAt: october.createdAt,
+        category: 'Educação',
+        subcategory: 'Cursos',
+        scheduleType: october.scheduleType,
+        seriesId: october.seriesId,
+        installmentNumber: october.installmentNumber,
+        installmentCount: october.installmentCount,
+        isSettled: october.isSettled,
+      ),
+      applyToFuture: true,
+    );
+
+    expect(
+        store.transactions
+            .singleWhere((item) => item.occurredOn.month == 9)
+            .amountInCents,
+        10000);
+    expect(
+        store.transactions.where((item) => item.occurredOn.month >= 10).every(
+            (item) =>
+                item.amountInCents == 12000 && item.category == 'Educação'),
+        isTrue);
   });
 }

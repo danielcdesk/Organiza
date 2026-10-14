@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:clock/clock.dart';
@@ -48,7 +49,10 @@ class OrganizaStore extends ChangeNotifier {
   List<String> goalCategories = [];
   List<int> mobileQuickPages = [0, 1, 6, 8];
   SalaryAllocation salaryAllocation = SalaryAllocation.defaults;
+  List<SalaryAllocationBucket> salaryAllocationBuckets = [];
   String get themePreference => _repository.loadPreference('theme') ?? 'dark';
+  String get accentPreference =>
+      _repository.loadPreference('accent_color') ?? 'organiza';
   bool get hideValuesPreference =>
       _repository.loadPreference('hide_values') == 'true';
   String get shoppingViewPreference =>
@@ -67,6 +71,23 @@ class OrganizaStore extends ChangeNotifier {
       throw ArgumentError('Tema inválido.');
     }
     _repository.savePreference('theme', value);
+  }
+
+  void saveAccentPreference(String value) {
+    if (!const {
+      'organiza',
+      'blue',
+      'green',
+      'purple',
+      'pink',
+      'red',
+      'teal',
+      'neutral'
+    }.contains(value)) {
+      throw ArgumentError('Cor de destaque inválida.');
+    }
+    _repository.savePreference('accent_color', value);
+    notifyListeners();
   }
 
   void saveHideValuesPreference(bool value) =>
@@ -132,6 +153,7 @@ class OrganizaStore extends ChangeNotifier {
     budgets = _repository.loadBudgets();
     subscriptions = _repository.loadSubscriptions();
     salaryAllocation = _repository.loadSalaryAllocation();
+    salaryAllocationBuckets = _loadSalaryAllocationBuckets();
     financialGoals = _repository.loadFinancialGoals();
     financeCategories = _repository.loadFinanceCategories();
     financeSubcategories = _repository.loadFinanceSubcategories();
@@ -146,25 +168,218 @@ class OrganizaStore extends ChangeNotifier {
   int get expenses =>
       FinancialRules.monthTotal(transactions, _now, TransactionType.expense);
   int get availableToSpend => balance;
-  int get salaryThisMonth {
-    final now = _now;
-    final recorded = transactions
+  int get salaryThisMonth => profileIncomeInCents;
+
+  int get allocatedSalaryPercent => salaryAllocationBuckets.fold(
+      0, (total, bucket) => total + bucket.percent);
+
+  int allocationLimitInCents(SalaryAllocationBucket bucket) =>
+      (salaryThisMonth * bucket.percent / 100).round();
+
+  int allocationSpentInCents(SalaryAllocationBucket bucket,
+      {DateTime? period}) {
+    final date = period ?? _now;
+    final names = {
+      bucket.name.toLowerCase(),
+      ...bucket.linkedCategories.map((name) => name.toLowerCase()),
+    };
+    return transactions
         .where((item) =>
-            item.type == TransactionType.income &&
-            item.category.toLowerCase() == 'salário' &&
-            item.occurredOn.year == now.year &&
-            item.occurredOn.month == now.month)
-        .fold(0, (sum, item) => sum + item.amountInCents);
-    final expected = salarySchedules
-        .where((schedule) =>
-            !DateTime(schedule.firstDueOn.year, schedule.firstDueOn.month)
-                .isAfter(DateTime(now.year, now.month)) &&
-            !transactions.any((item) =>
-                item.seriesId == schedule.id &&
-                item.occurredOn.year == now.year &&
-                item.occurredOn.month == now.month))
-        .fold(0, (sum, schedule) => sum + schedule.amountInCents);
-    return recorded + expected;
+            item.type == TransactionType.expense &&
+            item.isSettled &&
+            item.occurredOn.year == date.year &&
+            item.occurredOn.month == date.month &&
+            names.contains(item.category.toLowerCase()))
+        .fold(0, (total, item) => total + item.amountInCents);
+  }
+
+  void addSalaryAllocationBucket({
+    required String name,
+    required int percent,
+    String iconKey = 'category',
+    int colorValue = 0xFF4F6BED,
+    List<String> linkedCategories = const [],
+  }) {
+    final clean = name.trim();
+    if (clean.isEmpty || percent < 0 || percent > 100) {
+      throw ArgumentError('Informe nome e porcentagem entre 0% e 100%.');
+    }
+    if (salaryAllocationBuckets
+        .any((item) => item.name.toLowerCase() == clean.toLowerCase())) {
+      throw ArgumentError('Essa divisão já existe.');
+    }
+    final expenseCategoryExists = financeCategories.any((item) =>
+        item.type == TransactionType.expense &&
+        item.name.toLowerCase() == clean.toLowerCase());
+    if (!expenseCategoryExists) {
+      addFinanceCategory(clean, TransactionType.expense);
+    }
+    final claims = linkedCategories.isEmpty ? [clean] : linkedCategories;
+    _releaseAllocationCategories(null, clean, claims);
+    salaryAllocationBuckets = [
+      ...salaryAllocationBuckets,
+      SalaryAllocationBucket(
+        id: _id(),
+        name: clean,
+        percent: percent,
+        iconKey: iconKey,
+        colorValue: colorValue,
+        sortOrder: salaryAllocationBuckets.length,
+        linkedCategories: claims,
+      ),
+    ];
+    _saveSalaryAllocationBuckets();
+  }
+
+  void updateSalaryAllocationBucket(SalaryAllocationBucket updated) {
+    if (updated.name.trim().isEmpty ||
+        updated.percent < 0 ||
+        updated.percent > 100) {
+      throw ArgumentError('Informe nome e porcentagem entre 0% e 100%.');
+    }
+    if (salaryAllocationBuckets.every((item) => item.id != updated.id)) {
+      throw ArgumentError('Divisão não encontrada.');
+    }
+    if (salaryAllocationBuckets.any((item) =>
+        item.id != updated.id &&
+        item.name.toLowerCase() == updated.name.trim().toLowerCase())) {
+      throw ArgumentError('Essa divisão já existe.');
+    }
+    _releaseAllocationCategories(
+        updated.id, updated.name.trim(), updated.linkedCategories);
+    salaryAllocationBuckets = salaryAllocationBuckets
+        .map((item) => item.id == updated.id ? updated : item)
+        .toList();
+    _saveSalaryAllocationBuckets();
+  }
+
+  void _releaseAllocationCategories(
+      String? ownerId, String ownerName, List<String> names) {
+    final claimed = names.map((name) => name.toLowerCase()).toSet();
+    claimed.add(ownerName.toLowerCase());
+    if (salaryAllocationBuckets.any((item) =>
+        item.id != ownerId && claimed.contains(item.name.toLowerCase()))) {
+      throw ArgumentError(
+          'Uma categoria com o nome de outra divisão não pode ser vinculada.');
+    }
+    salaryAllocationBuckets = salaryAllocationBuckets
+        .map((item) => item.id == ownerId
+            ? item
+            : item.copyWith(
+                linkedCategories: item.linkedCategories
+                    .where((name) => !claimed.contains(name.toLowerCase()))
+                    .toList()))
+        .toList();
+  }
+
+  void deleteSalaryAllocationBucket(String id) {
+    final bucket =
+        salaryAllocationBuckets.where((item) => item.id == id).firstOrNull;
+    if (bucket == null) throw ArgumentError('Divisão não encontrada.');
+    if (bucket.isSystem) {
+      throw ArgumentError(
+          'As divisões padrão podem ser editadas, mas não excluídas.');
+    }
+    salaryAllocationBuckets =
+        salaryAllocationBuckets.where((item) => item.id != id).toList();
+    _saveSalaryAllocationBuckets();
+  }
+
+  void reorderSalaryAllocationBucket(int oldIndex, int newIndex) {
+    final next = List<SalaryAllocationBucket>.of(salaryAllocationBuckets);
+    final moved = next.removeAt(oldIndex);
+    next.insert(newIndex, moved);
+    salaryAllocationBuckets = [
+      for (var index = 0; index < next.length; index++)
+        next[index].copyWith(sortOrder: index),
+    ];
+    _saveSalaryAllocationBuckets();
+  }
+
+  List<SalaryAllocationBucket> _loadSalaryAllocationBuckets() {
+    final raw = _repository.loadPreference('salary_allocation_buckets');
+    if (raw != null && raw.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(raw) as List<dynamic>;
+        final buckets = decoded.map((entry) {
+          final map = entry as Map<String, dynamic>;
+          return SalaryAllocationBucket(
+            id: map['id'] as String,
+            name: map['name'] as String,
+            percent: map['percent'] as int,
+            iconKey: map['iconKey'] as String? ?? 'category',
+            colorValue: map['colorValue'] as int? ?? 0xFF4F6BED,
+            sortOrder: map['sortOrder'] as int? ?? 0,
+            linkedCategories:
+                (map['linkedCategories'] as List<dynamic>? ?? const [])
+                    .map((value) => value.toString())
+                    .toList(),
+            isSystem: map['isSystem'] as bool? ?? false,
+          );
+        }).toList()
+          ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+        if (buckets.isNotEmpty) return buckets;
+      } catch (_) {
+        // Keep the app usable by falling back to the legacy 50/30/20 values.
+      }
+    }
+    return [
+      SalaryAllocationBucket(
+        id: 'essentials',
+        name: 'Essenciais',
+        percent: salaryAllocation.essentialsPercent,
+        iconKey: 'home',
+        colorValue: 0xFF3D7A67,
+        sortOrder: 0,
+        linkedCategories: const [
+          'Alimentação',
+          'Moradia',
+          'Transporte',
+          'Saúde',
+          'Contas e serviços',
+          'Pets'
+        ],
+        isSystem: true,
+      ),
+      SalaryAllocationBucket(
+        id: 'goals',
+        name: 'Objetivos',
+        percent: salaryAllocation.goalsPercent,
+        iconKey: 'target',
+        colorValue: 0xFF4F6BED,
+        sortOrder: 1,
+        linkedCategories: const ['Educação', 'Investimentos'],
+        isSystem: true,
+      ),
+      SalaryAllocationBucket(
+        id: 'free',
+        name: 'Livre',
+        percent: salaryAllocation.freePercent,
+        iconKey: 'sparkles',
+        colorValue: 0xFFB64F21,
+        sortOrder: 2,
+        linkedCategories: const ['Lazer', 'Compras', 'Outros'],
+        isSystem: true,
+      ),
+    ];
+  }
+
+  void _saveSalaryAllocationBuckets() {
+    final payload = salaryAllocationBuckets
+        .map((item) => {
+              'id': item.id,
+              'name': item.name,
+              'percent': item.percent,
+              'iconKey': item.iconKey,
+              'colorValue': item.colorValue,
+              'sortOrder': item.sortOrder,
+              'linkedCategories': item.linkedCategories,
+              'isSystem': item.isSystem,
+            })
+        .toList();
+    _repository.savePreference(
+        'salary_allocation_buckets', jsonEncode(payload));
+    notifyListeners();
   }
 
   void _materializeDueSalaries() {
@@ -439,6 +654,41 @@ class OrganizaStore extends ChangeNotifier {
       throw ArgumentError('Item não encontrado.');
     }
     _repository.setShoppingItemPurchased(id, value);
+    reload();
+  }
+
+  void updateShoppingItem({
+    required String id,
+    required String name,
+    required int quantity,
+    int? estimatedUnitPriceInCents,
+    required ShoppingPriority priority,
+    required bool isPurchased,
+    String? imagePath,
+    String description = '',
+  }) {
+    final previous = shoppingItems.where((item) => item.id == id).firstOrNull;
+    if (previous == null) throw ArgumentError('Item não encontrado.');
+    final clean = name.trim();
+    if (clean.isEmpty || quantity < 1 || quantity > 9999) {
+      throw ArgumentError('Revise o nome e a quantidade.');
+    }
+    if (estimatedUnitPriceInCents != null &&
+        (estimatedUnitPriceInCents < 0 ||
+            estimatedUnitPriceInCents >= 100000000000)) {
+      throw ArgumentError('Informe um valor estimado válido.');
+    }
+    _repository.updateShoppingItem(ShoppingItem(
+      id: id,
+      name: clean,
+      quantity: quantity,
+      estimatedUnitPriceInCents: estimatedUnitPriceInCents,
+      priority: priority,
+      isPurchased: isPurchased,
+      imagePath: imagePath,
+      description: description.trim(),
+      createdAt: previous.createdAt,
+    ));
     reload();
   }
 
@@ -719,6 +969,68 @@ class OrganizaStore extends ChangeNotifier {
     reload();
   }
 
+  void updateTransaction(TransactionRecord updated,
+      {bool applyToFuture = false}) {
+    final previous =
+        transactions.where((item) => item.id == updated.id).firstOrNull;
+    if (previous == null) throw ArgumentError('Lançamento não encontrado.');
+    if (!FinancialRules.isValidAmount(updated.amountInCents)) {
+      throw ArgumentError('Informe um valor válido.');
+    }
+    if (accounts.every((account) => account.id != updated.accountId)) {
+      throw ArgumentError('Conta não encontrada.');
+    }
+    if (updated.type == TransactionType.transfer &&
+        (updated.destinationAccountId == null ||
+            updated.destinationAccountId == updated.accountId ||
+            accounts.every(
+                (account) => account.id != updated.destinationAccountId))) {
+      throw ArgumentError('Escolha uma conta de destino diferente.');
+    }
+    final description = updated.description.trim().isEmpty
+        ? (updated.subcategory == 'Geral'
+            ? updated.category
+            : updated.subcategory)
+        : updated.description.trim();
+    final affected = applyToFuture && previous.seriesId != null
+        ? transactions
+            .where((item) =>
+                item.seriesId == previous.seriesId &&
+                !item.occurredOn.isBefore(previous.occurredOn))
+            .toList()
+        : [previous];
+    final dateShift = updated.occurredOn.difference(previous.occurredOn);
+    _repository.transaction(() {
+      for (final item in affected) {
+        _repository.updateTransaction(TransactionRecord(
+          id: item.id,
+          accountId: updated.accountId,
+          destinationAccountId: updated.type == TransactionType.transfer
+              ? updated.destinationAccountId
+              : null,
+          type: updated.type,
+          amountInCents: updated.amountInCents,
+          description: description,
+          occurredOn: item.occurredOn.add(dateShift),
+          createdAt: item.createdAt,
+          category: updated.type == TransactionType.transfer
+              ? 'Transferência'
+              : updated.category,
+          subcategory: updated.type == TransactionType.transfer
+              ? 'Entre contas'
+              : updated.subcategory,
+          scheduleType: item.scheduleType,
+          seriesId: item.seriesId,
+          installmentNumber: item.installmentNumber,
+          installmentCount: item.installmentCount,
+          isSettled:
+              item.id == previous.id ? updated.isSettled : item.isSettled,
+        ));
+      }
+    });
+    reload();
+  }
+
   void deleteBudget(String id) {
     _repository.deleteBudget(id);
     reload();
@@ -908,6 +1220,16 @@ class OrganizaStore extends ChangeNotifier {
       goalsPercent: goalsPercent,
       freePercent: freePercent,
     ));
+    salaryAllocationBuckets = salaryAllocationBuckets.map((bucket) {
+      final percent = switch (bucket.id) {
+        'essentials' => essentialsPercent,
+        'goals' => goalsPercent,
+        'free' => freePercent,
+        _ => bucket.percent,
+      };
+      return bucket.copyWith(percent: percent);
+    }).toList();
+    _saveSalaryAllocationBuckets();
     reload();
   }
 

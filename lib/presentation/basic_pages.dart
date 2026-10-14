@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import '../application/organiza_store.dart';
 import '../domain/financial_rules.dart';
 import '../domain/models.dart';
-import 'dialogs.dart';
 import 'budgets_page.dart';
 import 'organiza_theme.dart';
 import 'shared_widgets.dart';
@@ -82,9 +81,13 @@ class _TransactionsPageState extends State<TransactionsPage> {
           matchesMonth &&
           matchesAccount;
     }).toList()
-      ..sort((a, b) => _largestFirst
-          ? b.amountInCents.compareTo(a.amountInCents)
-          : b.occurredOn.compareTo(a.occurredOn));
+      ..sort((a, b) {
+        final date = b.occurredOn.compareTo(a.occurredOn);
+        if (date != 0) return date;
+        return _largestFirst
+            ? b.amountInCents.compareTo(a.amountInCents)
+            : b.createdAt.compareTo(a.createdAt);
+      });
     return _Page(
       heading: PageHeading(
         eyebrow: 'Bancos e carteiras',
@@ -184,63 +187,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
                     onReset: _resetFilters,
                   )
                 else
-                  ...filtered
-                      .take(_visibleCount)
-                      .map((item) => TransactionListRow(
-                            item: item,
-                            account: widget.store.accounts
-                                .where((a) => a.id == item.accountId)
-                                .firstOrNull,
-                            hideValues: widget.hideValues,
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Semantics(
-                                  button: true,
-                                  label: item.isSettled
-                                      ? 'Marcar como pendente'
-                                      : 'Marcar como pago',
-                                  child: IconButton(
-                                    tooltip: item.isSettled
-                                        ? 'Marcar como pendente'
-                                        : 'Marcar como pago',
-                                    onPressed: () => widget.onSettledChanged(
-                                        item.id, !item.isSettled),
-                                    icon: Icon(
-                                      item.isSettled
-                                          ? Icons.check_circle_rounded
-                                          : Icons.schedule_rounded,
-                                      color: item.isSettled
-                                          ? OrganizaDesignTokens.of(context)
-                                              .positive
-                                          : Theme.of(context)
-                                              .colorScheme
-                                              .onSurfaceVariant,
-                                    ),
-                                  ),
-                                ),
-                                Semantics(
-                                  button: true,
-                                  label: 'Ações do lançamento',
-                                  child: PopupMenuButton<String>(
-                                    tooltip: 'Ações do lançamento',
-                                    onSelected: (value) => value == 'edit'
-                                        ? widget.onEdit?.call(item)
-                                        : widget.onDelete(item.id),
-                                    itemBuilder: (_) => [
-                                      if (widget.onEdit != null)
-                                        const PopupMenuItem(
-                                            value: 'edit',
-                                            child: Text('Editar lançamento')),
-                                      const PopupMenuItem(
-                                          value: 'delete',
-                                          child: Text('Excluir lançamento')),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          )),
+                  ..._buildGroupedRows(filtered.take(_visibleCount).toList()),
                 if (filtered.length > _visibleCount)
                   Padding(
                     padding: EdgeInsets.only(
@@ -257,6 +204,93 @@ class _TransactionsPageState extends State<TransactionsPage> {
         ],
       ),
     );
+  }
+
+  List<Widget> _buildGroupedRows(List<TransactionRecord> items) {
+    final rows = <Widget>[];
+    DateTime? previous;
+    for (final item in items) {
+      final current = item.occurredOn;
+      final newMonth = previous == null ||
+          previous.year != current.year ||
+          previous.month != current.month;
+      final newDay =
+          previous == null || !DateUtils.isSameDay(previous, current);
+      if (newMonth) {
+        rows.add(Padding(
+          padding: const EdgeInsets.only(top: 10, bottom: 8),
+          child: Text(
+            '${sentenceCase(monthName(current.month))} ${current.year}',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+          ),
+        ));
+      }
+      if (newDay) {
+        rows.add(Padding(
+          padding: const EdgeInsets.only(top: 5, bottom: 3),
+          child: Text(
+            shortDate(current),
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+        ));
+      }
+      rows.add(TransactionListRow(
+        item: item,
+        account: widget.store.accounts
+            .where((account) => account.id == item.accountId)
+            .firstOrNull,
+        hideValues: widget.hideValues,
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Semantics(
+              button: true,
+              label:
+                  item.isSettled ? 'Marcar como pendente' : 'Marcar como pago',
+              child: IconButton(
+                tooltip: item.isSettled
+                    ? 'Marcar como pendente'
+                    : 'Marcar como pago',
+                onPressed: () =>
+                    widget.onSettledChanged(item.id, !item.isSettled),
+                icon: Icon(
+                  item.isSettled
+                      ? Icons.check_circle_rounded
+                      : Icons.schedule_rounded,
+                  color: item.isSettled
+                      ? OrganizaDesignTokens.of(context).positive
+                      : Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+            Semantics(
+              button: true,
+              label: 'Ações do lançamento',
+              child: PopupMenuButton<String>(
+                tooltip: 'Ações do lançamento',
+                onSelected: (value) => value == 'edit'
+                    ? widget.onEdit?.call(item)
+                    : widget.onDelete(item.id),
+                itemBuilder: (_) => [
+                  if (widget.onEdit != null)
+                    const PopupMenuItem(
+                        value: 'edit', child: Text('Editar lançamento')),
+                  const PopupMenuItem(
+                      value: 'delete', child: Text('Excluir lançamento')),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ));
+      previous = current;
+    }
+    return rows;
   }
 }
 
@@ -851,7 +885,6 @@ class PlanningPage extends StatefulWidget {
     required this.onAddBudget,
     required this.onDeleteBudget,
     required this.onCancelSalary,
-    this.budgetFirst = false,
   });
 
   final OrganizaStore store;
@@ -860,31 +893,21 @@ class PlanningPage extends StatefulWidget {
   final VoidCallback onAddBudget;
   final ValueChanged<String> onDeleteBudget;
   final ValueChanged<String> onCancelSalary;
-  final bool budgetFirst;
 
   @override
   State<PlanningPage> createState() => _PlanningPageState();
 }
 
 class _PlanningPageState extends State<PlanningPage> {
-  late final Map<String, double> _allocations;
-
-  @override
-  void initState() {
-    super.initState();
-    final saved = widget.store.salaryAllocation;
-    _allocations = {
-      'Essenciais': saved.essentialsPercent / 100,
-      'Objetivos': saved.goalsPercent / 100,
-      'Livre': saved.freePercent / 100,
-    };
-  }
-
   @override
   Widget build(BuildContext context) {
     final store = widget.store;
     final pending = store.tasks.where((task) => !task.isDone).length;
     final salary = store.salaryThisMonth;
+    final allocated = store.allocatedSalaryPercent;
+    final distributionStatus = allocated > 100
+        ? 'Distribuído: $allocated% · sua distribuição ultrapassa a renda em ${allocated - 100}%'
+        : 'Distribuído: $allocated% · disponível: ${100 - allocated}%';
     return _Page(
       heading: PageHeading(
         eyebrow: 'ORGANIZAÇÃO',
@@ -892,85 +915,105 @@ class _PlanningPageState extends State<PlanningPage> {
         description: 'Distribua o salário e acompanhe limites por categoria.',
         actions: [
           OutlinedButton.icon(
-            onPressed: _openSalaryDialog,
-            icon: const Icon(Icons.tune_rounded, size: 18),
-            label: const Text('Organizar salário'),
+            onPressed: () => _openBucketDialog(),
+            icon: const Icon(Icons.add_chart_rounded, size: 18),
+            label: const Text('Nova divisão'),
           ),
           _primaryAction('Nova tarefa', widget.onAdd),
         ],
       ),
       content: Column(
         children: [
-          if (widget.budgetFirst) ...[
-            BudgetSection(
-                store: store,
-                onAdd: widget.onAddBudget,
-                onDelete: widget.onDeleteBudget),
-            const SizedBox(height: 20),
-          ],
           Card(
             child: Padding(
               padding: const EdgeInsets.all(22),
-              child: LayoutBuilder(builder: (context, constraints) {
-                final details = Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Salário identificado no mês',
-                        style: TextStyle(
-                            fontSize: 12,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurfaceVariant)),
-                    const SizedBox(height: 6),
-                    Text(FinancialRules.formatBrl(salary),
-                        style: Theme.of(context).textTheme.headlineSmall),
-                    const SizedBox(height: 6),
-                    Text('Somente receitas na categoria Salário',
-                        style: TextStyle(
-                            fontSize: 12,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurfaceVariant)),
-                  ],
-                );
-                final action = FilledButton.icon(
-                    onPressed: _openSalaryDialog,
-                    icon: const Icon(Icons.tune_rounded, size: 17),
-                    label: const Text('Distribuir'));
-                if (constraints.maxWidth < 520) {
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      details,
-                      const SizedBox(height: 14),
-                      action,
-                    ],
-                  );
-                }
-                return Row(
-                  children: [
-                    Expanded(child: details),
-                    action,
-                  ],
-                );
-              }),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Renda mensal do perfil',
+                      style: TextStyle(
+                          fontSize: 12,
+                          color:
+                              Theme.of(context).colorScheme.onSurfaceVariant)),
+                  const SizedBox(height: 6),
+                  Text(FinancialRules.formatBrl(salary),
+                      style: Theme.of(context).textTheme.headlineSmall),
+                  const SizedBox(height: 6),
+                  Text(
+                      salary == 0
+                          ? 'Cadastre sua renda em Configurações para começar.'
+                          : 'Fonte única: cadastro inicial e Configurações.',
+                      style: TextStyle(
+                          fontSize: 12,
+                          color:
+                              Theme.of(context).colorScheme.onSurfaceVariant)),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 14),
           Panel(
-            title: 'Distribuição sugerida',
-            subtitle: 'Ajuste os blocos para o seu momento',
-            child: Column(
-              children: _allocations.entries
-                  .map((entry) => _AllocationRow(
-                        label: entry.key,
-                        ratio: entry.value,
-                        amount: (salary * entry.value).round(),
-                        onChanged: (value) =>
-                            _changeAllocation(entry.key, value),
-                        onChangeEnd: (_) => _persistAllocations(),
-                      ))
-                  .toList(),
+            title: 'Distribuição e orçamento',
+            subtitle:
+                '$distributionStatus · gastos reais atualizam cada limite',
+            trailing: Icon(
+              store.allocatedSalaryPercent == 100
+                  ? Icons.check_circle_rounded
+                  : Icons.info_outline_rounded,
+              color: store.allocatedSalaryPercent == 100
+                  ? const Color(0xFF2E9B73)
+                  : Theme.of(context).colorScheme.primary,
+            ),
+            child: ReorderableListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              buildDefaultDragHandles: false,
+              itemCount: store.salaryAllocationBuckets.length,
+              onReorderItem: (oldIndex, newIndex) {
+                store.reorderSalaryAllocationBucket(oldIndex, newIndex);
+              },
+              itemBuilder: (context, index) {
+                final bucket = store.salaryAllocationBuckets[index];
+                return _AllocationBucketCard(
+                  key: ValueKey(bucket.id),
+                  bucket: bucket,
+                  limitInCents: store.allocationLimitInCents(bucket),
+                  spentInCents: store.allocationSpentInCents(bucket),
+                  onEdit: () => _openBucketDialog(bucket),
+                  onDelete:
+                      bucket.isSystem ? null : () => _deleteBucket(bucket.id),
+                  dragHandle: ReorderableDragStartListener(
+                    index: index,
+                    child: const Icon(Icons.drag_indicator_rounded, size: 20),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 14),
+          Card(
+            child: ExpansionTile(
+              initiallyExpanded: store.budgets.isNotEmpty,
+              title: const Text('Limites específicos por categoria'),
+              subtitle: const Text(
+                  'Opcional: acompanhe categorias individuais além das divisões da renda.'),
+              childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              children: [
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: OutlinedButton.icon(
+                    onPressed: widget.onAddBudget,
+                    icon: const Icon(Icons.add_rounded),
+                    label: const Text('Novo limite específico'),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                BudgetSection(
+                    store: store,
+                    onAdd: widget.onAddBudget,
+                    onDelete: widget.onDeleteBudget,
+                    compact: true),
+              ],
             ),
           ),
           const SizedBox(height: 14),
@@ -1048,173 +1091,398 @@ class _PlanningPageState extends State<PlanningPage> {
                         .toList(),
                   ),
           ),
-          if (!widget.budgetFirst) ...[
-            const SizedBox(height: 24),
-            BudgetSection(
-                store: store,
-                onAdd: widget.onAddBudget,
-                onDelete: widget.onDeleteBudget),
-          ],
         ],
       ),
     );
   }
 
-  Future<void> _openSalaryDialog() async {
-    final values = await showDialog<List<int>>(
-        context: context,
-        builder: (_) => _SalaryDialog(salary: widget.store.salaryThisMonth));
-    if (values == null || !mounted || widget.store.salaryThisMonth == 0) return;
-    final total = values.fold(0, (a, b) => a + b);
-    if (total == 0) return;
-    setState(() {
-      _allocations['Essenciais'] = values[0] / total;
-      _allocations['Objetivos'] = values[1] / total;
-      _allocations['Livre'] = values[2] / total;
-    });
-    _persistAllocations();
-  }
-
-  void _changeAllocation(String changed, double value) {
-    final safeValue = value.clamp(.05, .90);
-    final others = _allocations.keys.where((key) => key != changed).toList();
-    final oldOtherTotal =
-        others.fold<double>(0, (sum, key) => sum + _allocations[key]!);
-    final remaining = 1 - safeValue;
-    setState(() {
-      _allocations[changed] = safeValue;
-      for (final key in others) {
-        _allocations[key] = oldOtherTotal == 0
-            ? remaining / others.length
-            : remaining * (_allocations[key]! / oldOtherTotal);
+  Future<void> _openBucketDialog([SalaryAllocationBucket? bucket]) async {
+    final categories = widget.store.financeCategories
+        .where((item) => item.type == TransactionType.expense)
+        .map((item) => item.name)
+        .toList();
+    final value = await showDialog<_AllocationBucketInput>(
+      context: context,
+      builder: (_) => _AllocationBucketDialog(
+        bucket: bucket,
+        categories: categories,
+      ),
+    );
+    if (value == null || !mounted) return;
+    try {
+      if (bucket == null) {
+        widget.store.addSalaryAllocationBucket(
+          name: value.name,
+          percent: value.percent,
+          iconKey: value.iconKey,
+          colorValue: value.colorValue,
+          linkedCategories: value.linkedCategories,
+        );
+      } else {
+        widget.store.updateSalaryAllocationBucket(bucket.copyWith(
+          name: value.name,
+          percent: value.percent,
+          iconKey: value.iconKey,
+          colorValue: value.colorValue,
+          linkedCategories: value.linkedCategories,
+        ));
       }
-    });
+    } on ArgumentError catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message.toString())));
+      }
+    }
   }
 
-  void _persistAllocations() {
-    final essentials = (_allocations['Essenciais']! * 100).round();
-    final goals = (_allocations['Objetivos']! * 100).round();
-    final free = 100 - essentials - goals;
-    widget.store.updateSalaryAllocation(
-      essentialsPercent: essentials,
-      goalsPercent: goals,
-      freePercent: free,
+  Future<void> _deleteBucket(String id) async {
+    final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Excluir divisão?'),
+            content: const Text(
+                'Os lançamentos e categorias vinculados serão preservados.'),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Cancelar')),
+              FilledButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  child: const Text('Excluir')),
+            ],
+          ),
+        ) ??
+        false;
+    if (confirmed) widget.store.deleteSalaryAllocationBucket(id);
+  }
+}
+
+class _AllocationBucketCard extends StatelessWidget {
+  const _AllocationBucketCard({
+    super.key,
+    required this.bucket,
+    required this.limitInCents,
+    required this.spentInCents,
+    required this.onEdit,
+    required this.onDelete,
+    required this.dragHandle,
+  });
+
+  final SalaryAllocationBucket bucket;
+  final int limitInCents;
+  final int spentInCents;
+  final VoidCallback onEdit;
+  final VoidCallback? onDelete;
+  final Widget dragHandle;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Color(bucket.colorValue);
+    final progress =
+        limitInCents == 0 ? 0.0 : (spentInCents / limitInCents).clamp(0.0, 1.0);
+    final available = limitInCents - spentInCents;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: Theme.of(context)
+              .colorScheme
+              .surfaceContainerHighest
+              .withValues(alpha: .42),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                        color: color.withValues(alpha: .14),
+                        borderRadius: BorderRadius.circular(12)),
+                    child: Icon(_allocationIcon(bucket.iconKey),
+                        color: color, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(bucket.name,
+                            style:
+                                const TextStyle(fontWeight: FontWeight.w700)),
+                        const SizedBox(height: 2),
+                        Text(
+                            '${bucket.percent}% · limite ${FinancialRules.formatBrl(limitInCents)}',
+                            style: TextStyle(
+                                fontSize: 12,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant)),
+                      ],
+                    ),
+                  ),
+                  PopupMenuButton<String>(
+                    tooltip: 'Opções da divisão',
+                    onSelected: (value) {
+                      if (value == 'edit') onEdit();
+                      if (value == 'delete') onDelete?.call();
+                    },
+                    itemBuilder: (_) => [
+                      const PopupMenuItem(value: 'edit', child: Text('Editar')),
+                      if (onDelete != null)
+                        const PopupMenuItem(
+                            value: 'delete', child: Text('Excluir')),
+                    ],
+                  ),
+                  dragHandle,
+                ],
+              ),
+              const SizedBox(height: 11),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(99),
+                child: LinearProgressIndicator(
+                  value: progress,
+                  minHeight: 7,
+                  color: available >= 0
+                      ? color
+                      : Theme.of(context).colorScheme.error,
+                  backgroundColor: color.withValues(alpha: .12),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 12,
+                runSpacing: 5,
+                alignment: WrapAlignment.spaceBetween,
+                children: [
+                  Text(
+                    available >= 0
+                        ? '${FinancialRules.formatBrl(available)} livres'
+                        : '${FinancialRules.formatBrl(-available)} acima',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: available >= 0
+                          ? Theme.of(context).colorScheme.onSurfaceVariant
+                          : Theme.of(context).colorScheme.error,
+                    ),
+                  ),
+                  Text('Gasto ${FinancialRules.formatBrl(spentInCents)}',
+                      style: const TextStyle(
+                          fontSize: 11, fontWeight: FontWeight.w600)),
+                ],
+              ),
+              if (bucket.linkedCategories.isNotEmpty) ...[
+                const SizedBox(height: 5),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    bucket.linkedCategories.join(' · '),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
 
-class _AllocationRow extends StatelessWidget {
-  const _AllocationRow(
-      {required this.label,
-      required this.ratio,
-      required this.amount,
-      required this.onChanged,
-      required this.onChangeEnd});
-  final String label;
-  final double ratio;
-  final int amount;
-  final ValueChanged<double> onChanged;
-  final ValueChanged<double> onChangeEnd;
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 14),
-        child: Column(
-          children: [
-            Row(children: [
-              Expanded(
-                  child: Text(label,
-                      style: const TextStyle(fontWeight: FontWeight.w600))),
-              Text('${(ratio * 100).round()}%',
-                  style: TextStyle(
-                      color: Theme.of(context).colorScheme.primary,
-                      fontWeight: FontWeight.w700)),
-              const SizedBox(width: 14),
-              Text(FinancialRules.formatBrl(amount),
-                  style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      fontSize: 12)),
-            ]),
-            Slider(
-                value: ratio.clamp(0, 1),
-                onChanged: onChanged,
-                onChangeEnd: onChangeEnd),
-          ],
-        ),
-      );
+class _AllocationBucketInput {
+  const _AllocationBucketInput({
+    required this.name,
+    required this.percent,
+    required this.iconKey,
+    required this.colorValue,
+    required this.linkedCategories,
+  });
+  final String name;
+  final int percent;
+  final String iconKey;
+  final int colorValue;
+  final List<String> linkedCategories;
 }
 
-class _SalaryDialog extends StatefulWidget {
-  const _SalaryDialog({required this.salary});
-  final int salary;
+class _AllocationBucketDialog extends StatefulWidget {
+  const _AllocationBucketDialog({required this.categories, this.bucket});
+  final List<String> categories;
+  final SalaryAllocationBucket? bucket;
+
   @override
-  State<_SalaryDialog> createState() => _SalaryDialogState();
+  State<_AllocationBucketDialog> createState() =>
+      _AllocationBucketDialogState();
 }
 
-class _SalaryDialogState extends State<_SalaryDialog> {
-  late final List<TextEditingController> _controllers;
-  @override
-  void initState() {
-    super.initState();
-    String money(double ratio) =>
-        ((widget.salary * ratio) / 100).toStringAsFixed(2).replaceAll('.', ',');
-    _controllers = [
-      TextEditingController(text: money(.5)),
-      TextEditingController(text: money(.3)),
-      TextEditingController(text: money(.2))
-    ];
-  }
+class _AllocationBucketDialogState extends State<_AllocationBucketDialog> {
+  static const _icons = ['home', 'target', 'sparkles', 'wallet', 'health'];
+  static const _colors = [
+    0xFF3D7A67,
+    0xFF4F6BED,
+    0xFFB64F21,
+    0xFF7B5CC7,
+    0xFFD14F68,
+  ];
+  late final _name = TextEditingController(text: widget.bucket?.name ?? '');
+  late final _percent =
+      TextEditingController(text: '${widget.bucket?.percent ?? 10}');
+  late var _iconKey = widget.bucket?.iconKey ?? 'wallet';
+  late var _colorValue = widget.bucket?.colorValue ?? _colors.first;
+  late final Set<String> _selected = {
+    ...?widget.bucket?.linkedCategories,
+  };
+  String? _error;
 
   @override
   void dispose() {
-    for (final c in _controllers) {
-      c.dispose();
-    }
+    _name.dispose();
+    _percent.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-        title: const Text('Distribuir salário'),
+        title: Text(widget.bucket == null ? 'Nova divisão' : 'Editar divisão'),
         content: SizedBox(
-          width: 400,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: List.generate(
-                3,
-                (index) => Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: TextField(
-                        controller: _controllers[index],
-                        keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true),
-                        decoration: InputDecoration(
-                            labelText: [
-                              'Essenciais',
-                              'Objetivos',
-                              'Livre'
-                            ][index],
-                            prefixText: 'R\$ '),
-                      ),
-                    )),
+          width: 480,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: _name,
+                  autofocus: true,
+                  decoration: const InputDecoration(labelText: 'Nome'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _percent,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                      labelText: 'Percentual da renda', suffixText: '%'),
+                ),
+                const SizedBox(height: 16),
+                Text('Ícone', style: Theme.of(context).textTheme.labelLarge),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  children: _icons
+                      .map((key) => IconButton.filledTonal(
+                            isSelected: _iconKey == key,
+                            onPressed: () => setState(() => _iconKey = key),
+                            icon: Icon(_allocationIcon(key)),
+                          ))
+                      .toList(),
+                ),
+                const SizedBox(height: 14),
+                Text('Cor', style: Theme.of(context).textTheme.labelLarge),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 10,
+                  children: _colors
+                      .map((value) => InkWell(
+                            borderRadius: BorderRadius.circular(99),
+                            onTap: () => setState(() => _colorValue = value),
+                            child: Container(
+                              width: 34,
+                              height: 34,
+                              decoration: BoxDecoration(
+                                color: Color(value),
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                    color: _colorValue == value
+                                        ? Theme.of(context)
+                                            .colorScheme
+                                            .onSurface
+                                        : Colors.transparent,
+                                    width: 2.5),
+                              ),
+                            ),
+                          ))
+                      .toList(),
+                ),
+                const SizedBox(height: 16),
+                Text('Categorias que consomem este limite',
+                    style: Theme.of(context).textTheme.labelLarge),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 7,
+                  runSpacing: 7,
+                  children: widget.categories
+                      .map((name) => FilterChip(
+                            label: Text(name),
+                            selected: _selected.contains(name),
+                            onSelected: (value) => setState(() => value
+                                ? _selected.add(name)
+                                : _selected.remove(name)),
+                          ))
+                      .toList(),
+                ),
+                if (_error != null) ...[
+                  const SizedBox(height: 12),
+                  Text(_error!,
+                      style: TextStyle(
+                          color: Theme.of(context).colorScheme.error)),
+                ],
+              ],
+            ),
           ),
         ),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context),
               child: const Text('Cancelar')),
-          FilledButton(
-              onPressed: () => Navigator.pop(context,
-                  _controllers.map((c) => parseMoney(c.text) ?? 0).toList()),
-              child: const Text('Aplicar')),
+          FilledButton(onPressed: _submit, child: const Text('Salvar')),
         ],
       );
+
+  void _submit() {
+    final percent = int.tryParse(_percent.text);
+    if (_name.text.trim().isEmpty ||
+        percent == null ||
+        percent < 0 ||
+        percent > 100) {
+      setState(() => _error = 'Informe nome e percentual entre 0 e 100.');
+      return;
+    }
+    Navigator.pop(
+      context,
+      _AllocationBucketInput(
+        name: _name.text.trim(),
+        percent: percent,
+        iconKey: _iconKey,
+        colorValue: _colorValue,
+        linkedCategories: _selected.toList(),
+      ),
+    );
+  }
 }
+
+IconData _allocationIcon(String key) => switch (key) {
+      'home' => Icons.home_work_outlined,
+      'target' => Icons.track_changes_rounded,
+      'sparkles' => Icons.auto_awesome_outlined,
+      'health' => Icons.favorite_outline_rounded,
+      _ => Icons.account_balance_wallet_outlined,
+    };
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage(
       {super.key,
       required this.onThemeChanged,
       this.themePreference = 'dark',
+      required this.onAccentChanged,
+      this.accentPreference = 'organiza',
       required this.quickPages,
       required this.onQuickPagesChanged,
       required this.profileName,
@@ -1226,6 +1494,8 @@ class SettingsPage extends StatelessWidget {
 
   final ValueChanged<ThemeMode> onThemeChanged;
   final String themePreference;
+  final ValueChanged<String> onAccentChanged;
+  final String accentPreference;
   final List<int> quickPages;
   final ValueChanged<List<int>> onQuickPagesChanged;
   final String profileName;
@@ -1327,17 +1597,77 @@ class SettingsPage extends StatelessWidget {
             const SizedBox(height: 14),
             Panel(
               title: 'Aparência',
-              subtitle: 'Escolha como o aplicativo deve ser exibido',
-              child: Wrap(
-                spacing: 9,
-                runSpacing: 9,
+              subtitle: 'Tema e cor de destaque do seu espaço',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _themeButton(Icons.brightness_auto_outlined, 'Sistema',
-                      ThemeMode.system),
-                  _themeButton(
-                      Icons.light_mode_outlined, 'Claro', ThemeMode.light),
-                  _themeButton(
-                      Icons.dark_mode_outlined, 'Escuro', ThemeMode.dark),
+                  Wrap(
+                    spacing: 9,
+                    runSpacing: 9,
+                    children: [
+                      _themeButton(Icons.brightness_auto_outlined, 'Sistema',
+                          ThemeMode.system),
+                      _themeButton(
+                          Icons.light_mode_outlined, 'Claro', ThemeMode.light),
+                      _themeButton(
+                          Icons.dark_mode_outlined, 'Escuro', ThemeMode.dark),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  Text('Cor de destaque',
+                      style: Theme.of(context).textTheme.labelLarge),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: OrganizaTheme.accentColors.entries
+                        .map((entry) => Tooltip(
+                              message: _accentName(entry.key),
+                              child: Semantics(
+                                button: true,
+                                selected: accentPreference == entry.key,
+                                label: 'Cor ${_accentName(entry.key)}',
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(99),
+                                  onTap: () => onAccentChanged(entry.key),
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 180),
+                                    width: 38,
+                                    height: 38,
+                                    decoration: BoxDecoration(
+                                      color: entry.value,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: accentPreference == entry.key
+                                            ? Theme.of(context)
+                                                .colorScheme
+                                                .onSurface
+                                            : Colors.transparent,
+                                        width: 2.5,
+                                      ),
+                                      boxShadow: accentPreference == entry.key
+                                          ? [
+                                              BoxShadow(
+                                                color: entry.value
+                                                    .withValues(alpha: .34),
+                                                blurRadius: 12,
+                                              )
+                                            ]
+                                          : null,
+                                    ),
+                                    child: accentPreference == entry.key
+                                        ? Icon(Icons.check_rounded,
+                                            color: entry.key == 'neutral'
+                                                ? Colors.black
+                                                : Colors.white,
+                                            size: 19)
+                                        : null,
+                                  ),
+                                ),
+                              ),
+                            ))
+                        .toList(),
+                  ),
                 ],
               ),
             ),
@@ -1418,6 +1748,17 @@ class SettingsPage extends StatelessWidget {
             themePreference == mode.name ? Icons.check_circle_outline : icon),
         label: Text(label),
       );
+
+  String _accentName(String value) => switch (value) {
+        'blue' => 'Azul',
+        'green' => 'Verde',
+        'purple' => 'Roxo',
+        'pink' => 'Rosa',
+        'red' => 'Vermelho',
+        'teal' => 'Turquesa',
+        'neutral' => 'Neutro',
+        _ => 'Organiza',
+      };
 }
 
 class ComingSoonPage extends StatelessWidget {

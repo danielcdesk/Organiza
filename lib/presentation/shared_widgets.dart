@@ -1122,7 +1122,7 @@ Color institutionColor(AccountInstitution institution, BuildContext context) =>
       AccountInstitution.sicoob => const Color(0xFF007E3A),
       AccountInstitution.bv => const Color(0xFF24449C),
       AccountInstitution.xp => const Color(0xFF111111),
-      AccountInstitution.custom => OrganizaTheme.orange,
+      AccountInstitution.custom => Theme.of(context).colorScheme.primary,
       AccountInstitution.generic => Theme.of(context)
           .colorScheme
           .surfaceContainerHighest

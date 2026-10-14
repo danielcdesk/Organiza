@@ -24,19 +24,35 @@ class AccountInput {
 }
 
 class TransactionEditDialog extends StatefulWidget {
-  const TransactionEditDialog({super.key, required this.item});
+  const TransactionEditDialog({
+    super.key,
+    required this.item,
+    required this.accounts,
+    required this.categories,
+    required this.subcategories,
+  });
   final TransactionRecord item;
+  final List<Account> accounts;
+  final List<FinanceCategory> categories;
+  final List<FinanceSubcategory> subcategories;
   @override
   State<TransactionEditDialog> createState() => _TransactionEditDialogState();
 }
 
 class _TransactionEditDialogState extends State<TransactionEditDialog> {
+  late var _type = widget.item.type;
+  late var _accountId = widget.item.accountId;
+  late String? _destinationId = widget.item.destinationAccountId;
   late final _amount = TextEditingController(
       text: (widget.item.amountInCents / 100)
           .toStringAsFixed(2)
           .replaceAll('.', ','));
   late final _description =
       TextEditingController(text: widget.item.description);
+  late var _category = widget.item.category;
+  late var _subcategory = widget.item.subcategory;
+  late var _occurredOn = widget.item.occurredOn;
+  late var _isSettled = widget.item.isSettled;
   String? _error;
   @override
   void dispose() {
@@ -49,13 +65,76 @@ class _TransactionEditDialogState extends State<TransactionEditDialog> {
   Widget build(BuildContext context) => AlertDialog(
         title: const Text('Editar lançamento'),
         content: SizedBox(
-            width: 420,
+            width: 500,
+            height: 570,
             child: SingleChildScrollView(
                 child: Column(mainAxisSize: MainAxisSize.min, children: [
               Text(widget.item.seriesId == null
                   ? 'O saldo e os relatórios serão recalculados.'
-                  : 'A alteração vale só para esta ocorrência. As próximas parcelas ou salários mantêm os valores cadastrados.'),
+                  : 'Depois de salvar, escolha entre alterar somente esta ocorrência ou também as próximas.'),
               const SizedBox(height: 18),
+              DropdownButtonFormField<TransactionType>(
+                initialValue: _type,
+                decoration: const InputDecoration(labelText: 'Tipo'),
+                items: TransactionType.values
+                    .map((value) => DropdownMenuItem(
+                          value: value,
+                          child: Text(switch (value) {
+                            TransactionType.income => 'Receita',
+                            TransactionType.expense => 'Despesa',
+                            TransactionType.transfer => 'Transferência',
+                          }),
+                        ))
+                    .toList(),
+                onChanged: (value) => setState(() {
+                  _type = value!;
+                  if (_type == TransactionType.transfer) {
+                    _category = 'Transferência';
+                    _subcategory = 'Entre contas';
+                  } else {
+                    _destinationId = null;
+                    final categories = _categoriesForType();
+                    if (!categories.contains(_category)) {
+                      _category = categories.first;
+                    }
+                    _resetSubcategory();
+                  }
+                }),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                isExpanded: true,
+                initialValue: _accountId,
+                decoration: const InputDecoration(labelText: 'Conta'),
+                items: widget.accounts
+                    .map((account) => DropdownMenuItem(
+                          value: account.id,
+                          child: _AccountOption(account),
+                        ))
+                    .toList(),
+                onChanged: (value) => setState(() {
+                  _accountId = value!;
+                  if (_destinationId == value) _destinationId = null;
+                }),
+              ),
+              if (_type == TransactionType.transfer) ...[
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  isExpanded: true,
+                  initialValue: _destinationId,
+                  decoration:
+                      const InputDecoration(labelText: 'Conta de destino'),
+                  items: widget.accounts
+                      .where((account) => account.id != _accountId)
+                      .map((account) => DropdownMenuItem(
+                            value: account.id,
+                            child: _AccountOption(account),
+                          ))
+                      .toList(),
+                  onChanged: (value) => setState(() => _destinationId = value),
+                ),
+              ],
+              const SizedBox(height: 12),
               TextField(
                   controller: _amount,
                   autofocus: true,
@@ -67,6 +146,59 @@ class _TransactionEditDialogState extends State<TransactionEditDialog> {
                   controller: _description,
                   decoration:
                       const InputDecoration(labelText: 'Descrição (opcional)')),
+              if (_type != TransactionType.transfer) ...[
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  isExpanded: true,
+                  key: ValueKey('${_type.name}-$_category'),
+                  initialValue: _category,
+                  decoration: const InputDecoration(labelText: 'Categoria'),
+                  items: _categoriesForType()
+                      .map((value) => DropdownMenuItem(
+                            value: value,
+                            child: _CategoryOption(name: value),
+                          ))
+                      .toList(),
+                  onChanged: (value) => setState(() {
+                    _category = value!;
+                    _resetSubcategory();
+                  }),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  isExpanded: true,
+                  key: ValueKey('edit-subcategory-$_category-$_subcategory'),
+                  initialValue: _subcategory,
+                  decoration: const InputDecoration(labelText: 'Subcategoria'),
+                  items: _subcategoriesForCategory()
+                      .map((value) => DropdownMenuItem(
+                          value: value,
+                          child: _CategoryOption(name: value, compact: true)))
+                      .toList(),
+                  onChanged: (value) => setState(() => _subcategory = value!),
+                ),
+              ],
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _pickDate,
+                  icon: const Icon(Icons.calendar_today_outlined, size: 17),
+                  label: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text('Data: ${shortDate(_occurredOn)}'),
+                  ),
+                ),
+              ),
+              SwitchListTile.adaptive(
+                contentPadding: EdgeInsets.zero,
+                value: _isSettled,
+                title: const Text('Movimentação confirmada'),
+                subtitle: Text(_isSettled
+                    ? 'Já entra no saldo e nos relatórios.'
+                    : 'Fica pendente até a confirmação.'),
+                onChanged: (value) => setState(() => _isSettled = value),
+              ),
               _DialogError(_error),
             ]))),
         actions: [
@@ -80,11 +212,91 @@ class _TransactionEditDialogState extends State<TransactionEditDialog> {
                   setState(() => _error = 'Informe um valor válido.');
                   return;
                 }
-                Navigator.pop(context, (cents, _description.text));
+                if (_type == TransactionType.transfer &&
+                    _destinationId == null) {
+                  setState(() => _error = 'Escolha a conta de destino.');
+                  return;
+                }
+                Navigator.pop(
+                  context,
+                  TransactionRecord(
+                    id: widget.item.id,
+                    accountId: _accountId,
+                    destinationAccountId: _destinationId,
+                    type: _type,
+                    amountInCents: cents,
+                    description: _description.text.trim(),
+                    occurredOn: _occurredOn,
+                    createdAt: widget.item.createdAt,
+                    category: _type == TransactionType.transfer
+                        ? 'Transferência'
+                        : _category,
+                    subcategory: _type == TransactionType.transfer
+                        ? 'Entre contas'
+                        : _subcategory,
+                    scheduleType: widget.item.scheduleType,
+                    seriesId: widget.item.seriesId,
+                    installmentNumber: widget.item.installmentNumber,
+                    installmentCount: widget.item.installmentCount,
+                    isSettled: _isSettled,
+                  ),
+                );
               },
               child: const Text('Salvar alteração'))
         ],
       );
+
+  List<String> _categoriesForType() {
+    final values = widget.categories
+        .where((item) => item.type == _type)
+        .map((item) => item.name)
+        .toSet()
+        .toList();
+    if (values.isEmpty) {
+      return _type == TransactionType.income
+          ? List.of(incomeCategories)
+          : List.of(budgetCategories);
+    }
+    if (!values.contains(_category) &&
+        widget.item.type == _type &&
+        widget.item.category.isNotEmpty) {
+      values.add(widget.item.category);
+    }
+    return values;
+  }
+
+  List<String> _subcategoriesForCategory({bool includeCurrent = true}) {
+    final categoryIds = widget.categories
+        .where((item) => item.type == _type && item.name == _category)
+        .map((item) => item.id)
+        .toSet();
+    final values = widget.subcategories
+        .where((item) => categoryIds.contains(item.categoryId))
+        .map((item) => item.name)
+        .toSet()
+        .toList();
+    if (values.isEmpty) {
+      values.addAll(categorySubcategories[_category] ?? const ['Geral']);
+    }
+    if (includeCurrent && !values.contains(_subcategory)) {
+      values.add(_subcategory);
+    }
+    return values;
+  }
+
+  void _resetSubcategory() {
+    _subcategory = _subcategoriesForCategory(includeCurrent: false).first;
+  }
+
+  Future<void> _pickDate() async {
+    final selected = await showDatePicker(
+      context: context,
+      initialDate: _occurredOn,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (selected != null && mounted) setState(() => _occurredOn = selected);
+  }
 }
 
 class AccountDialog extends StatefulWidget {
@@ -533,7 +745,7 @@ class _TransactionDialogState extends State<TransactionDialog> {
                       items: _categoriesForType(_type)
                           .map((value) => DropdownMenuItem(
                                 value: value,
-                                child: Text(value),
+                                child: _CategoryOption(name: value),
                               ))
                           .toList(),
                       onChanged: (value) => setState(() {
@@ -569,7 +781,9 @@ class _TransactionDialogState extends State<TransactionDialog> {
                           const InputDecoration(labelText: 'Subcategoria'),
                       items: _subcategoriesFor(_category)
                           .map((value) => DropdownMenuItem(
-                              value: value, child: Text(value)))
+                              value: value,
+                              child:
+                                  _CategoryOption(name: value, compact: true)))
                           .toList(),
                       onChanged: (value) =>
                           setState(() => _subcategory = value!),
@@ -785,6 +999,61 @@ class _TransactionDialogState extends State<TransactionDialog> {
     );
     if (value != null && mounted) setState(() => _occurredOn = value);
   }
+}
+
+class _CategoryOption extends StatelessWidget {
+  const _CategoryOption({required this.name, this.compact = false});
+
+  final String name;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme.primary;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: compact ? 25 : 29,
+          height: compact ? 25 : 29,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: .12),
+            borderRadius: BorderRadius.circular(9),
+          ),
+          child:
+              Icon(_categoryIcon(name), color: color, size: compact ? 14 : 16),
+        ),
+        const SizedBox(width: 9),
+        Flexible(child: Text(name, overflow: TextOverflow.ellipsis)),
+      ],
+    );
+  }
+}
+
+IconData _categoryIcon(String name) {
+  final value = name.toLowerCase();
+  if (value.contains('aliment') || value.contains('mercado')) {
+    return Icons.restaurant_outlined;
+  }
+  if (value.contains('moradia') || value.contains('casa')) {
+    return Icons.home_outlined;
+  }
+  if (value.contains('transport') || value.contains('combust')) {
+    return Icons.directions_car_outlined;
+  }
+  if (value.contains('saúde') || value.contains('farm')) {
+    return Icons.favorite_outline_rounded;
+  }
+  if (value.contains('salário') || value.contains('renda')) {
+    return Icons.payments_outlined;
+  }
+  if (value.contains('educ')) return Icons.school_outlined;
+  if (value.contains('lazer') || value.contains('evento')) {
+    return Icons.local_activity_outlined;
+  }
+  if (value.contains('pet')) return Icons.pets_outlined;
+  if (value.contains('transfer')) return Icons.swap_horiz_rounded;
+  return Icons.category_outlined;
 }
 
 class _AccountOption extends StatelessWidget {

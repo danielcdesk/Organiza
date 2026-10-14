@@ -145,8 +145,21 @@ abstract final class OrganizaTheme {
   static const espresso = Color(0xFF231816);
   static const paper = Color(0xFFF8F7F5);
 
-  static ThemeData light() => _build(Brightness.light);
-  static ThemeData dark() => _build(Brightness.dark);
+  static const accentColors = <String, Color>{
+    'organiza': orange,
+    'blue': Color(0xFF3B6EDB),
+    'green': Color(0xFF287D59),
+    'purple': Color(0xFF7454C8),
+    'pink': Color(0xFFB64D76),
+    'red': Color(0xFFB94A48),
+    'teal': Color(0xFF157A78),
+    'neutral': Color(0xFF5E625F),
+  };
+
+  static ThemeData light([String accent = 'organiza']) =>
+      _build(Brightness.light, accent);
+  static ThemeData dark([String accent = 'organiza']) =>
+      _build(Brightness.dark, accent);
 
   /// Ajustes de densidade e navegação para o fluxo móvel.
   /// Mantém a mesma escolha de tema, mas dá ao celular uma identidade própria
@@ -210,9 +223,14 @@ abstract final class OrganizaTheme {
     );
   }
 
-  static ThemeData _build(Brightness brightness) {
+  static ThemeData _build(Brightness brightness, String accent) {
     final dark = brightness == Brightness.dark;
-    final primary = dark ? const Color(0xFFFF8A00) : const Color(0xFFB64F21);
+    final basePrimary = accentColors[accent] ?? orange;
+    final primary = dark
+        ? accent == 'organiza'
+            ? const Color(0xFFFF8A00)
+            : Color.alphaBlend(Colors.white.withValues(alpha: .22), basePrimary)
+        : basePrimary;
     final surface = dark ? const Color(0xFF101114) : const Color(0xFFFFFFFF);
     final border = dark ? const Color(0xFF5F606A) : const Color(0xFF767680);
     final secondary = dark ? const Color(0xFF2ED47A) : const Color(0xFF1B7548);

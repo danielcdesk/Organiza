@@ -1,5 +1,14 @@
 # Registro de mudanças
 
+## 2026-10-14 — Código 0.9.0, atualização 2.1
+
+- Organização usa a renda do perfil como fonte única e transforma as divisões salariais em limites acompanhados por gastos reais.
+- Divisões personalizadas podem ser criadas, editadas, ordenadas e vinculadas a categorias sem contar a mesma despesa duas vezes.
+- Finanças agrupa transações por mês e dia; a edição mantém o registro e pergunta o alcance quando há série.
+- Lista de desejos ganhou edição no mesmo item e ações em menu compacto.
+- O destaque visual ganhou oito opções persistidas; Relatórios usa métricas menores e a Visão geral oferece calendário recolhível.
+- Verificação: análise limpa, 95 testes Flutter, 2 fluxos integrados no Windows, build Windows release e build Android debug concluídos. A assinatura Android de distribuição e a instalação física seguem pendentes.
+
 ## 2026-09-18 — Organiza 0.7.1, navegação de Organização unificada
 
 - Orçamento deixou de ser um item paralelo no menu. Planejamento e limites mensais agora têm um único acesso: **Organização**.

@@ -159,6 +159,10 @@ class _DashboardPageState extends State<DashboardPage> {
                 ),
                 SizedBox(height: OrganizaDesignTokens.of(context).spaceLg),
                 ...content,
+                if (hasData) ...[
+                  SizedBox(height: OrganizaDesignTokens.of(context).spaceXl),
+                  _PaymentCalendar(store: widget.store, month: _month),
+                ],
               ],
             ),
           );
@@ -428,6 +432,142 @@ class _DashboardPageState extends State<DashboardPage> {
 
   String _money(int cents) =>
       widget.hideValues ? '••••••' : FinancialRules.formatBrl(cents);
+}
+
+class _PaymentCalendar extends StatefulWidget {
+  const _PaymentCalendar({required this.store, required this.month});
+
+  final OrganizaStore store;
+  final DateTime month;
+
+  @override
+  State<_PaymentCalendar> createState() => _PaymentCalendarState();
+}
+
+class _PaymentCalendarState extends State<_PaymentCalendar> {
+  int? _selectedDay;
+
+  @override
+  Widget build(BuildContext context) {
+    final month = widget.month;
+    final days = DateTime(month.year, month.month + 1, 0).day;
+    final offset = DateTime(month.year, month.month, 1).weekday - 1;
+    final selected =
+        (_selectedDay ?? widget.store.clock.now().day).clamp(1, days);
+    final events = _eventsFor(selected);
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
+      child: ExpansionTile(
+        title: const Text('Calendário de pagamentos'),
+        subtitle: Text(
+            'Contas pendentes, assinaturas e vencimentos de cartões em ${sentenceCase(monthName(month.month))}'),
+        leading: const Icon(Icons.calendar_month_outlined),
+        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        children: [
+          Row(
+            children: const ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
+                .map((day) => Expanded(
+                      child: Center(
+                        child: Text(day,
+                            style: TextStyle(fontWeight: FontWeight.w700)),
+                      ),
+                    ))
+                .toList(),
+          ),
+          const SizedBox(height: 7),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: offset + days,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 7,
+              mainAxisExtent: 48,
+            ),
+            itemBuilder: (context, index) {
+              if (index < offset) return const SizedBox.shrink();
+              final day = index - offset + 1;
+              final hasEvents = _eventsFor(day).isNotEmpty;
+              final isSelected = day == selected;
+              return Semantics(
+                button: true,
+                selected: isSelected,
+                label:
+                    '$day de ${monthName(month.month)}${hasEvents ? ', com pagamentos' : ''}',
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(10),
+                  onTap: () => setState(() => _selectedDay = day),
+                  child: Container(
+                    margin: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? scheme.primaryContainer
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text('$day',
+                            style: TextStyle(
+                                fontWeight: isSelected
+                                    ? FontWeight.w800
+                                    : FontWeight.w500)),
+                        if (hasEvents)
+                          Container(
+                            width: 5,
+                            height: 5,
+                            decoration: BoxDecoration(
+                                color: scheme.primary, shape: BoxShape.circle),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 10),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+                '$selected/${month.month} · ${events.isEmpty ? 'Sem pagamentos previstos' : '${events.length} compromisso${events.length == 1 ? '' : 's'}'}',
+                style: Theme.of(context).textTheme.labelLarge),
+          ),
+          for (final event in events)
+            ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(event.$1, color: scheme.primary, size: 20),
+              title: Text(event.$2),
+            ),
+        ],
+      ),
+    );
+  }
+
+  List<(IconData, String)> _eventsFor(int day) {
+    final month = widget.month;
+    return [
+      for (final item in widget.store.transactions)
+        if (item.type == TransactionType.expense &&
+            !item.isSettled &&
+            item.occurredOn.year == month.year &&
+            item.occurredOn.month == month.month &&
+            item.occurredOn.day == day)
+          (Icons.payments_outlined, item.description),
+      for (final item in widget.store.subscriptions)
+        if (item.isActive &&
+            item.billingDay
+                    .clamp(1, DateTime(month.year, month.month + 1, 0).day) ==
+                day)
+          (Icons.autorenew_rounded, item.name),
+      for (final item in widget.store.creditCards)
+        if (item.dueDay
+                .clamp(1, DateTime(month.year, month.month + 1, 0).day) ==
+            day)
+          (Icons.credit_card_outlined, 'Vencimento: ${item.name}'),
+    ];
+  }
 }
 
 class _MonthToolbar extends StatelessWidget {

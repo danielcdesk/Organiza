@@ -38,6 +38,7 @@ class OrganizaApp extends StatefulWidget {
 
 class _OrganizaAppState extends State<OrganizaApp> {
   ThemeMode _themeMode = ThemeMode.dark;
+  late String _accentPreference;
 
   @override
   void initState() {
@@ -46,11 +47,17 @@ class _OrganizaAppState extends State<OrganizaApp> {
       (mode) => mode.name == widget.store.themePreference,
       orElse: () => ThemeMode.dark,
     );
+    _accentPreference = widget.store.accentPreference;
   }
 
   void _changeTheme(ThemeMode mode) {
     widget.store.saveThemePreference(mode.name);
     setState(() => _themeMode = mode);
+  }
+
+  void _changeAccent(String value) {
+    widget.store.saveAccentPreference(value);
+    setState(() => _accentPreference = value);
   }
 
   @override
@@ -61,8 +68,8 @@ class _OrganizaAppState extends State<OrganizaApp> {
         supportedLocales: const [Locale('pt', 'BR')],
         localizationsDelegates: GlobalMaterialLocalizations.delegates,
         themeMode: _themeMode,
-        theme: OrganizaTheme.light(),
-        darkTheme: OrganizaTheme.dark(),
+        theme: OrganizaTheme.light(_accentPreference),
+        darkTheme: OrganizaTheme.dark(_accentPreference),
         routes: {
           if (kDebugMode)
             '/debug/components': (_) => const DebugComponentCatalogPage(),
@@ -70,6 +77,7 @@ class _OrganizaAppState extends State<OrganizaApp> {
         home: OrganizaShell(
           store: widget.store,
           onThemeChanged: _changeTheme,
+          onAccentChanged: _changeAccent,
         ),
       );
 }
@@ -79,10 +87,12 @@ class OrganizaShell extends StatefulWidget {
     super.key,
     required this.store,
     required this.onThemeChanged,
+    required this.onAccentChanged,
   });
 
   final OrganizaStore store;
   final ValueChanged<ThemeMode> onThemeChanged;
+  final ValueChanged<String> onAccentChanged;
 
   @override
   State<OrganizaShell> createState() => _OrganizaShellState();
@@ -463,7 +473,7 @@ class _OrganizaShellState extends State<OrganizaShell> {
             onOpenTransactions: () => setState(() => _page = 1),
             onOpenGoals: () => setState(() => _page = 7),
             onOpenReports: () => setState(() => _page = 8),
-            onOpenBudgets: () => setState(() => _page = 4),
+            onOpenBudgets: () => setState(() => _page = 6),
             onOpenSubscriptions: () => setState(() => _page = 10),
             onOpenAccounts: () => setState(() => _page = 2),
             onNewAccount: _openAccountDialog,
@@ -499,8 +509,7 @@ class _OrganizaShellState extends State<OrganizaShell> {
             onDeleteTask: _deleteTask,
             onAddBudget: _openBudgetDialog,
             onDeleteBudget: _deleteBudget,
-            onCancelSalary: _cancelSalarySchedule,
-            budgetFirst: true),
+            onCancelSalary: _cancelSalarySchedule),
         5 => InvestmentsPage(
             store: widget.store,
             hideValues: _hideValues,
@@ -530,6 +539,8 @@ class _OrganizaShellState extends State<OrganizaShell> {
           ),
         9 => SettingsPage(
             onThemeChanged: widget.onThemeChanged,
+            onAccentChanged: widget.onAccentChanged,
+            accentPreference: widget.store.accentPreference,
             themePreference: widget.store.themePreference,
             quickPages: widget.store.mobileQuickPages,
             onQuickPagesChanged: widget.store.updateMobileQuickPages,
@@ -549,6 +560,7 @@ class _OrganizaShellState extends State<OrganizaShell> {
             store: widget.store,
             hideValues: _hideValues,
             onAdd: _openShoppingDialog,
+            onEdit: _editShoppingItem,
             onDelete: _deleteShoppingItem,
           ),
         _ => ComingSoonPage(title: _pages[_page].label),
@@ -682,11 +694,43 @@ class _OrganizaShellState extends State<OrganizaShell> {
   }
 
   Future<void> _editTransaction(TransactionRecord item) async {
-    final input = await showDialog<(int, String)>(
-        context: context, builder: (_) => TransactionEditDialog(item: item));
+    final input = await showDialog<TransactionRecord>(
+        context: context,
+        builder: (_) => TransactionEditDialog(
+              item: item,
+              accounts: widget.store.accounts,
+              categories: widget.store.financeCategories,
+              subcategories: widget.store.financeSubcategories,
+            ));
     if (input == null || !mounted) return;
     try {
-      widget.store.updateTransactionDetails(item.id, input.$1, input.$2);
+      var applyToFuture = false;
+      if (item.seriesId != null) {
+        final scope = await showDialog<String>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Aplicar alteração'),
+            content: Text(
+                item.scheduleType == TransactionScheduleType.installment
+                    ? 'Este lançamento pertence a um parcelamento.'
+                    : 'Este lançamento pertence a uma recorrência.'),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancelar')),
+              OutlinedButton(
+                  onPressed: () => Navigator.pop(context, 'one'),
+                  child: const Text('Somente esta')),
+              FilledButton(
+                  onPressed: () => Navigator.pop(context, 'future'),
+                  child: const Text('Esta e as próximas')),
+            ],
+          ),
+        );
+        if (scope == null || !mounted) return;
+        applyToFuture = scope == 'future';
+      }
+      widget.store.updateTransaction(input, applyToFuture: applyToFuture);
       ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Lançamento atualizado.')));
     } on ArgumentError catch (error) {
@@ -814,6 +858,29 @@ class _OrganizaShellState extends State<OrganizaShell> {
     } on ArgumentError catch (error) {
       _showError(
           error.message?.toString() ?? 'Não foi possível salvar o item.');
+    }
+  }
+
+  Future<void> _editShoppingItem(ShoppingItem item) async {
+    final value = await showDialog<ShoppingInput>(
+      context: context,
+      builder: (_) => ShoppingDialog(item: item),
+    );
+    if (value == null || !mounted) return;
+    try {
+      widget.store.updateShoppingItem(
+        id: item.id,
+        name: value.name,
+        quantity: value.quantity,
+        estimatedUnitPriceInCents: value.estimatedUnitPriceInCents,
+        priority: value.priority,
+        isPurchased: item.isPurchased,
+        imagePath: value.imagePath,
+        description: value.description,
+      );
+    } on ArgumentError catch (error) {
+      _showError(
+          error.message?.toString() ?? 'Não foi possível atualizar o item.');
     }
   }
 
@@ -1237,7 +1304,7 @@ class _Sidebar extends StatelessWidget {
     final sidebarTheme = parentTheme.copyWith(
       dividerColor: sidebarBorder,
       colorScheme: parentTheme.colorScheme.copyWith(
-        primary: OrganizaTheme.orange,
+        primary: parentTheme.colorScheme.primary,
         onPrimary: dark ? const Color(0xFF17110A) : Colors.white,
         surface: sidebarSurface,
         onSurface: sidebarText,
@@ -1441,7 +1508,7 @@ class _Sidebar extends StatelessWidget {
                             height: 18,
                             decoration: BoxDecoration(
                               color: active
-                                  ? OrganizaTheme.orange
+                                  ? Theme.of(context).colorScheme.primary
                                   : Colors.transparent,
                               borderRadius: BorderRadius.circular(2),
                             ),
@@ -1451,7 +1518,9 @@ class _Sidebar extends StatelessWidget {
                         OrganizaIcon(
                           page.icon,
                           size: 19,
-                          color: active ? OrganizaTheme.orange : sidebarMuted,
+                          color: active
+                              ? Theme.of(context).colorScheme.primary
+                              : sidebarMuted,
                         ),
                         if (!collapsed) ...[
                           const SizedBox(width: 12),

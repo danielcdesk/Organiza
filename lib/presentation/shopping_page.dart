@@ -16,12 +16,14 @@ class ShoppingPage extends StatefulWidget {
     required this.store,
     required this.hideValues,
     required this.onAdd,
+    required this.onEdit,
     required this.onDelete,
   });
 
   final OrganizaStore store;
   final bool hideValues;
   final VoidCallback onAdd;
+  final ValueChanged<ShoppingItem> onEdit;
   final Future<void> Function(String id) onDelete;
 
   @override
@@ -160,6 +162,7 @@ class _ShoppingPageState extends State<ShoppingPage> {
                       hideValues: widget.hideValues,
                       onChanged: (item, value) =>
                           widget.store.setShoppingItemPurchased(item.id, value),
+                      onEdit: widget.onEdit,
                       onDelete: (item) => widget.onDelete(item.id),
                       onChangeImage: (item) async {
                         final imagePath =
@@ -177,6 +180,7 @@ class _ShoppingPageState extends State<ShoppingPage> {
                             hideValues: widget.hideValues,
                             onChanged: (value) => widget.store
                                 .setShoppingItemPurchased(item.id, value),
+                            onEdit: () => widget.onEdit(item),
                             onDelete: () => widget.onDelete(item.id),
                             onChangeImage: () async {
                               final imagePath =
@@ -258,6 +262,7 @@ class _ShoppingGrid extends StatelessWidget {
     required this.items,
     required this.hideValues,
     required this.onChanged,
+    required this.onEdit,
     required this.onDelete,
     required this.onChangeImage,
   });
@@ -265,6 +270,7 @@ class _ShoppingGrid extends StatelessWidget {
   final List<ShoppingItem> items;
   final bool hideValues;
   final void Function(ShoppingItem item, bool value) onChanged;
+  final ValueChanged<ShoppingItem> onEdit;
   final void Function(ShoppingItem item) onDelete;
   final Future<void> Function(ShoppingItem item) onChangeImage;
 
@@ -289,6 +295,7 @@ class _ShoppingGrid extends StatelessWidget {
                     item: item,
                     hideValues: hideValues,
                     onChanged: (value) => onChanged(item, value),
+                    onEdit: () => onEdit(item),
                     onDelete: () => onDelete(item),
                     onChangeImage: () => onChangeImage(item),
                   ),
@@ -304,6 +311,7 @@ class _WishlistCard extends StatefulWidget {
     required this.item,
     required this.hideValues,
     required this.onChanged,
+    required this.onEdit,
     required this.onDelete,
     required this.onChangeImage,
   });
@@ -311,6 +319,7 @@ class _WishlistCard extends StatefulWidget {
   final ShoppingItem item;
   final bool hideValues;
   final ValueChanged<bool> onChanged;
+  final VoidCallback onEdit;
   final VoidCallback onDelete;
   final Future<void> Function() onChangeImage;
 
@@ -491,6 +500,12 @@ class _WishlistCardState extends State<_WishlistCard> {
                       const Text('Já comprei', style: TextStyle(fontSize: 12)),
                       const Spacer(),
                       IconButton(
+                        onPressed: widget.onEdit,
+                        tooltip: 'Editar item',
+                        icon: const Icon(Icons.edit_outlined, size: 18),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      IconButton(
                         onPressed: widget.onDelete,
                         tooltip: 'Excluir item',
                         icon:
@@ -514,6 +529,7 @@ class _ShoppingRow extends StatelessWidget {
     required this.item,
     required this.hideValues,
     required this.onChanged,
+    required this.onEdit,
     required this.onDelete,
     required this.onChangeImage,
   });
@@ -521,6 +537,7 @@ class _ShoppingRow extends StatelessWidget {
   final ShoppingItem item;
   final bool hideValues;
   final ValueChanged<bool> onChanged;
+  final VoidCallback onEdit;
   final VoidCallback onDelete;
   final Future<void> Function() onChangeImage;
 
@@ -608,15 +625,18 @@ class _ShoppingRow extends StatelessWidget {
                       : FinancialRules.formatBrl(item.estimatedTotalInCents),
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
-              IconButton(
-                onPressed: onChangeImage,
-                tooltip: 'Adicionar ou trocar foto',
-                icon: const Icon(Icons.photo_camera_outlined, size: 18),
-              ),
-              IconButton(
-                onPressed: onDelete,
-                tooltip: 'Excluir item',
-                icon: const Icon(Icons.delete_outline_rounded, size: 18),
+              PopupMenuButton<String>(
+                tooltip: 'Ações de ${item.name}',
+                onSelected: (value) {
+                  if (value == 'edit') onEdit();
+                  if (value == 'photo') onChangeImage();
+                  if (value == 'delete') onDelete();
+                },
+                itemBuilder: (_) => const [
+                  PopupMenuItem(value: 'edit', child: Text('Editar')),
+                  PopupMenuItem(value: 'photo', child: Text('Trocar foto')),
+                  PopupMenuItem(value: 'delete', child: Text('Excluir')),
+                ],
               ),
             ],
           ),
@@ -650,20 +670,29 @@ class ShoppingInput {
 }
 
 class ShoppingDialog extends StatefulWidget {
-  const ShoppingDialog({super.key});
+  const ShoppingDialog({super.key, this.item});
+
+  final ShoppingItem? item;
 
   @override
   State<ShoppingDialog> createState() => _ShoppingDialogState();
 }
 
 class _ShoppingDialogState extends State<ShoppingDialog> {
-  final _name = TextEditingController();
-  final _quantity = TextEditingController(text: '1');
-  final _price = TextEditingController();
-  final _description = TextEditingController();
-  var _priority = ShoppingPriority.normal;
+  late final _name = TextEditingController(text: widget.item?.name ?? '');
+  late final _quantity =
+      TextEditingController(text: '${widget.item?.quantity ?? 1}');
+  late final _price = TextEditingController(
+      text: widget.item?.estimatedUnitPriceInCents == null
+          ? ''
+          : (widget.item!.estimatedUnitPriceInCents! / 100)
+              .toStringAsFixed(2)
+              .replaceAll('.', ','));
+  late final _description =
+      TextEditingController(text: widget.item?.description ?? '');
+  late var _priority = widget.item?.priority ?? ShoppingPriority.normal;
   String? _error;
-  String? _imagePath;
+  late String? _imagePath = widget.item?.imagePath;
 
   @override
   void dispose() {
@@ -676,7 +705,7 @@ class _ShoppingDialogState extends State<ShoppingDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-        title: const Text('Adicionar à lista'),
+        title: Text(widget.item == null ? 'Adicionar à lista' : 'Editar item'),
         content: SizedBox(
           width: 460,
           child: Column(
@@ -761,7 +790,9 @@ class _ShoppingDialogState extends State<ShoppingDialog> {
           TextButton(
               onPressed: () => Navigator.pop(context),
               child: const Text('Cancelar')),
-          FilledButton(onPressed: _submit, child: const Text('Adicionar')),
+          FilledButton(
+              onPressed: _submit,
+              child: Text(widget.item == null ? 'Adicionar' : 'Salvar')),
         ],
       );
 

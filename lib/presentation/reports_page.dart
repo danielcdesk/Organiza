@@ -116,11 +116,11 @@ class _ReportsPageState extends State<ReportsPage> {
           includePending: _includePending,
           onChanged: (value) => setState(() => _includePending = value),
         ),
-        const SizedBox(height: 26),
+        const SizedBox(height: 16),
         LayoutBuilder(
           builder: (context, constraints) => Wrap(
-            spacing: 14,
-            runSpacing: 14,
+            spacing: 10,
+            runSpacing: 10,
             children: [
               _ReportMetric(
                 width: constraints.maxWidth,
@@ -843,37 +843,48 @@ class _ReportMetric extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final itemWidth = width > 900
-        ? (width - 28) / 3
+        ? (width - 20) / 3
         : width > 620
-            ? (width - 14) / 2
+            ? (width - 10) / 2
             : width;
     return SizedBox(
       width: itemWidth,
-      height: 136,
+      height: 94,
       child: Card(
         child: Padding(
-          padding: const EdgeInsets.all(18),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+          child: Row(
             children: [
               Icon(icon, color: color, size: 19),
-              const Spacer(),
-              Text(label,
-                  style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      fontSize: 12.5)),
-              const SizedBox(height: 4),
-              Text(value,
-                  style: TextStyle(fontWeight: FontWeight.w700, color: color)),
-              const SizedBox(height: 5),
-              Text(
-                detail,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: detailColor,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                            fontSize: 12)),
+                    const SizedBox(height: 2),
+                    Text(value,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 17,
+                            color: color)),
+                    Text(detail,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            color: detailColor,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600)),
+                  ],
                 ),
               ),
             ],
