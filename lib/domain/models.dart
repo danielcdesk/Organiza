@@ -1,5 +1,7 @@
 enum TransactionType { income, expense, transfer }
 
+enum ExpenseEssentiality { essential, nonEssential, unclassified }
+
 enum AccountInstitution {
   generic,
   nubank,
@@ -60,6 +62,8 @@ class TransactionRecord {
     this.installmentCount = 1,
     this.isSettled = true,
     this.cardInvoiceId,
+    this.incomeSource,
+    this.essentialityOverride,
   });
 
   final String id;
@@ -78,6 +82,8 @@ class TransactionRecord {
   final int installmentCount;
   final bool isSettled;
   final String? cardInvoiceId;
+  final String? incomeSource;
+  final ExpenseEssentiality? essentialityOverride;
 }
 
 enum TransactionScheduleType { single, recurring, installment }
@@ -284,6 +290,7 @@ class FinanceCategory {
     required this.type,
     required this.createdAt,
     this.isSystem = false,
+    this.essentiality = ExpenseEssentiality.unclassified,
   });
 
   final String id;
@@ -291,6 +298,7 @@ class FinanceCategory {
   final TransactionType type;
   final DateTime createdAt;
   final bool isSystem;
+  final ExpenseEssentiality essentiality;
 }
 
 class FinanceSubcategory {
