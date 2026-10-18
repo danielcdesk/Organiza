@@ -1,5 +1,6 @@
 param(
-    [switch]$SplitOnly
+    [switch]$SplitOnly,
+    [switch]$AllowTestSigning
 )
 
 $ErrorActionPreference = 'Stop'
@@ -8,25 +9,19 @@ $flutterCommand = Get-Command flutter -ErrorAction SilentlyContinue
 if (-not $flutterCommand) { throw 'Flutter não encontrado no PATH.' }
 $flutter = $flutterCommand.Source
 
+if ($AllowTestSigning) {
+    $env:ORGANIZA_PREVIEW_BUILD = '1'
+    & $flutter build apk --release --target-platform android-arm,android-arm64,android-x64
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    $source = Join-Path $projectRoot 'build\app\outputs\flutter-apk\app-release.apk'
+    $destination = Join-Path $projectRoot 'build\app\outputs\flutter-apk\Organiza-Android-TEST-SIGNED.apk'
+    Copy-Item -LiteralPath $source -Destination $destination -Force
+    Write-Host "APK de teste separado: $destination" -ForegroundColor Yellow
+    exit 0
+}
+
 if (-not $env:ORGANIZA_KEYSTORE_PATH -or -not $env:ORGANIZA_SIGNING_PASSWORD) {
-    $keystore = Join-Path $projectRoot 'build\signing\organiza-test.keystore'
-    New-Item -ItemType Directory -Force -Path (Split-Path $keystore) | Out-Null
-    if (-not (Test-Path -LiteralPath $keystore)) {
-        $keytool = if ($env:JAVA_HOME) {
-            Join-Path $env:JAVA_HOME 'bin\keytool.exe'
-        } else {
-            (Get-Command keytool -ErrorAction SilentlyContinue).Source
-        }
-        if (-not $keytool -or -not (Test-Path -LiteralPath $keytool)) {
-            throw 'keytool não encontrado para criar a assinatura local.'
-        }
-        & $keytool -genkeypair -v -keystore $keystore -storepass 'organiza-test' -keypass 'organiza-test' `
-            -alias organiza -keyalg RSA -keysize 2048 -validity 10000 `
-            -dname 'CN=Organiza, OU=Local, O=Organiza, L=Local, ST=SP, C=BR'
-        if ($LASTEXITCODE -ne 0) { throw 'Não foi possível criar a assinatura local.' }
-    }
-    $env:ORGANIZA_KEYSTORE_PATH = $keystore
-    $env:ORGANIZA_SIGNING_PASSWORD = 'organiza-test'
+    throw 'Build de distribuição exige ORGANIZA_KEYSTORE_PATH e ORGANIZA_SIGNING_PASSWORD. Para teste separado, use -AllowTestSigning.'
 }
 
 & $flutter build apk --release --split-per-abi

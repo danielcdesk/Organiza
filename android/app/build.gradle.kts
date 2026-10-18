@@ -6,6 +6,7 @@ plugins {
 
 val releaseKeystore = System.getenv("ORGANIZA_KEYSTORE_PATH")
 val releasePassword = System.getenv("ORGANIZA_SIGNING_PASSWORD")
+val previewBuild = System.getenv("ORGANIZA_PREVIEW_BUILD") == "1"
 
 android {
     namespace = "com.danielcdesk.organiza"
@@ -14,12 +15,17 @@ android {
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
 
     defaultConfig {
         applicationId = "com.danielcdesk.organiza"
+        if (previewBuild) {
+            applicationIdSuffix = ".preview"
+        }
+        manifestPlaceholders["applicationLabel"] = if (previewBuild) "Organiza Teste" else "Organiza"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
@@ -46,8 +52,12 @@ android {
 
     buildTypes {
         release {
-            if (!releaseKeystore.isNullOrBlank() && !releasePassword.isNullOrBlank()) {
+            if (previewBuild) {
+                signingConfig = signingConfigs.getByName("debug")
+            } else if (!releaseKeystore.isNullOrBlank() && !releasePassword.isNullOrBlank()) {
                 signingConfig = signingConfigs.getByName("organizaRelease")
+            } else if (gradle.startParameter.taskNames.any { it.contains("Release", ignoreCase = true) }) {
+                throw GradleException("Release exige ORGANIZA_KEYSTORE_PATH e ORGANIZA_SIGNING_PASSWORD. Para APK de teste separado, use ORGANIZA_PREVIEW_BUILD=1.")
             }
         }
     }
@@ -61,4 +71,8 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }

@@ -1,0 +1,34 @@
+name: Windows preview (test only)
+
+on:
+  push:
+    branches: [codex/card-invoice-support]
+  workflow_dispatch:
+
+jobs:
+  windows-preview:
+    runs-on: windows-2022
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.7'
+          channel: stable
+      - name: Resolve dependencies
+        run: flutter pub get
+      - name: Verify source
+        run: |
+          flutter analyze --no-pub
+          flutter test --no-pub
+      - name: Build Windows preview
+        run: flutter build windows --release --no-pub
+      - name: Package complete application folder
+        shell: pwsh
+        run: Compress-Archive -Path 'build/windows/x64/runner/Release/*' -DestinationPath 'Organiza-Windows-TESTE.zip'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Organiza-Windows-TESTE
+          path: Organiza-Windows-TESTE.zip
+          retention-days: 7
