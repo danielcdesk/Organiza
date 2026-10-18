@@ -1,6 +1,6 @@
 # Dossiê técnico do Organiza
 
-## Atualização de planejamento (schema 20)
+## Atualização de planejamento (schemas 20 e 21)
 
 O schema 20 acrescenta `finance_categories.essentiality` (padrão
 `unclassified`) e os campos opcionais `transactions.income_source` e
@@ -10,15 +10,23 @@ das tabelas já incluídas no backup. O resumo mensal exclui transferências e
 pagamentos de fatura, mas considera as parcelas de cartão materializadas pela
 competência da fatura. Fontes ausentes continuam computadas como receita.
 
+O schema 21 cria `debts`, `debt_payments`, `recurring_obligations` e
+`recurring_obligation_occurrences`, além dos vínculos opcionais em
+`transactions`. A migração é transacional. O pagamento de uma parcela cria uma
+única saída na conta e decomposição de principal/juros; a análise por categoria
+considera apenas juros, enquanto a previsão considera o valor integral ainda
+devido. A confirmação de uma conta recorrente cria um lançamento normal e
+avança o próximo vencimento. Excluir a regra preserva os lançamentos e as
+ocorrências históricas. Essas tabelas fazem parte do backup criptografado.
+
 Documento preparado para revisão arquitetural, de qualidade e de evolução do projeto.
 
 **Projeto auditado:** Organiza
 
-**Versão declarada:** `0.7.1+10`
+**Versão declarada:** `0.8.0+12`
 
-**Data da leitura:** 28/09/2026
-
-**Diretório:** `C:\Users\comoe\OneDrive\Documentos\ChatGPT\Organiza 2\Organiza`
+**Data da atualização:** 18/10/2026 (seções de planejamento; demais seções
+históricas mantidas para revisão posterior)
 
 **Plataformas presentes no código:** Windows Desktop e Android
 **Objetivo do produto:** controle financeiro pessoal local-first, com dados mantidos no próprio dispositivo.
@@ -223,7 +231,7 @@ O banco persistente fica no diretório privado de suporte da aplicação, separa
 
 ## 6. Banco SQLite e migrações
 
-O schema atual no código é a versão **19**. A migração 17 cria faturas e preserva dados de cartão; a 18 normaliza datas de negócio ISO antigas para `yyyy-MM-dd`; a 19 registra exclusões de ocorrências salariais sem cancelar toda a recorrência.
+O schema atual no código é a versão **21**. A migração 17 cria faturas e preserva dados de cartão; a 18 normaliza datas de negócio ISO antigas para `yyyy-MM-dd`; a 19 registra exclusões de ocorrências salariais; a 20 adiciona classificação e fonte; e a 21 registra dívidas e obrigações recorrentes.
 
 | Versão | Alteração |
 |---:|---|
@@ -246,6 +254,8 @@ O schema atual no código é a versão **19**. A migração 17 cria faturas e pr
 | 17 | fechamento/vencimento de cartão entre 1 e 31, categoria/subcategoria de compra, faturas, parcelas por ciclo e pagamentos reversíveis |
 | 18 | datas civis sem hora/fuso nas transações, vencimentos, metas, investimentos, cartões e séries |
 | 19 | exceções para exclusão de ocorrência em salário recorrente |
+| 20 | essencialidade de categorias e lançamentos; fonte de receitas |
+| 21 | dívidas, pagamentos, obrigações recorrentes, confirmações e fonte de salário recorrente |
 
 Constraints e índices relevantes:
 

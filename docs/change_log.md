@@ -11,6 +11,10 @@
 - Meta de reserva usa média de três meses completos, alvo configurável,
   categorias excluíveis e saldo informado manualmente; indicadores mostram
   comprometimento essencial e total das posições de investimento.
+- Dívidas e parcelas manuais agora têm juros separados do principal, estorno,
+  histórico e previsão de vencimentos. Contas recorrentes aceitam valor
+  estimado e valor pago real, pausa, edição, exclusão sem apagar o histórico e
+  projeção mensal. Schema 21 inclui as novas tabelas no backup.
 
 ## 2026-10-11 — Lembretes locais e bloqueio de acesso
 

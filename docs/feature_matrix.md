@@ -5,6 +5,8 @@
 | Planejamento mensal por essencialidade, sobra e taxa de poupança | Sim | Sim | Widget | Sim | 2026-10-18 |
 | Fonte opcional de receita e classificação editável de categorias | Sim | Sim | Widget | Sim | 2026-10-18 |
 | Meta de reserva e indicadores de saúde financeira | Sim | Sim | Widget | Sim | 2026-10-18 |
+| Dívidas, parcelas pagas, estorno e previsão | Sim | Sim | Widget | Sim | 2026-10-18 |
+| Contas recorrentes, confirmação variável e previsão | Sim | Sim | Widget | Sim | 2026-10-18 |
 | Previsão mensal e agenda de pendências | Sim | Sim | Sim | Sim | 2026-09-17 |
 | Confirmar pendência e desfazer | Sim | Sim | Widget | Sim | 2026-09-17 |
 | Editar valor/descrição de lançamento individual | Sim | Sim | Widget | Sim | 2026-09-17 |
@@ -39,7 +41,7 @@
 | Parcelas distribuídas entre faturas | Sim | Sim | Sim | Sim | 2026-09-11 |
 | Mapa anual de gastos | Sim | Sim | Sim | Sim | 2026-09-11 |
 | Metas financeiras e aportes | Sim | Sim | Sim | Sim | 2026-09-11 |
-| Migração schema 1 → 11 | Sim | Sim | Sim | Sim | 2026-09-16 |
+| Migração schema 1 → 21 | Sim | Sim | Sim | Sim | 2026-10-18 |
 | Salário apenas por categoria e recorrência sob demanda | Sim | Sim | Parcial | Sim | 2026-09-16 |
 | Ajuste de saldo atual sem apagar movimentações | Sim | Sim | Sim | Sim | 2026-09-16 |
 | Dia de crédito de rendimento informado | Sim | Sim | Sim | Sim | 2026-09-16 |
@@ -54,5 +56,5 @@
 | Pagamento integral de fatura e estorno atômico | Sim | Sim | Sim | Sim | 2026-10-11 |
 | Compras de cartão em orçamento/relatórios sem duplicação | Sim | Sim | Sim | Sim | 2026-10-11 |
 | Faturas pendentes na previsão de saldo | Sim | Sim | Sim | Sim | 2026-10-11 |
-| Backup JSON | Serviço inicial | Não executado | Não | Não | 2026-09-10 |
+| Backup local criptografado, incluindo schemas 20–21 | Sim | Sim | Serviço | Sim | 2026-10-18 |
 | Build Windows | Sim | — | Sim | Sim | 2026-09-14 |

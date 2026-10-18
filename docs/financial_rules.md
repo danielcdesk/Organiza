@@ -2,6 +2,16 @@
 
 ## Planejamento familiar e reserva
 
+- Dívidas guardam o principal remanescente e taxa de juros mensal manual, em
+  pontos-base. Cada parcela paga é uma única saída da conta; principal reduz a
+  dívida, e somente juros aparecem como despesa de consumo nos relatórios. A
+  previsão inclui as parcelas futuras estimadas. Estornar uma parcela desfaz a
+  saída e repõe o principal numa transação.
+- Contas recorrentes são estimativas mensais, ajustadas ao último dia quando
+  o dia escolhido não existe no mês. Enquanto ativas, entram na previsão; a
+  confirmação registra o valor real como despesa paga e avança o vencimento.
+  Pausar ou excluir remove só os vencimentos futuros, sem apagar o histórico.
+
 - O planejamento agrupa lançamentos pela data civil do mês, inclusive
   lançamentos ainda pendentes. Transferências e pagamento de fatura ficam fora;
   parcelas de cartão entram pela competência da fatura, uma única vez.
