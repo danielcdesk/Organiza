@@ -10,6 +10,7 @@ class PlanningPage extends StatefulWidget {
     required this.onDeleteBudget,
     required this.onCancelSalary,
     this.budgetFirst = false,
+    this.hideValues = false,
   });
 
   final OrganizaStore store;
@@ -19,6 +20,7 @@ class PlanningPage extends StatefulWidget {
   final ValueChanged<String> onDeleteBudget;
   final ValueChanged<String> onCancelSalary;
   final bool budgetFirst;
+  final bool hideValues;
 
   @override
   State<PlanningPage> createState() => _PlanningPageState();
@@ -59,6 +61,8 @@ class _PlanningPageState extends State<PlanningPage> {
       ),
       content: Column(
         children: [
+          MonthlyPlanningPage(store: store, hideValues: widget.hideValues),
+          const SizedBox(height: 20),
           if (widget.budgetFirst) ...[
             BudgetSection(
                 store: store,

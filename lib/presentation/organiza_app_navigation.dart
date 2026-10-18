@@ -249,6 +249,7 @@ extension _OrganizaShellPart0 on _OrganizaShellState {
           ),
         AppRoute.budgets => PlanningPage(
             store: widget.store,
+            hideValues: _hideValues,
             onAdd: _openTaskDialog,
             onDeleteTask: _deleteTask,
             onAddBudget: _openBudgetDialog,
@@ -264,6 +265,7 @@ extension _OrganizaShellPart0 on _OrganizaShellState {
           ),
         AppRoute.organization => PlanningPage(
             store: widget.store,
+            hideValues: _hideValues,
             onAdd: _openTaskDialog,
             onDeleteTask: _deleteTask,
             onAddBudget: _openBudgetDialog,

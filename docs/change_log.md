@@ -1,5 +1,14 @@
 # Registro de mudanças
 
+## 2026-10-18 — Planejamento mensal familiar
+
+- A área Organização mostra entradas, despesas essenciais, não essenciais,
+  não classificadas, sobra e taxa de poupança por mês.
+- Categorias de despesa ganharam classificação editável; uma despesa pode
+  sobrescrever a classificação e receitas podem registrar a fonte. Dados
+  antigos permanecem contabilizados como não classificados ou sem fonte.
+- Schema 20 preserva as linhas existentes e os novos dados nos backups.
+
 ## 2026-10-11 — Lembretes locais e bloqueio de acesso
 
 - Adicionada programação local de lembretes para lançamentos pendentes, faturas fechadas e assinaturas ativas, com antecedência de 0, 1 ou 3 dias e horário configurável; datas seguem o calendário civil e usam o Clock injetável.
