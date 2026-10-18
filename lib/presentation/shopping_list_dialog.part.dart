@@ -199,6 +199,7 @@ class _ShoppingDialogState extends State<ShoppingDialog> {
                       controller: _price,
                       keyboardType:
                           const TextInputType.numberWithOptions(decimal: true),
+                      inputFormatters: [BrlCentsInputFormatter()],
                       decoration: const InputDecoration(
                           labelText: 'Preço por unidade (R\$)',
                           helperText: 'Opcional'),

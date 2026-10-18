@@ -1,5 +1,13 @@
 # Registro de mudanças
 
+## 2026-10-18 — Atualização global de UX (em andamento)
+
+- Campos monetários de cadastro e edição agora compartilham máscara brasileira
+  com digitação em centavos, teclado numérico e conversão inteira sem `double`.
+  A máscara cobre também colagem, remoção, seleção e saldos negativos.
+- Percentuais usam máscara separada, com vírgula decimal e limites adequados
+  à taxa de juros ou à rentabilidade informada.
+
 ## 2026-10-18 — Planejamento mensal familiar
 
 - A área Organização mostra entradas, despesas essenciais, não essenciais,

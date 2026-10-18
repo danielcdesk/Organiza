@@ -5,6 +5,30 @@ import 'package:organiza/presentation/organiza_app.dart';
 import 'package:organiza/presentation/shared_widgets.dart';
 
 void main() {
+  testWidgets('renda digitada só com números vira centavos corretos',
+      (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final store = OrganizaStore.inMemory();
+    addTearDown(store.dispose);
+    await tester.pumpWidget(OrganizaApp(store: store));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Começar'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+        find.byKey(const ValueKey('profile-setup-name')), 'Pessoa teste');
+    await tester.enterText(
+        find.byKey(const ValueKey('profile-setup-income')), '12345');
+    expect(find.text('R\$ 123,45'), findsOneWidget);
+    await tester
+        .ensureVisible(find.byKey(const ValueKey('profile-setup-submit')));
+    await tester.tap(find.byKey(const ValueKey('profile-setup-submit')));
+    await tester.pumpAndSettle();
+    expect(store.profileIncomeInCents, 12345);
+  });
+
   testWidgets('primeiro acesso exige perfil antes de abrir o painel',
       (tester) async {
     tester.view.physicalSize = const Size(390, 844);

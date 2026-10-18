@@ -81,6 +81,7 @@ class _SubscriptionDialogState extends State<SubscriptionDialog> {
                       controller: _amount,
                       keyboardType:
                           const TextInputType.numberWithOptions(decimal: true),
+                      inputFormatters: [BrlCentsInputFormatter()],
                       decoration: const InputDecoration(
                           labelText: 'Valor mensal (R\$)'))),
               const SizedBox(width: 12),
@@ -89,6 +90,7 @@ class _SubscriptionDialogState extends State<SubscriptionDialog> {
                   child: TextField(
                       controller: _day,
                       keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                       decoration: const InputDecoration(labelText: 'Dia'))),
             ]),
             const SizedBox(height: 12),
@@ -198,6 +200,7 @@ class _BudgetDialogState extends State<BudgetDialog> {
                 autofocus: true,
                 keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: [BrlCentsInputFormatter()],
                 decoration: const InputDecoration(
                   labelText: 'Limite mensal (R\$)',
                   hintText: 'Ex.: 1.500,00',
@@ -327,6 +330,7 @@ class _FinancialGoalDialogState extends State<FinancialGoalDialog> {
                     controller: _target,
                     keyboardType:
                         const TextInputType.numberWithOptions(decimal: true),
+                    inputFormatters: [BrlCentsInputFormatter()],
                     decoration:
                         const InputDecoration(labelText: 'Objetivo (R\$)'),
                   ),
@@ -337,6 +341,7 @@ class _FinancialGoalDialogState extends State<FinancialGoalDialog> {
                     controller: _initial,
                     keyboardType:
                         const TextInputType.numberWithOptions(decimal: true),
+                    inputFormatters: [BrlCentsInputFormatter()],
                     decoration:
                         const InputDecoration(labelText: 'Já guardado (R\$)'),
                   ),
@@ -486,6 +491,7 @@ class _GoalContributionDialogState extends State<GoalContributionDialog> {
                 autofocus: true,
                 keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: [BrlCentsInputFormatter()],
                 decoration: const InputDecoration(labelText: 'Valor (R\$)'),
               ),
               _DialogError(_error),
@@ -574,22 +580,9 @@ class _DialogError extends StatelessWidget {
 }
 
 int? parseMoney(String raw) {
-  final normalized = raw.trim().replaceAll('.', '').replaceAll(',', '.');
-  final value = double.tryParse(normalized);
-  if (value == null ||
-      !value.isFinite ||
-      value.isNegative ||
-      value > 1000000000) {
-    return null;
-  }
-  return (value * 100).round();
+  return parseMoneyInput(raw);
 }
 
 int? parseSignedMoney(String raw) {
-  final normalized = raw.trim().replaceAll('.', '').replaceAll(',', '.');
-  final value = double.tryParse(normalized);
-  if (value == null || !value.isFinite || value.abs() > 1000000000) {
-    return null;
-  }
-  return (value * 100).round();
+  return parseMoneyInput(raw, allowNegative: true);
 }

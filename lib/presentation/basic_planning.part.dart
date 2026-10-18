@@ -320,7 +320,7 @@ class _SalaryDialogState extends State<_SalaryDialog> {
   void initState() {
     super.initState();
     String money(double ratio) =>
-        ((widget.salary * ratio) / 100).toStringAsFixed(2).replaceAll('.', ',');
+        formatMoneyInput((widget.salary * ratio).round());
     _controllers = [
       TextEditingController(text: money(.5)),
       TextEditingController(text: money(.3)),
@@ -351,13 +351,14 @@ class _SalaryDialogState extends State<_SalaryDialog> {
                         controller: _controllers[index],
                         keyboardType: const TextInputType.numberWithOptions(
                             decimal: true),
+                        inputFormatters: [BrlCentsInputFormatter()],
                         decoration: InputDecoration(
-                            labelText: [
-                              'Essenciais',
-                              'Objetivos',
-                              'Livre'
-                            ][index],
-                            prefixText: 'R\$ '),
+                          labelText: [
+                            'Essenciais',
+                            'Objetivos',
+                            'Livre'
+                          ][index],
+                        ),
                       ),
                     )),
           ),

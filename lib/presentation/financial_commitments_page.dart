@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../application/organiza_store.dart';
 import '../domain/financial_rules.dart';
 import '../domain/models.dart';
 import 'dialogs.dart' show parseMoney;
+import 'input_formatters.dart';
 import 'shared_widgets.dart';
 import 'recurring_obligations_section.dart';
 
@@ -165,23 +167,29 @@ class _FinancialCommitmentsPageState extends State<FinancialCommitmentsPage> {
                               keyboardType:
                                   const TextInputType.numberWithOptions(
                                       decimal: true),
+                              inputFormatters: [BrlCentsInputFormatter()],
                               decoration: const InputDecoration(
                                   labelText: 'Principal (R\$)')),
                         TextField(
                             controller: installment,
                             keyboardType: const TextInputType.numberWithOptions(
                                 decimal: true),
+                            inputFormatters: [BrlCentsInputFormatter()],
                             decoration: const InputDecoration(
                                 labelText: 'Parcela (R\$)')),
                         TextField(
                             controller: interest,
                             keyboardType: const TextInputType.numberWithOptions(
                                 decimal: true),
+                            inputFormatters: [PercentInputFormatter()],
                             decoration: const InputDecoration(
                                 labelText: 'Juros mensais (%)')),
                         TextField(
                             controller: count,
                             keyboardType: TextInputType.number,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly
+                            ],
                             decoration: const InputDecoration(
                                 labelText: 'Parcelas restantes')),
                         DropdownButtonFormField<String>(
@@ -219,8 +227,9 @@ class _FinancialCommitmentsPageState extends State<FinancialCommitmentsPage> {
                           final original = debt?.originalPrincipalInCents ??
                               parseMoney(principal.text);
                           final installmentCents = parseMoney(installment.text);
-                          final interestBps = ((double.tryParse(
-                                          interest.text.replaceAll(',', '.')) ??
+                          final interestBps = ((double.tryParse(interest.text
+                                          .replaceAll('%', '')
+                                          .replaceAll(',', '.')) ??
                                       -1) *
                                   100)
                               .round();

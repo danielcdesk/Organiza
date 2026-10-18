@@ -179,6 +179,7 @@ class _InvestmentDialogState extends State<InvestmentDialog> {
                         controller: _invested,
                         keyboardType: const TextInputType.numberWithOptions(
                             decimal: true),
+                        inputFormatters: [BrlCentsInputFormatter()],
                         decoration: const InputDecoration(
                             labelText: 'Total aplicado (R\$)'),
                       ),
@@ -189,6 +190,7 @@ class _InvestmentDialogState extends State<InvestmentDialog> {
                         controller: _current,
                         keyboardType: const TextInputType.numberWithOptions(
                             decimal: true),
+                        inputFormatters: [BrlCentsInputFormatter()],
                         decoration: const InputDecoration(
                           labelText: 'Valor atual (R\$)',
                         ),
@@ -201,6 +203,9 @@ class _InvestmentDialogState extends State<InvestmentDialog> {
                   controller: _quotedRate,
                   keyboardType: const TextInputType.numberWithOptions(
                       decimal: true, signed: true),
+                  inputFormatters: [
+                    PercentInputFormatter(allowNegative: true, max: 1000)
+                  ],
                   decoration: const InputDecoration(
                     labelText: 'Rentabilidade informada (%)',
                     hintText: 'Ex.: 0,5',

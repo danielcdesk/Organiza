@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../domain/models.dart';
+import 'input_formatters.dart';
 import 'shared_widgets.dart';
 import '../services/local_image_service.dart';
 

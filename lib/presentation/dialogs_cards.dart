@@ -118,6 +118,7 @@ class _CardDialogState extends State<CardDialog> {
                   controller: _limit,
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: [BrlCentsInputFormatter()],
                   decoration: const InputDecoration(labelText: 'Limite (R\$)'),
                 ),
                 const SizedBox(height: 12),
@@ -349,6 +350,7 @@ class _CardPurchaseDialogState extends State<CardPurchaseDialog> {
                       controller: _amount,
                       keyboardType:
                           const TextInputType.numberWithOptions(decimal: true),
+                      inputFormatters: [BrlCentsInputFormatter()],
                       decoration:
                           const InputDecoration(labelText: 'Valor total (R\$)'),
                     ),

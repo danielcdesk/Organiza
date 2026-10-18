@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../application/organiza_store.dart';
 import '../domain/financial_rules.dart';
 import '../domain/models.dart';
 import '../domain/recurring_obligation_rules.dart';
 import 'dialogs.dart' show parseMoney;
+import 'input_formatters.dart';
 import 'shared_widgets.dart';
 
 class RecurringObligationsSection extends StatefulWidget {
@@ -129,6 +131,7 @@ class _RecurringObligationsSectionState
                   controller: amount,
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: [BrlCentsInputFormatter()],
                   decoration:
                       const InputDecoration(labelText: 'Valor pago (R\$)')),
               actions: [
@@ -208,11 +211,15 @@ class _RecurringObligationsSectionState
                             controller: amount,
                             keyboardType: const TextInputType.numberWithOptions(
                                 decimal: true),
+                            inputFormatters: [BrlCentsInputFormatter()],
                             decoration: const InputDecoration(
                                 labelText: 'Valor estimado (R\$)')),
                         TextField(
                             controller: day,
                             keyboardType: TextInputType.number,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly
+                            ],
                             decoration: const InputDecoration(
                                 labelText: 'Dia de cobrança (1–31)')),
                         DropdownButtonFormField<String>(

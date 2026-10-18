@@ -80,6 +80,7 @@ class _TransactionEditDialogState extends State<TransactionEditDialog> {
                   autofocus: true,
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: [BrlCentsInputFormatter()],
                   decoration: const InputDecoration(labelText: 'Valor (R\$)')),
               const SizedBox(height: 14),
               TextField(
@@ -218,8 +219,11 @@ class _AccountBalanceDialogState extends State<AccountBalanceDialog> {
                 TextField(
                     controller: _value,
                     autofocus: true,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true, signed: true),
+                    inputFormatters: [
+                      BrlCentsInputFormatter(allowNegative: true)
+                    ],
                     decoration: const InputDecoration(
                         labelText: 'Novo saldo atual (R\$)')),
                 _DialogError(_error),
@@ -351,8 +355,11 @@ class _AccountDialogState extends State<AccountDialog> {
                 const SizedBox(height: 12),
                 TextField(
                   controller: _balance,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true, signed: true),
+                  inputFormatters: [
+                    BrlCentsInputFormatter(allowNegative: true)
+                  ],
                   decoration:
                       const InputDecoration(labelText: 'Saldo inicial (R\$)'),
                 ),

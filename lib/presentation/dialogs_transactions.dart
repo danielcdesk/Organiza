@@ -369,6 +369,7 @@ class _TransactionDialogState extends State<TransactionDialog> {
                   controller: _amount,
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: [BrlCentsInputFormatter()],
                   decoration: InputDecoration(
                     labelText:
                         _scheduleType == TransactionScheduleType.installment

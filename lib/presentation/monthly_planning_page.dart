@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../application/organiza_store.dart';
 import '../domain/financial_planning.dart';
@@ -7,6 +8,7 @@ import '../domain/financial_rules.dart';
 import '../domain/models.dart';
 import 'shared_widgets.dart';
 import 'dialogs.dart' show parseMoney;
+import 'input_formatters.dart';
 
 class MonthlyPlanningPage extends StatefulWidget {
   const MonthlyPlanningPage({
@@ -219,12 +221,14 @@ class _MonthlyPlanningPageState extends State<MonthlyPlanningPage> {
                   TextField(
                       controller: months,
                       keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                       decoration: const InputDecoration(
                           labelText: 'Meses de proteção')),
                   TextField(
                       controller: balance,
                       keyboardType:
                           const TextInputType.numberWithOptions(decimal: true),
+                      inputFormatters: [BrlCentsInputFormatter()],
                       decoration: const InputDecoration(
                           labelText: 'Reserva atual (R\$)')),
                   const SizedBox(height: 12),

@@ -78,10 +78,10 @@ class _ProfileDialogState extends State<ProfileDialog> {
                   controller: _income,
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: [BrlCentsInputFormatter()],
                   decoration: const InputDecoration(
                     labelText: 'Quanto você ganha por mês?',
                     prefixIcon: Icon(Icons.payments_outlined),
-                    prefixText: 'R\$ ',
                     helperText: 'Fica salvo somente neste dispositivo.',
                   ),
                 ),

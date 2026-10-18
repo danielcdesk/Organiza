@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../services/local_image_service.dart';
 import 'dialogs.dart';
+import 'input_formatters.dart';
 
 class ProfileSetupPage extends StatefulWidget {
   const ProfileSetupPage({super.key, required this.onComplete});
@@ -216,13 +217,13 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
               controller: _income,
               keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: [BrlCentsInputFormatter()],
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => _submit(),
               decoration: const InputDecoration(
                 labelText: 'Quanto você ganha por mês? (opcional)',
                 hintText: '0,00',
                 prefixIcon: Icon(Icons.payments_outlined),
-                prefixText: 'R\$ ',
               ),
             ),
             const SizedBox(height: 8),

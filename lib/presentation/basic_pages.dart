@@ -7,6 +7,7 @@ import '../domain/financial_rules.dart';
 import '../domain/models.dart';
 import '../domain/app_route.dart';
 import 'dialogs.dart';
+import 'input_formatters.dart';
 import 'budgets_page.dart';
 import 'organiza_theme.dart';
 import 'shared_widgets.dart';
