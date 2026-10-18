@@ -1,5 +1,24 @@
 # Regras financeiras
 
+## Planejamento familiar e reserva
+
+- O planejamento agrupa lançamentos pela data civil do mês, inclusive
+  lançamentos ainda pendentes. Transferências e pagamento de fatura ficam fora;
+  parcelas de cartão entram pela competência da fatura, uma única vez.
+- Categorias de despesa podem ser essenciais, não essenciais ou não
+  classificadas. Lançamentos antigos sem classificação continuam nas despesas
+  gerais; uma ocorrência pode ter classificação própria. Receitas sem fonte
+  continuam somadas e são exibidas como “Sem fonte”.
+- Sobra = receitas − todas as despesas. Taxa de poupança = sobra ÷ receitas;
+  com receita zero, a taxa é exibida como zero. Valor negativo explicita déficit.
+- Meta de reserva = meses-alvo (padrão 6) × média, em centavos, do custo
+  essencial elegível dos três meses civis completos anteriores à data atual.
+  O mês em andamento não entra. O usuário pode excluir categorias do cálculo
+  e informar manualmente o saldo já reservado; este saldo não movimenta conta
+  nem posição de investimento.
+- O indicador de investimentos mostra o valor atual das posições cadastradas,
+  não aportes do mês nem uma cotação em tempo real.
+
 ## Previsão e edição na versão 0.7.0
 
 - A previsão de fechamento parte do saldo confirmado e soma receitas pendentes e desconta despesas pendentes até o último dia do mês, incluindo atrasos de meses anteriores.

@@ -4,6 +4,7 @@
 |---|---:|---:|---:|---:|---|
 | Planejamento mensal por essencialidade, sobra e taxa de poupança | Sim | Sim | Widget | Sim | 2026-10-18 |
 | Fonte opcional de receita e classificação editável de categorias | Sim | Sim | Widget | Sim | 2026-10-18 |
+| Meta de reserva e indicadores de saúde financeira | Sim | Sim | Widget | Sim | 2026-10-18 |
 | Previsão mensal e agenda de pendências | Sim | Sim | Sim | Sim | 2026-09-17 |
 | Confirmar pendência e desfazer | Sim | Sim | Widget | Sim | 2026-09-17 |
 | Editar valor/descrição de lançamento individual | Sim | Sim | Widget | Sim | 2026-09-17 |

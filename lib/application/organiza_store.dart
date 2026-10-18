@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:clock/clock.dart';
@@ -100,6 +101,51 @@ class OrganizaStore extends ChangeNotifier with WidgetsBindingObserver {
   int get profileIncomeInCents =>
       int.tryParse(_repository.loadPreference('profile_income_cents') ?? '') ??
       0;
+  int get emergencyReserveTargetMonths =>
+      int.tryParse(_repository.loadPreference('reserve_target_months') ?? '') ?? 6;
+  int get emergencyReserveBalanceInCents =>
+      int.tryParse(_repository.loadPreference('reserve_balance_cents') ?? '') ?? 0;
+  Set<String> get emergencyReserveExcludedCategoryIds {
+    final saved = _repository.loadPreference('reserve_excluded_categories');
+    if (saved == null || saved.isEmpty) return const {};
+    try {
+      return (jsonDecode(saved) as List).whereType<String>().toSet();
+    } on FormatException {
+      return const {};
+    }
+  }
+
+  void updateEmergencyReserveSettings({
+    int? targetMonths,
+    int? reserveBalanceInCents,
+    Set<String>? excludedCategoryIds,
+  }) {
+    if (targetMonths != null && (targetMonths < 1 || targetMonths > 120)) {
+      throw ArgumentError('Informe entre 1 e 120 meses para a reserva.');
+    }
+    if (reserveBalanceInCents != null && reserveBalanceInCents < 0) {
+      throw ArgumentError('Informe um saldo de reserva válido.');
+    }
+    if (excludedCategoryIds != null &&
+        excludedCategoryIds.any((id) =>
+            financeCategories.every((category) => category.id != id))) {
+      throw ArgumentError('Categoria não encontrada.');
+    }
+    _repository.transaction(() {
+      if (targetMonths != null) {
+        _repository.savePreference('reserve_target_months', '$targetMonths');
+      }
+      if (reserveBalanceInCents != null) {
+        _repository.savePreference(
+            'reserve_balance_cents', '$reserveBalanceInCents');
+      }
+      if (excludedCategoryIds != null) {
+        _repository.savePreference('reserve_excluded_categories',
+            jsonEncode(excludedCategoryIds.toList()..sort()));
+      }
+    });
+    notifyListeners();
+  }
   String? get profilePhotoPath {
     final value = _repository.loadPreference('profile_photo_path');
     return value == null || value.isEmpty ? null : value;

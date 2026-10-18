@@ -8,6 +8,9 @@
   sobrescrever a classificação e receitas podem registrar a fonte. Dados
   antigos permanecem contabilizados como não classificados ou sem fonte.
 - Schema 20 preserva as linhas existentes e os novos dados nos backups.
+- Meta de reserva usa média de três meses completos, alvo configurável,
+  categorias excluíveis e saldo informado manualmente; indicadores mostram
+  comprometimento essencial e total das posições de investimento.
 
 ## 2026-10-11 — Lembretes locais e bloqueio de acesso
 

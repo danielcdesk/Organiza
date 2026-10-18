@@ -7,6 +7,22 @@ import 'package:organiza/domain/app_route.dart';
 import 'package:organiza/domain/financial_rules.dart';
 
 void main() {
+  test('preferências da reserva persistem na sessão e validam meses', () {
+    final store = OrganizaStore.inMemory();
+    addTearDown(store.dispose);
+    final category = store.financeCategories.firstWhere(
+        (item) => item.type == TransactionType.expense);
+    store.updateEmergencyReserveSettings(
+      targetMonths: 9,
+      reserveBalanceInCents: 12345,
+      excludedCategoryIds: {category.id},
+    );
+    expect(store.emergencyReserveTargetMonths, 9);
+    expect(store.emergencyReserveBalanceInCents, 12345);
+    expect(store.emergencyReserveExcludedCategoryIds, {category.id});
+    expect(() => store.updateEmergencyReserveSettings(targetMonths: 0),
+        throwsArgumentError);
+  });
   test('classificação e fonte sobrevivem edição de lançamento', () {
     final store = OrganizaStore.inMemory(clock: Clock.fixed(DateTime(2026, 9, 10)));
     addTearDown(store.dispose);
