@@ -75,6 +75,20 @@ class LocalRepository {
       _database.loadFinanceCategories();
   List<Debt> loadDebts() => _database.loadDebts();
   List<DebtPayment> loadDebtPayments() => _database.loadDebtPayments();
+  List<RecurringObligation> loadRecurringObligations() =>
+      _database.loadRecurringObligations();
+  void insertRecurringObligation(RecurringObligation item) =>
+      _database.insertRecurringObligation(item);
+  void updateRecurringObligation(RecurringObligation item) =>
+      _database.updateRecurringObligation(item);
+  void deleteRecurringObligation(String id) =>
+      _database.deleteRecurringObligation(id);
+  void insertRecurringObligationOccurrence(String id, String obligationId,
+          String transactionId, DateTime dueOn) =>
+      _database.insertRecurringObligationOccurrence(
+          id, obligationId, transactionId, dueOn);
+  void deleteRecurringObligationOccurrence(String transactionId) =>
+      _database.deleteRecurringObligationOccurrence(transactionId);
   void insertDebt(Debt item) => _database.insertDebt(item);
   void updateDebt(Debt item) => _database.updateDebt(item);
   void deleteDebt(String id) => _database.deleteDebt(id);

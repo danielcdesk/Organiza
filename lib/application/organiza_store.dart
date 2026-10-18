@@ -9,6 +9,7 @@ import 'package:uuid/uuid.dart';
 import '../data/local_repository.dart';
 import '../domain/financial_rules.dart';
 import '../domain/debt_rules.dart';
+import '../domain/recurring_obligation_rules.dart';
 import '../domain/credit_card_rules.dart';
 import '../domain/business_date.dart';
 import '../domain/models.dart';
@@ -79,6 +80,7 @@ class OrganizaStore extends ChangeNotifier with WidgetsBindingObserver {
       ];
   List<Debt> debts = [];
   List<DebtPayment> debtPayments = [];
+  List<RecurringObligation> recurringObligations = [];
   List<InvestmentPosition> investments = [];
   List<Budget> budgets = [];
   List<Subscription> subscriptions = [];
@@ -335,6 +337,7 @@ class OrganizaStore extends ChangeNotifier with WidgetsBindingObserver {
     investments = _repository.loadInvestments();
     debts = _repository.loadDebts();
     debtPayments = _repository.loadDebtPayments();
+    recurringObligations = _repository.loadRecurringObligations();
     budgets = _repository.loadBudgets();
     subscriptions = _repository.loadSubscriptions();
     salaryAllocation = _repository.loadSalaryAllocation();
@@ -1479,6 +1482,118 @@ class OrganizaStore extends ChangeNotifier with WidgetsBindingObserver {
         installmentsRemaining: debt.installmentsRemaining + 1,
         accountId: debt.accountId, category: debt.category,
         isActive: true, createdAt: debt.createdAt,
+      ));
+    });
+    reload();
+  }
+
+  void addRecurringObligation({
+    required String name,
+    required String category,
+    required String accountId,
+    required int estimatedAmountInCents,
+    required int billingDay,
+    required DateTime nextDueOn,
+  }) {
+    if (name.trim().isEmpty || estimatedAmountInCents <= 0 ||
+        billingDay < 1 || billingDay > 31 ||
+        accounts.every((account) => account.id != accountId)) {
+      throw ArgumentError('Dados da conta recorrente inválidos.');
+    }
+    _repository.insertRecurringObligation(RecurringObligation(
+      id: _id(), name: name.trim(),
+      category: category.trim().isEmpty ? 'Outros' : category.trim(),
+      accountId: accountId,
+      estimatedAmountInCents: estimatedAmountInCents,
+      billingDay: billingDay,
+      nextDueOn: RecurringObligationRules.monthlyDue(nextDueOn,
+          billingDay: billingDay, monthOffset: 0),
+      isActive: true, createdAt: _now,
+    ));
+    reload();
+  }
+
+  void editRecurringObligation(RecurringObligation obligation) {
+    if (recurringObligations.every((item) => item.id != obligation.id) ||
+        obligation.name.trim().isEmpty ||
+        obligation.estimatedAmountInCents <= 0 ||
+        obligation.billingDay < 1 || obligation.billingDay > 31) {
+      throw ArgumentError('Dados da conta recorrente inválidos.');
+    }
+    _repository.updateRecurringObligation(obligation);
+    reload();
+  }
+
+  void deleteRecurringObligation(String id) {
+    _repository.deleteRecurringObligation(id);
+    reload();
+  }
+
+  void confirmRecurringObligation(String id, {int? amountInCents}) {
+    final obligation = recurringObligations
+        .where((item) => item.id == id).firstOrNull;
+    if (obligation == null || !obligation.isActive) {
+      throw StateError('Conta recorrente inativa ou ausente.');
+    }
+    final amount = amountInCents ?? obligation.estimatedAmountInCents;
+    if (!FinancialRules.isValidAmount(amount)) {
+      throw ArgumentError('Informe um valor válido.');
+    }
+    final transactionId = _id();
+    final date = BusinessDate.from(_now);
+    _repository.transaction(() {
+      _repository.insertTransaction(TransactionRecord(
+        id: transactionId, accountId: obligation.accountId,
+        type: TransactionType.expense, amountInCents: amount,
+        description: obligation.name, category: obligation.category,
+        occurredOn: date, createdAt: _now,
+        recurringObligationId: obligation.id,
+      ));
+      _repository.insertRecurringObligationOccurrence(
+          _id(), obligation.id, transactionId, obligation.nextDueOn);
+      _repository.updateRecurringObligation(RecurringObligation(
+        id: obligation.id, name: obligation.name,
+        category: obligation.category, accountId: obligation.accountId,
+        estimatedAmountInCents: obligation.estimatedAmountInCents,
+        billingDay: obligation.billingDay,
+        nextDueOn: RecurringObligationRules.monthlyDue(
+            obligation.nextDueOn,
+            billingDay: obligation.billingDay, monthOffset: 1),
+        isActive: obligation.isActive, createdAt: obligation.createdAt,
+      ));
+    });
+    reload();
+  }
+
+  void undoRecurringObligationConfirmation(String transactionId) {
+    final transaction = transactions.where((item) =>
+        item.id == transactionId && item.recurringObligationId != null).firstOrNull;
+    if (transaction == null) {
+      throw ArgumentError('Confirmação não encontrada.');
+    }
+    final obligation = recurringObligations.where((item) =>
+        item.id == transaction.recurringObligationId).firstOrNull;
+    if (obligation == null) {
+      throw StateError('A conta recorrente já foi removida.');
+    }
+    final same = transactions.where((item) =>
+        item.recurringObligationId == obligation.id).toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    if (same.first.id != transactionId) {
+      throw StateError('Desfaça primeiro a confirmação mais recente.');
+    }
+    _repository.transaction(() {
+      _repository.deleteRecurringObligationOccurrence(transactionId);
+      _repository.deleteTransaction(transactionId);
+      _repository.updateRecurringObligation(RecurringObligation(
+        id: obligation.id, name: obligation.name,
+        category: obligation.category, accountId: obligation.accountId,
+        estimatedAmountInCents: obligation.estimatedAmountInCents,
+        billingDay: obligation.billingDay,
+        nextDueOn: RecurringObligationRules.monthlyDue(
+            obligation.nextDueOn,
+            billingDay: obligation.billingDay, monthOffset: -1),
+        isActive: obligation.isActive, createdAt: obligation.createdAt,
       ));
     });
     reload();

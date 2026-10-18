@@ -69,6 +69,7 @@ class _BalanceProjectionCardState extends State<BalanceProjectionCard> {
       cardInvoices: widget.store.cardInvoices,
       debts: widget.store.debts,
       debtPayments: widget.store.debtPayments,
+      recurringObligations: widget.store.recurringObligations,
       clock: widget.store.clock,
       horizonDays: _horizonDays,
     );

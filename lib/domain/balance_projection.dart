@@ -3,6 +3,7 @@ import 'package:clock/clock.dart';
 import 'models.dart';
 import 'business_date.dart';
 import 'debt_rules.dart';
+import 'recurring_obligation_rules.dart';
 
 /// A daily consolidated balance, with the corresponding per-account balances.
 class BalanceProjectionPoint {
@@ -51,6 +52,8 @@ class BalanceProjection {
     Iterable<CardInvoice> cardInvoices = const <CardInvoice>[],
     Iterable<Debt> debts = const <Debt>[],
     Iterable<DebtPayment> debtPayments = const <DebtPayment>[],
+    Iterable<RecurringObligation> recurringObligations =
+        const <RecurringObligation>[],
     int horizonDays = 90,
   }) {
     if (horizonDays < 1) {
@@ -136,6 +139,22 @@ class BalanceProjection {
           amountInCents: part.paymentInCents,
         ), accountIds: balances.keys);
         outstanding -= part.principalInCents;
+      }
+    }
+    for (final obligation in recurringObligations) {
+      if (!obligation.isActive) continue;
+      for (var offset = 0; offset < 120; offset++) {
+        final due = RecurringObligationRules.monthlyDue(
+            obligation.nextDueOn,
+            billingDay: obligation.billingDay,
+            monthOffset: offset);
+        if (due.isAfter(lastDay)) break;
+        _addEvent(events, _ProjectionEvent(
+          date: _effectiveDate(due, today),
+          accountId: obligation.accountId,
+          type: TransactionType.expense,
+          amountInCents: obligation.estimatedAmountInCents,
+        ), accountIds: balances.keys);
       }
     }
 

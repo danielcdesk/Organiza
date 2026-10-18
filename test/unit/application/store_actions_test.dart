@@ -7,6 +7,22 @@ import 'package:organiza/domain/app_route.dart';
 import 'package:organiza/domain/financial_rules.dart';
 
 void main() {
+  test('conta recorrente confirma valor real e mantém histórico após exclusão', () {
+    final store = OrganizaStore.inMemory(clock: Clock.fixed(DateTime(2026, 9, 10)));
+    addTearDown(store.dispose);
+    store.addAccount('Principal', 100000);
+    store.addRecurringObligation(name: 'Energia', category: 'Moradia',
+      accountId: store.accounts.single.id, estimatedAmountInCents: 12000,
+      billingDay: 31, nextDueOn: DateTime(2026, 9, 30));
+    final id = store.recurringObligations.single.id;
+    store.confirmRecurringObligation(id, amountInCents: 13000);
+    expect(store.balance, 87000);
+    expect(store.recurringObligations.single.nextDueOn, DateTime.utc(2026, 10, 31));
+    store.deleteRecurringObligation(id);
+    expect(store.recurringObligations, isEmpty);
+    expect(store.transactions.single.description, 'Energia');
+    expect(store.balance, 87000);
+  });
   test('parcela de dívida reduz saldo uma vez mas relata só juros', () {
     final store = OrganizaStore.inMemory(clock: Clock.fixed(DateTime(2026, 9, 10)));
     addTearDown(store.dispose);

@@ -688,7 +688,7 @@ class AppDatabase {
           );
           CREATE TABLE IF NOT EXISTS recurring_obligation_occurrences (
             id TEXT PRIMARY KEY NOT NULL,
-            obligation_id TEXT NOT NULL REFERENCES recurring_obligations(id) ON DELETE RESTRICT,
+            obligation_id TEXT REFERENCES recurring_obligations(id) ON DELETE SET NULL,
             transaction_id TEXT NOT NULL UNIQUE REFERENCES transactions(id) ON DELETE RESTRICT,
             due_on TEXT NOT NULL
           );
@@ -914,6 +914,7 @@ class AppDatabase {
                 : ExpenseEssentiality.values.byName(
                     row['essentiality_override'] as String),
             debtPaymentId: row['debt_payment_id'] as String?,
+            recurringObligationId: row['recurring_obligation_id'] as String?,
             occurredOn: BusinessDate.parse(row['occurred_on'] as String),
             createdAt: DateTime.parse(row['created_at'] as String).toUtc(),
           ))
@@ -1287,8 +1288,8 @@ class AppDatabase {
           description, category, subcategory, occurred_on, created_at,
           schedule_type, series_id, installment_number, installment_count, is_settled,
           card_invoice_id, income_source, essentiality_override,
-          debt_payment_id
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+          debt_payment_id, recurring_obligation_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
         [
           item.id,
           item.accountId,
@@ -1309,6 +1310,7 @@ class AppDatabase {
           item.incomeSource,
           item.essentialityOverride?.name,
           item.debtPaymentId,
+          item.recurringObligationId,
         ],
       );
 
@@ -1640,7 +1642,8 @@ class AppDatabase {
     UPDATE transactions SET account_id = ?, destination_account_id = ?,
       amount_cents = ?, description = ?, category = ?, subcategory = ?,
       occurred_on = ?, is_settled = ?, income_source = ?,
-      essentiality_override = ?, debt_payment_id = ? WHERE id = ?
+      essentiality_override = ?, debt_payment_id = ?,
+      recurring_obligation_id = ? WHERE id = ?
   ''', [
         item.accountId,
         item.destinationAccountId,
@@ -1653,6 +1656,7 @@ class AppDatabase {
         item.incomeSource,
         item.essentialityOverride?.name,
         item.debtPaymentId,
+        item.recurringObligationId,
         item.id,
       ]);
 
@@ -1807,6 +1811,50 @@ class AppDatabase {
 
   void deleteDebtPayment(String id) =>
       _database.execute('DELETE FROM debt_payments WHERE id = ?', [id]);
+
+  List<RecurringObligation> loadRecurringObligations() => _database.select(
+      'SELECT * FROM recurring_obligations ORDER BY next_due_on ASC')
+      .map((row) => RecurringObligation(
+        id: row['id'] as String,
+        name: row['name'] as String,
+        category: row['category'] as String,
+        accountId: row['account_id'] as String,
+        estimatedAmountInCents: row['estimated_amount_cents'] as int,
+        billingDay: row['billing_day'] as int,
+        nextDueOn: BusinessDate.parse(row['next_due_on'] as String),
+        isActive: (row['is_active'] as int) == 1,
+        createdAt: DateTime.parse(row['created_at'] as String).toUtc(),
+      )).toList();
+
+  void insertRecurringObligation(RecurringObligation item) => _database.execute('''
+    INSERT INTO recurring_obligations(id, name, category, account_id,
+      estimated_amount_cents, period, billing_day, next_due_on, is_active, created_at)
+    VALUES (?, ?, ?, ?, ?, 'monthly', ?, ?, ?, ?)
+  ''', [item.id, item.name, item.category, item.accountId,
+    item.estimatedAmountInCents, item.billingDay,
+    BusinessDate.serialize(item.nextDueOn), item.isActive ? 1 : 0,
+    item.createdAt.toUtc().toIso8601String()]);
+
+  void updateRecurringObligation(RecurringObligation item) => _database.execute('''
+    UPDATE recurring_obligations SET name = ?, category = ?, account_id = ?,
+      estimated_amount_cents = ?, billing_day = ?, next_due_on = ?,
+      is_active = ? WHERE id = ?
+  ''', [item.name, item.category, item.accountId, item.estimatedAmountInCents,
+    item.billingDay, BusinessDate.serialize(item.nextDueOn),
+    item.isActive ? 1 : 0, item.id]);
+
+  void deleteRecurringObligation(String id) => _database.execute(
+      'DELETE FROM recurring_obligations WHERE id = ?', [id]);
+
+  void insertRecurringObligationOccurrence(String id, String obligationId,
+      String transactionId, DateTime dueOn) => _database.execute('''
+    INSERT INTO recurring_obligation_occurrences(id, obligation_id,
+      transaction_id, due_on) VALUES (?, ?, ?, ?)
+  ''', [id, obligationId, transactionId, BusinessDate.serialize(dueOn)]);
+
+  void deleteRecurringObligationOccurrence(String transactionId) =>
+      _database.execute('DELETE FROM recurring_obligation_occurrences WHERE transaction_id = ?',
+          [transactionId]);
 
   void saveSalaryAllocation(SalaryAllocation allocation) => _database.execute(
         '''UPDATE salary_allocation

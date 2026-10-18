@@ -4,6 +4,30 @@ import 'package:organiza/domain/models.dart';
 import 'package:organiza/domain/app_route.dart';
 
 void main() {
+  test('snapshot do schema 21 inclui dívidas e contas recorrentes', () {
+    final source = AppDatabase.openInMemoryFromVersion1ForTest();
+    addTearDown(source.close);
+    final now = DateTime.utc(2026, 9, 10);
+    source.insertAccount(Account(id: 'a', name: 'Conta',
+        openingBalanceInCents: 0, createdAt: now));
+    source.insertDebt(Debt(id: 'd', name: 'Empréstimo',
+      originalPrincipalInCents: 100000,
+      outstandingPrincipalInCents: 100000,
+      monthlyInterestBasisPoints: 100,
+      installmentAmountInCents: 10000,
+      firstDueOn: now, installmentsRemaining: 12,
+      accountId: 'a', category: 'Empréstimos', isActive: true,
+      createdAt: now));
+    source.insertRecurringObligation(RecurringObligation(id: 'r',
+      name: 'Energia', category: 'Moradia', accountId: 'a',
+      estimatedAmountInCents: 12000, billingDay: 10,
+      nextDueOn: now, isActive: true, createdAt: now));
+    final destination = AppDatabase.openInMemory();
+    addTearDown(destination.close);
+    destination.restoreSnapshot(source.exportSnapshot());
+    expect(destination.loadDebts().single.name, 'Empréstimo');
+    expect(destination.loadRecurringObligations().single.name, 'Energia');
+  });
   test('schema 20 preserva dados e persiste classificação e fonte', () {
     final database = AppDatabase.openInMemoryFromVersion1ForTest();
     addTearDown(database.close);

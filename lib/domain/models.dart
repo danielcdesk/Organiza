@@ -65,6 +65,7 @@ class TransactionRecord {
     this.incomeSource,
     this.essentialityOverride,
     this.debtPaymentId,
+    this.recurringObligationId,
   });
 
   final String id;
@@ -86,6 +87,7 @@ class TransactionRecord {
   final String? incomeSource;
   final ExpenseEssentiality? essentialityOverride;
   final String? debtPaymentId;
+  final String? recurringObligationId;
 }
 
 enum TransactionScheduleType { single, recurring, installment }
@@ -376,6 +378,22 @@ class DebtPayment {
   final int principalInCents;
   final int interestInCents;
   final DateTime paidOn;
+}
+
+class RecurringObligation {
+  const RecurringObligation({required this.id, required this.name,
+    required this.category, required this.accountId,
+    required this.estimatedAmountInCents, required this.billingDay,
+    required this.nextDueOn, required this.isActive, required this.createdAt});
+  final String id;
+  final String name;
+  final String category;
+  final String accountId;
+  final int estimatedAmountInCents;
+  final int billingDay;
+  final DateTime nextDueOn;
+  final bool isActive;
+  final DateTime createdAt;
 }
 
 class Subscription {

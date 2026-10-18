@@ -5,6 +5,7 @@ import '../domain/financial_rules.dart';
 import '../domain/models.dart';
 import 'dialogs.dart' show parseMoney;
 import 'shared_widgets.dart';
+import 'recurring_obligations_section.dart';
 
 class FinancialCommitmentsPage extends StatefulWidget {
   const FinancialCommitmentsPage({super.key, required this.store,
@@ -73,6 +74,9 @@ class _FinancialCommitmentsPageState extends State<FinancialCommitmentsPage> {
         ],
       ]),
     ),
+    const SizedBox(height: 14),
+    RecurringObligationsSection(store: widget.store,
+        hideValues: widget.hideValues),
   ]);
 
   Future<void> _deleteDebt(Debt debt) async {
