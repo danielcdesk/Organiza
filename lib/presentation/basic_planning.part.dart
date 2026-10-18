@@ -63,6 +63,8 @@ class _PlanningPageState extends State<PlanningPage> {
         children: [
           MonthlyPlanningPage(store: store, hideValues: widget.hideValues),
           const SizedBox(height: 20),
+          FinancialCommitmentsPage(store: store, hideValues: widget.hideValues),
+          const SizedBox(height: 20),
           if (widget.budgetFirst) ...[
             BudgetSection(
                 store: store,

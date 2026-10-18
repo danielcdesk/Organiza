@@ -13,7 +13,7 @@ class AppDatabase {
   AppDatabase._(this._database);
 
   final Database _database;
-  static const _schemaVersion = 20;
+  static const _schemaVersion = 21;
   static const _backupTables = <String>[
     'accounts',
     'transactions',
@@ -35,6 +35,10 @@ class AppDatabase {
     'salary_schedule_exceptions',
     'app_settings',
     'goal_categories',
+    'debts',
+    'debt_payments',
+    'recurring_obligations',
+    'recurring_obligation_occurrences',
   ];
 
   static Future<AppDatabase> open() async {
@@ -639,6 +643,62 @@ class AppDatabase {
         _database.execute('PRAGMA user_version = 20');
       });
     }
+    if (current < 21) {
+      transaction(() {
+        if (!_tableColumns('transactions').contains('debt_payment_id')) {
+          _database.execute('ALTER TABLE transactions ADD COLUMN debt_payment_id TEXT');
+        }
+        if (!_tableColumns('transactions').contains('recurring_obligation_id')) {
+          _database.execute('ALTER TABLE transactions ADD COLUMN recurring_obligation_id TEXT');
+        }
+        _database.execute('''
+          CREATE TABLE IF NOT EXISTS debts (
+            id TEXT PRIMARY KEY NOT NULL,
+            name TEXT NOT NULL,
+            original_principal_cents INTEGER NOT NULL CHECK(original_principal_cents > 0),
+            outstanding_principal_cents INTEGER NOT NULL CHECK(outstanding_principal_cents >= 0),
+            monthly_interest_bps INTEGER NOT NULL CHECK(monthly_interest_bps BETWEEN 0 AND 10000),
+            installment_amount_cents INTEGER NOT NULL CHECK(installment_amount_cents > 0),
+            first_due_on TEXT NOT NULL,
+            installments_remaining INTEGER NOT NULL CHECK(installments_remaining >= 0),
+            account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE RESTRICT,
+            category TEXT NOT NULL,
+            is_active INTEGER NOT NULL CHECK(is_active IN (0, 1)),
+            created_at TEXT NOT NULL
+          );
+          CREATE TABLE IF NOT EXISTS debt_payments (
+            id TEXT PRIMARY KEY NOT NULL,
+            debt_id TEXT NOT NULL REFERENCES debts(id) ON DELETE RESTRICT,
+            transaction_id TEXT NOT NULL UNIQUE REFERENCES transactions(id) ON DELETE RESTRICT,
+            principal_cents INTEGER NOT NULL CHECK(principal_cents > 0),
+            interest_cents INTEGER NOT NULL CHECK(interest_cents >= 0),
+            paid_on TEXT NOT NULL
+          );
+          CREATE TABLE IF NOT EXISTS recurring_obligations (
+            id TEXT PRIMARY KEY NOT NULL,
+            name TEXT NOT NULL,
+            category TEXT NOT NULL,
+            account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE RESTRICT,
+            estimated_amount_cents INTEGER NOT NULL CHECK(estimated_amount_cents > 0),
+            period TEXT NOT NULL CHECK(period IN ('monthly')),
+            billing_day INTEGER NOT NULL CHECK(billing_day BETWEEN 1 AND 31),
+            next_due_on TEXT NOT NULL,
+            is_active INTEGER NOT NULL CHECK(is_active IN (0, 1)),
+            created_at TEXT NOT NULL
+          );
+          CREATE TABLE IF NOT EXISTS recurring_obligation_occurrences (
+            id TEXT PRIMARY KEY NOT NULL,
+            obligation_id TEXT NOT NULL REFERENCES recurring_obligations(id) ON DELETE RESTRICT,
+            transaction_id TEXT NOT NULL UNIQUE REFERENCES transactions(id) ON DELETE RESTRICT,
+            due_on TEXT NOT NULL
+          );
+          CREATE INDEX IF NOT EXISTS idx_debts_account ON debts(account_id);
+          CREATE INDEX IF NOT EXISTS idx_debt_payments_debt ON debt_payments(debt_id);
+          CREATE INDEX IF NOT EXISTS idx_recurring_obligations_account ON recurring_obligations(account_id);
+        ''');
+        _database.execute('PRAGMA user_version = 21');
+      });
+    }
   }
 
   static Future<Directory> _applicationDataDirectory() async {
@@ -853,6 +913,7 @@ class AppDatabase {
                 ? null
                 : ExpenseEssentiality.values.byName(
                     row['essentiality_override'] as String),
+            debtPaymentId: row['debt_payment_id'] as String?,
             occurredOn: BusinessDate.parse(row['occurred_on'] as String),
             createdAt: DateTime.parse(row['created_at'] as String).toUtc(),
           ))
@@ -1225,8 +1286,9 @@ class AppDatabase {
           id, account_id, destination_account_id, type, amount_cents,
           description, category, subcategory, occurred_on, created_at,
           schedule_type, series_id, installment_number, installment_count, is_settled,
-          card_invoice_id, income_source, essentiality_override
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+          card_invoice_id, income_source, essentiality_override,
+          debt_payment_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
         [
           item.id,
           item.accountId,
@@ -1246,6 +1308,7 @@ class AppDatabase {
           item.cardInvoiceId,
           item.incomeSource,
           item.essentialityOverride?.name,
+          item.debtPaymentId,
         ],
       );
 
@@ -1577,7 +1640,7 @@ class AppDatabase {
     UPDATE transactions SET account_id = ?, destination_account_id = ?,
       amount_cents = ?, description = ?, category = ?, subcategory = ?,
       occurred_on = ?, is_settled = ?, income_source = ?,
-      essentiality_override = ? WHERE id = ?
+      essentiality_override = ?, debt_payment_id = ? WHERE id = ?
   ''', [
         item.accountId,
         item.destinationAccountId,
@@ -1589,6 +1652,7 @@ class AppDatabase {
         item.isSettled ? 1 : 0,
         item.incomeSource,
         item.essentialityOverride?.name,
+        item.debtPaymentId,
         item.id,
       ]);
 
@@ -1681,6 +1745,68 @@ class AppDatabase {
       _database.execute('DELETE FROM financial_goals WHERE id = ?', [id]);
   void deleteInvestment(String id) =>
       _database.execute('DELETE FROM investments WHERE id = ?', [id]);
+
+  List<Debt> loadDebts() => _database.select(
+      'SELECT * FROM debts ORDER BY created_at DESC').map((row) => Debt(
+        id: row['id'] as String,
+        name: row['name'] as String,
+        originalPrincipalInCents: row['original_principal_cents'] as int,
+        outstandingPrincipalInCents: row['outstanding_principal_cents'] as int,
+        monthlyInterestBasisPoints: row['monthly_interest_bps'] as int,
+        installmentAmountInCents: row['installment_amount_cents'] as int,
+        firstDueOn: BusinessDate.parse(row['first_due_on'] as String),
+        installmentsRemaining: row['installments_remaining'] as int,
+        accountId: row['account_id'] as String,
+        category: row['category'] as String,
+        isActive: (row['is_active'] as int) == 1,
+        createdAt: DateTime.parse(row['created_at'] as String).toUtc(),
+      )).toList();
+
+  List<DebtPayment> loadDebtPayments() => _database.select(
+      'SELECT * FROM debt_payments ORDER BY paid_on DESC').map((row) => DebtPayment(
+        id: row['id'] as String,
+        debtId: row['debt_id'] as String,
+        transactionId: row['transaction_id'] as String,
+        principalInCents: row['principal_cents'] as int,
+        interestInCents: row['interest_cents'] as int,
+        paidOn: BusinessDate.parse(row['paid_on'] as String),
+      )).toList();
+
+  void insertDebt(Debt debt) => _database.execute('''
+    INSERT INTO debts(id, name, original_principal_cents,
+      outstanding_principal_cents, monthly_interest_bps,
+      installment_amount_cents, first_due_on, installments_remaining,
+      account_id, category, is_active, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  ''', [debt.id, debt.name, debt.originalPrincipalInCents,
+    debt.outstandingPrincipalInCents, debt.monthlyInterestBasisPoints,
+    debt.installmentAmountInCents, BusinessDate.serialize(debt.firstDueOn),
+    debt.installmentsRemaining, debt.accountId, debt.category,
+    debt.isActive ? 1 : 0, debt.createdAt.toUtc().toIso8601String()]);
+
+  void updateDebt(Debt debt) => _database.execute('''
+    UPDATE debts SET name = ?, outstanding_principal_cents = ?,
+      monthly_interest_bps = ?, installment_amount_cents = ?,
+      first_due_on = ?, installments_remaining = ?, account_id = ?,
+      category = ?, is_active = ? WHERE id = ?
+  ''', [debt.name, debt.outstandingPrincipalInCents,
+    debt.monthlyInterestBasisPoints, debt.installmentAmountInCents,
+    BusinessDate.serialize(debt.firstDueOn), debt.installmentsRemaining,
+    debt.accountId, debt.category, debt.isActive ? 1 : 0, debt.id]);
+
+  void deleteDebt(String id) =>
+      _database.execute('DELETE FROM debts WHERE id = ?', [id]);
+
+  void insertDebtPayment(DebtPayment payment) => _database.execute('''
+    INSERT INTO debt_payments(id, debt_id, transaction_id,
+      principal_cents, interest_cents, paid_on)
+    VALUES (?, ?, ?, ?, ?, ?)
+  ''', [payment.id, payment.debtId, payment.transactionId,
+    payment.principalInCents, payment.interestInCents,
+    BusinessDate.serialize(payment.paidOn)]);
+
+  void deleteDebtPayment(String id) =>
+      _database.execute('DELETE FROM debt_payments WHERE id = ?', [id]);
 
   void saveSalaryAllocation(SalaryAllocation allocation) => _database.execute(
         '''UPDATE salary_allocation

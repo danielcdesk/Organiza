@@ -4,6 +4,23 @@ import 'package:organiza/domain/balance_projection.dart';
 import 'package:organiza/domain/models.dart';
 
 void main() {
+  test('projeção inclui próxima parcela de dívida sem lançá-la no histórico', () {
+    final today = DateTime.utc(2026, 9, 10);
+    final result = BalanceProjection.calculate(
+      accounts: [Account(id: 'a', name: 'Conta', openingBalanceInCents: 200000,
+          createdAt: today)],
+      transactions: const [], salaries: const [],
+      debts: [Debt(id: 'd', name: 'Empréstimo',
+        originalPrincipalInCents: 100000, outstandingPrincipalInCents: 100000,
+        monthlyInterestBasisPoints: 100, installmentAmountInCents: 10000,
+        firstDueOn: DateTime.utc(2026, 9, 11), installmentsRemaining: 12,
+        accountId: 'a', category: 'Empréstimos', isActive: true,
+        createdAt: today)],
+      clock: Clock.fixed(today), horizonDays: 3,
+    );
+    expect(result.points[0].balanceInCents, 200000);
+    expect(result.points[1].balanceInCents, 190000);
+  });
   final today = DateTime(2026, 1, 1);
   final fixedClock = Clock.fixed(today);
 

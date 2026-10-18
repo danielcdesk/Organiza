@@ -7,6 +7,24 @@ import 'package:organiza/domain/app_route.dart';
 import 'package:organiza/domain/financial_rules.dart';
 
 void main() {
+  test('parcela de dívida reduz saldo uma vez mas relata só juros', () {
+    final store = OrganizaStore.inMemory(clock: Clock.fixed(DateTime(2026, 9, 10)));
+    addTearDown(store.dispose);
+    store.addAccount('Principal', 200000);
+    store.addDebt(name: 'Empréstimo', principalInCents: 100000,
+      monthlyInterestBasisPoints: 100, installmentAmountInCents: 10000,
+      firstDueOn: DateTime(2026, 9, 10), installments: 12,
+      accountId: store.accounts.single.id, category: 'Empréstimos');
+    final debt = store.debts.single;
+    store.recordDebtInstallment(debt.id);
+    expect(store.balance, 190000);
+    expect(store.debts.single.outstandingPrincipalInCents, 91000);
+    expect(store.reportTransactions.where((item) =>
+        item.type == TransactionType.expense).single.amountInCents, 1000);
+    store.undoDebtInstallment(store.debtPayments.single.id);
+    expect(store.balance, 200000);
+    expect(store.debts.single.outstandingPrincipalInCents, 100000);
+  });
   test('preferências da reserva persistem na sessão e validam meses', () {
     final store = OrganizaStore.inMemory();
     addTearDown(store.dispose);

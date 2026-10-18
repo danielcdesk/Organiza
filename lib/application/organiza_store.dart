@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 
 import '../data/local_repository.dart';
 import '../domain/financial_rules.dart';
+import '../domain/debt_rules.dart';
 import '../domain/credit_card_rules.dart';
 import '../domain/business_date.dart';
 import '../domain/models.dart';
@@ -60,9 +61,24 @@ class OrganizaStore extends ChangeNotifier with WidgetsBindingObserver {
   List<CardInvoice> cardInvoices = [];
   List<TransactionRecord> cardInstallmentTransactions = [];
   List<TransactionRecord> get reportTransactions => [
-        ...transactions.where((item) => item.cardInvoiceId == null),
+        ...transactions.where((item) =>
+            item.cardInvoiceId == null && item.debtPaymentId == null),
         ...cardInstallmentTransactions,
+        for (final payment in debtPayments)
+          if (payment.interestInCents > 0)
+            TransactionRecord(
+              id: 'debt-interest-${payment.id}',
+              accountId: debts.firstWhere((debt) => debt.id == payment.debtId).accountId,
+              type: TransactionType.expense,
+              amountInCents: payment.interestInCents,
+              description: 'Juros: ${debts.firstWhere((debt) => debt.id == payment.debtId).name}',
+              category: debts.firstWhere((debt) => debt.id == payment.debtId).category,
+              occurredOn: payment.paidOn,
+              createdAt: payment.paidOn,
+            ),
       ];
+  List<Debt> debts = [];
+  List<DebtPayment> debtPayments = [];
   List<InvestmentPosition> investments = [];
   List<Budget> budgets = [];
   List<Subscription> subscriptions = [];
@@ -317,6 +333,8 @@ class OrganizaStore extends ChangeNotifier with WidgetsBindingObserver {
     cardInvoices = _repository.loadCardInvoices();
     cardInstallmentTransactions = _repository.loadCardInstallmentTransactions();
     investments = _repository.loadInvestments();
+    debts = _repository.loadDebts();
+    debtPayments = _repository.loadDebtPayments();
     budgets = _repository.loadBudgets();
     subscriptions = _repository.loadSubscriptions();
     salaryAllocation = _repository.loadSalaryAllocation();
@@ -1345,6 +1363,124 @@ class OrganizaStore extends ChangeNotifier with WidgetsBindingObserver {
 
   void deleteInvestment(String id) {
     _repository.deleteInvestment(id);
+    reload();
+  }
+
+  void addDebt({
+    required String name,
+    required int principalInCents,
+    required int monthlyInterestBasisPoints,
+    required int installmentAmountInCents,
+    required DateTime firstDueOn,
+    required int installments,
+    required String accountId,
+    String category = 'Empréstimos',
+  }) {
+    if (name.trim().isEmpty || principalInCents <= 0 ||
+        installmentAmountInCents <= 0 || installments < 1 ||
+        installments > 360 || monthlyInterestBasisPoints < 0 ||
+        monthlyInterestBasisPoints > 10000 ||
+        accounts.every((account) => account.id != accountId)) {
+      throw ArgumentError('Dados da dívida inválidos.');
+    }
+    DebtRules.splitInstallment(
+      outstandingPrincipalInCents: principalInCents,
+      installmentAmountInCents: installmentAmountInCents,
+      monthlyInterestBasisPoints: monthlyInterestBasisPoints,
+    );
+    _repository.insertDebt(Debt(
+      id: _id(), name: name.trim(), originalPrincipalInCents: principalInCents,
+      outstandingPrincipalInCents: principalInCents,
+      monthlyInterestBasisPoints: monthlyInterestBasisPoints,
+      installmentAmountInCents: installmentAmountInCents,
+      firstDueOn: BusinessDate.from(firstDueOn),
+      installmentsRemaining: installments, accountId: accountId,
+      category: category.trim().isEmpty ? 'Empréstimos' : category.trim(),
+      isActive: true, createdAt: _now,
+    ));
+    reload();
+  }
+
+  void editDebt(Debt debt) {
+    if (debts.every((item) => item.id != debt.id)) {
+      throw ArgumentError('Dívida não encontrada.');
+    }
+    _repository.updateDebt(debt);
+    reload();
+  }
+
+  void deleteDebt(String id) {
+    if (debtPayments.any((item) => item.debtId == id)) {
+      throw StateError('Estorne as parcelas antes de excluir a dívida.');
+    }
+    _repository.deleteDebt(id);
+    reload();
+  }
+
+  void recordDebtInstallment(String debtId, {DateTime? paidOn}) {
+    final debt = debts.where((item) => item.id == debtId).firstOrNull;
+    if (debt == null || !debt.isActive || debt.installmentsRemaining <= 0 ||
+        debt.outstandingPrincipalInCents <= 0) {
+      throw StateError('Dívida sem parcela disponível.');
+    }
+    final part = DebtRules.splitInstallment(
+      outstandingPrincipalInCents: debt.outstandingPrincipalInCents,
+      installmentAmountInCents: debt.installmentAmountInCents,
+      monthlyInterestBasisPoints: debt.monthlyInterestBasisPoints,
+    );
+    final paymentId = _id();
+    final transactionId = _id();
+    final date = BusinessDate.from(paidOn ?? _now);
+    _repository.transaction(() {
+      _repository.insertTransaction(TransactionRecord(
+        id: transactionId, accountId: debt.accountId,
+        type: TransactionType.expense, amountInCents: part.paymentInCents,
+        description: 'Parcela: ${debt.name}', category: debt.category,
+        occurredOn: date, createdAt: _now, debtPaymentId: paymentId,
+      ));
+      _repository.insertDebtPayment(DebtPayment(
+        id: paymentId, debtId: debt.id, transactionId: transactionId,
+        principalInCents: part.principalInCents,
+        interestInCents: part.interestInCents, paidOn: date,
+      ));
+      _repository.updateDebt(Debt(
+        id: debt.id, name: debt.name,
+        originalPrincipalInCents: debt.originalPrincipalInCents,
+        outstandingPrincipalInCents:
+            debt.outstandingPrincipalInCents - part.principalInCents,
+        monthlyInterestBasisPoints: debt.monthlyInterestBasisPoints,
+        installmentAmountInCents: debt.installmentAmountInCents,
+        firstDueOn: debt.firstDueOn,
+        installmentsRemaining: debt.installmentsRemaining - 1,
+        accountId: debt.accountId, category: debt.category,
+        isActive: debt.isActive &&
+            debt.outstandingPrincipalInCents > part.principalInCents,
+        createdAt: debt.createdAt,
+      ));
+    });
+    reload();
+  }
+
+  void undoDebtInstallment(String paymentId) {
+    final payment = debtPayments.where((item) => item.id == paymentId).firstOrNull;
+    if (payment == null) throw ArgumentError('Parcela não encontrada.');
+    final debt = debts.firstWhere((item) => item.id == payment.debtId);
+    _repository.transaction(() {
+      _repository.deleteDebtPayment(paymentId);
+      _repository.deleteTransaction(payment.transactionId);
+      _repository.updateDebt(Debt(
+        id: debt.id, name: debt.name,
+        originalPrincipalInCents: debt.originalPrincipalInCents,
+        outstandingPrincipalInCents:
+            debt.outstandingPrincipalInCents + payment.principalInCents,
+        monthlyInterestBasisPoints: debt.monthlyInterestBasisPoints,
+        installmentAmountInCents: debt.installmentAmountInCents,
+        firstDueOn: debt.firstDueOn,
+        installmentsRemaining: debt.installmentsRemaining + 1,
+        accountId: debt.accountId, category: debt.category,
+        isActive: true, createdAt: debt.createdAt,
+      ));
+    });
     reload();
   }
 

@@ -11,6 +11,7 @@ import 'budgets_page.dart';
 import 'organiza_theme.dart';
 import 'shared_widgets.dart';
 import 'monthly_planning_page.dart';
+import 'financial_commitments_page.dart';
 import '../services/local_image_service.dart';
 
 part 'basic_transactions.part.dart';

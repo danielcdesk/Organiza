@@ -7,7 +7,8 @@ void main() {
   test('schema 20 preserva dados e persiste classificação e fonte', () {
     final database = AppDatabase.openInMemoryFromVersion1ForTest();
     addTearDown(database.close);
-    expect(database.schemaVersion, 20);
+    expect(database.schemaVersion, 21);
+    expect(database.loadDebts(), isEmpty);
     final category = database.loadFinanceCategories().firstWhere(
         (item) => item.name == 'Alimentação' &&
             item.type == TransactionType.expense);
@@ -38,7 +39,7 @@ void main() {
   test('migração 15 para 20 preserva cartão e compra existentes', () {
     final database = AppDatabase.openInMemoryFromVersion15WithCardForTest();
     addTearDown(database.close);
-    expect(database.schemaVersion, 20);
+    expect(database.schemaVersion, 21);
     expect(database.loadCreditCards().single.name, 'Cartão antigo');
     expect(database.loadCreditCards().single.lastFour, '4242');
     expect(database.loadCardPurchases().single.description, 'Compra antiga');
@@ -125,7 +126,7 @@ void main() {
       createdAt: now,
     ));
 
-    expect(database.schemaVersion, 20);
+    expect(database.schemaVersion, 21);
     expect(database.loadAccounts().single.name, 'Principal');
     expect(
         database.loadAccounts().single.institution, AccountInstitution.generic);

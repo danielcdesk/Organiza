@@ -2,6 +2,7 @@ import 'package:clock/clock.dart';
 
 import 'models.dart';
 import 'business_date.dart';
+import 'debt_rules.dart';
 
 /// A daily consolidated balance, with the corresponding per-account balances.
 class BalanceProjectionPoint {
@@ -48,6 +49,8 @@ class BalanceProjection {
     required Iterable<SalarySchedule> salaries,
     required Clock clock,
     Iterable<CardInvoice> cardInvoices = const <CardInvoice>[],
+    Iterable<Debt> debts = const <Debt>[],
+    Iterable<DebtPayment> debtPayments = const <DebtPayment>[],
     int horizonDays = 90,
   }) {
     if (horizonDays < 1) {
@@ -110,6 +113,29 @@ class BalanceProjection {
           }
         }
         month = DateTime.utc(month.year, month.month + 1);
+      }
+    }
+
+    for (final debt in debts) {
+      if (!debt.isActive || debt.outstandingPrincipalInCents <= 0) continue;
+      final paidCount = debtPayments.where((item) => item.debtId == debt.id).length;
+      var outstanding = debt.outstandingPrincipalInCents;
+      for (var index = 0; index < debt.installmentsRemaining &&
+          outstanding > 0; index++) {
+        final due = DebtRules.nextDueDate(debt.firstDueOn, paidCount + index);
+        if (due.isAfter(lastDay)) break;
+        final part = DebtRules.splitInstallment(
+          outstandingPrincipalInCents: outstanding,
+          installmentAmountInCents: debt.installmentAmountInCents,
+          monthlyInterestBasisPoints: debt.monthlyInterestBasisPoints,
+        );
+        _addEvent(events, _ProjectionEvent(
+          date: _effectiveDate(due, today),
+          accountId: debt.accountId,
+          type: TransactionType.expense,
+          amountInCents: part.paymentInCents,
+        ), accountIds: balances.keys);
+        outstanding -= part.principalInCents;
       }
     }
 

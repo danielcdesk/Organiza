@@ -73,6 +73,13 @@ class LocalRepository {
   List<FinancialGoal> loadFinancialGoals() => _database.loadFinancialGoals();
   List<FinanceCategory> loadFinanceCategories() =>
       _database.loadFinanceCategories();
+  List<Debt> loadDebts() => _database.loadDebts();
+  List<DebtPayment> loadDebtPayments() => _database.loadDebtPayments();
+  void insertDebt(Debt item) => _database.insertDebt(item);
+  void updateDebt(Debt item) => _database.updateDebt(item);
+  void deleteDebt(String id) => _database.deleteDebt(id);
+  void insertDebtPayment(DebtPayment item) => _database.insertDebtPayment(item);
+  void deleteDebtPayment(String id) => _database.deleteDebtPayment(id);
   List<FinanceSubcategory> loadFinanceSubcategories() =>
       _database.loadFinanceSubcategories();
   void insertAccount(Account item) => _database.insertAccount(item);
