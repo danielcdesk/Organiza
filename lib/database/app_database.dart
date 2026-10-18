@@ -12,6 +12,11 @@ import '../domain/app_route.dart';
 class AppDatabase {
   AppDatabase._(this._database);
 
+  static const bool isPreviewBuild =
+      bool.fromEnvironment('ORGANIZA_PREVIEW_BUILD');
+  static String get applicationFolderName =>
+      isPreviewBuild ? 'OrganizaPreview' : 'Organiza';
+
   final Database _database;
   static const _schemaVersion = 21;
   static const _backupTables = <String>[
@@ -43,7 +48,8 @@ class AppDatabase {
 
   static Future<AppDatabase> open() async {
     final appDirectory = await _applicationDataDirectory();
-    final folder = Directory(path.join(appDirectory.path, 'Organiza'));
+    final folder =
+        Directory(path.join(appDirectory.path, applicationFolderName));
     if (!folder.existsSync()) folder.createSync(recursive: true);
     await _copyLegacyDatabaseIfNeeded(folder);
     final database = sqlite3.open(path.join(folder.path, 'organiza.db'));
@@ -728,7 +734,7 @@ class AppDatabase {
 
   static Future<void> _copyLegacyDatabaseIfNeeded(
       Directory targetFolder) async {
-    if (!Platform.isWindows) return;
+    if (!Platform.isWindows || isPreviewBuild) return;
     final target = File(path.join(targetFolder.path, 'organiza.db'));
     if (target.existsSync()) return;
     final legacyRoot = await getApplicationSupportDirectory();

@@ -21,12 +21,14 @@ jobs:
       - name: Verify source
         run: |
           flutter analyze --no-pub
-          flutter test --no-pub
+          flutter test --no-pub --dart-define=ORGANIZA_PREVIEW_BUILD=true
       - name: Build Windows preview
-        run: flutter build windows --release --no-pub
+        run: flutter build windows --release --no-pub --dart-define=ORGANIZA_PREVIEW_BUILD=true
       - name: Package complete application folder
         shell: pwsh
-        run: Compress-Archive -Path 'build/windows/x64/runner/Release/*' -DestinationPath 'Organiza-Windows-TESTE.zip'
+        run: |
+          Rename-Item 'build/windows/x64/runner/Release/organiza.exe' 'Organiza-TESTE.exe'
+          Compress-Archive -Path 'build/windows/x64/runner/Release/*' -DestinationPath 'Organiza-Windows-TESTE.zip'
       - uses: actions/upload-artifact@v4
         with:
           name: Organiza-Windows-TESTE

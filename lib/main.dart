@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'application/organiza_store.dart';
+import 'database/app_database.dart';
 import 'presentation/organiza_app.dart';
 
 RandomAccessFile? _instanceLock;
@@ -36,8 +37,9 @@ Future<bool> _acquireWindowsInstanceLock() async {
   final directory = localAppData == null || localAppData.isEmpty
       ? await getApplicationSupportDirectory()
       : Directory(localAppData);
-  final folder = Directory(path.join(directory.path, 'Organiza'))
-    ..createSync(recursive: true);
+  final folder =
+      Directory(path.join(directory.path, AppDatabase.applicationFolderName))
+        ..createSync(recursive: true);
   final lockFile = File(path.join(folder.path, 'organiza.lock'));
   final handle = await lockFile.open(mode: FileMode.write);
   try {
