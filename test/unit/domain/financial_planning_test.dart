@@ -23,7 +23,8 @@ void main() {
         createdAt: date,
       );
 
-  test('classifica despesas sem perder categoria antiga e ignora transferências',
+  test(
+      'classifica despesas sem perder categoria antiga e ignora transferências',
       () {
     final summary = summarize(
       month: date,
@@ -38,8 +39,7 @@ void main() {
       ],
       transactions: [
         item('salary', TransactionType.income, 10001),
-        item('food', TransactionType.expense, 2001,
-            category: 'Alimentação'),
+        item('food', TransactionType.expense, 2001, category: 'Alimentação'),
         item('legacy', TransactionType.expense, 300),
         item('override', TransactionType.expense, 401,
             category: 'Alimentação',

@@ -285,18 +285,28 @@ class _TransactionDialogState extends State<TransactionDialog> {
                 ],
                 if (_type == TransactionType.expense) ...[
                   DropdownButtonFormField<String>(
-                    key: ValueKey('essentiality-${_essentialityOverride?.name}'),
+                    key:
+                        ValueKey('essentiality-${_essentialityOverride?.name}'),
                     isExpanded: true,
                     initialValue: _essentialityOverride?.name ?? 'category',
-                    decoration: const InputDecoration(labelText: 'Essencialidade'),
+                    decoration:
+                        const InputDecoration(labelText: 'Essencialidade'),
                     items: const [
-                      DropdownMenuItem(value: 'category', child: Text('Padrão da categoria')),
-                      DropdownMenuItem(value: 'essential', child: Text('Essencial')),
-                      DropdownMenuItem(value: 'nonEssential', child: Text('Não essencial')),
-                      DropdownMenuItem(value: 'unclassified', child: Text('Não classificada')),
+                      DropdownMenuItem(
+                          value: 'category',
+                          child: Text('Padrão da categoria')),
+                      DropdownMenuItem(
+                          value: 'essential', child: Text('Essencial')),
+                      DropdownMenuItem(
+                          value: 'nonEssential', child: Text('Não essencial')),
+                      DropdownMenuItem(
+                          value: 'unclassified',
+                          child: Text('Não classificada')),
                     ],
                     onChanged: (value) => setState(() => _essentialityOverride =
-                        value == 'category' ? null : ExpenseEssentiality.values.byName(value!)),
+                        value == 'category'
+                            ? null
+                            : ExpenseEssentiality.values.byName(value!)),
                   ),
                   const SizedBox(height: 12),
                 ],
@@ -415,9 +425,10 @@ class _TransactionDialogState extends State<TransactionDialog> {
         occurredOn: _occurredOn,
         scheduleType: _scheduleType,
         repeatCount: count,
-        incomeSource: _type == TransactionType.income ? _incomeSource.text : null,
-        essentialityOverride: _type == TransactionType.expense
-            ? _essentialityOverride : null,
+        incomeSource:
+            _type == TransactionType.income ? _incomeSource.text : null,
+        essentialityOverride:
+            _type == TransactionType.expense ? _essentialityOverride : null,
       ),
     );
   }

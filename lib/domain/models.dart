@@ -276,7 +276,8 @@ class SalarySchedule {
       required this.subcategory,
       required this.firstDueOn,
       required this.paymentDay,
-      required this.createdAt});
+      required this.createdAt,
+      this.incomeSource});
   final String id;
   final String accountId;
   final int amountInCents;
@@ -285,6 +286,7 @@ class SalarySchedule {
   final DateTime firstDueOn;
   final int paymentDay;
   final DateTime createdAt;
+  final String? incomeSource;
 }
 
 class FinanceCategory {
@@ -369,9 +371,13 @@ class Debt {
 }
 
 class DebtPayment {
-  const DebtPayment({required this.id, required this.debtId,
-    required this.transactionId, required this.principalInCents,
-    required this.interestInCents, required this.paidOn});
+  const DebtPayment(
+      {required this.id,
+      required this.debtId,
+      required this.transactionId,
+      required this.principalInCents,
+      required this.interestInCents,
+      required this.paidOn});
   final String id;
   final String debtId;
   final String transactionId;
@@ -381,10 +387,16 @@ class DebtPayment {
 }
 
 class RecurringObligation {
-  const RecurringObligation({required this.id, required this.name,
-    required this.category, required this.accountId,
-    required this.estimatedAmountInCents, required this.billingDay,
-    required this.nextDueOn, required this.isActive, required this.createdAt});
+  const RecurringObligation(
+      {required this.id,
+      required this.name,
+      required this.category,
+      required this.accountId,
+      required this.estimatedAmountInCents,
+      required this.billingDay,
+      required this.nextDueOn,
+      required this.isActive,
+      required this.createdAt});
   final String id;
   final String name;
   final String category;

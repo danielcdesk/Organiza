@@ -17,8 +17,10 @@ class MonthlyFinancialPlan {
   final int reserveEligibleEssentialsInCents;
   final Map<String, int> incomeBySourceInCents;
 
-  int get totalExpensesInCents => essentialExpensesInCents +
-      nonEssentialExpensesInCents + unclassifiedExpensesInCents;
+  int get totalExpensesInCents =>
+      essentialExpensesInCents +
+      nonEssentialExpensesInCents +
+      unclassifiedExpensesInCents;
   int get surplusInCents => incomeInCents - totalExpensesInCents;
   int get savingsRateBasisPoints =>
       incomeInCents <= 0 ? 0 : surplusInCents * 10000 ~/ incomeInCents;

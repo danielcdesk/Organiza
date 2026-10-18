@@ -7,45 +7,183 @@ import 'package:organiza/domain/app_route.dart';
 import 'package:organiza/domain/financial_rules.dart';
 
 void main() {
-  test('conta recorrente confirma valor real e mantém histórico após exclusão', () {
-    final store = OrganizaStore.inMemory(clock: Clock.fixed(DateTime(2026, 9, 10)));
+  test('estorno de dívida exige a última parcela, mesmo no mesmo dia', () {
+    final today = DateTime(2026, 9, 10);
+    final store = OrganizaStore.inMemory(clock: Clock.fixed(today));
+    addTearDown(store.dispose);
+    store.addAccount('Principal', 200000);
+    store.addDebt(
+        name: 'Empréstimo',
+        principalInCents: 100000,
+        monthlyInterestBasisPoints: 100,
+        installmentAmountInCents: 10000,
+        firstDueOn: today,
+        installments: 12,
+        accountId: store.accounts.single.id);
+    final id = store.debts.single.id;
+    store.recordDebtInstallment(id);
+    final first = store.debtPayments.single.id;
+    store.recordDebtInstallment(id);
+    expect(() => store.undoDebtInstallment(first), throwsStateError);
+    expect(store.debtPayments, hasLength(2));
+    store.undoDebtInstallment(store.debtPayments.first.id);
+    expect(store.debtPayments.single.id, first);
+  });
+
+  test('estorno de conta recorrente exige a última confirmação', () {
+    final today = DateTime(2026, 9, 10);
+    final store = OrganizaStore.inMemory(clock: Clock.fixed(today));
+    addTearDown(store.dispose);
+    store.addAccount('Principal', 200000);
+    store.addRecurringObligation(
+        name: 'Luz',
+        category: 'Moradia',
+        accountId: store.accounts.single.id,
+        estimatedAmountInCents: 3000,
+        billingDay: 10,
+        nextDueOn: today);
+    final id = store.recurringObligations.single.id;
+    store.confirmRecurringObligation(id);
+    final first = store.transactions.single.id;
+    store.confirmRecurringObligation(id);
+    expect(() => store.undoRecurringObligationConfirmation(first),
+        throwsStateError);
+    expect(store.transactions, hasLength(2));
+    final last = store.transactions.firstWhere((item) => item.id != first).id;
+    store.undoRecurringObligationConfirmation(last);
+    expect(store.transactions.single.id, first);
+  });
+  test('fonte de salário recorrente chega à ocorrência materializada', () {
+    final today = DateTime(2026, 9, 10);
+    final store = OrganizaStore.inMemory(clock: Clock.fixed(today));
+    addTearDown(store.dispose);
+    store.addAccount('Principal', 0);
+    store.addTransaction(
+        accountId: store.accounts.single.id,
+        type: TransactionType.income,
+        amountInCents: 200000,
+        description: 'Salário',
+        category: 'Salário',
+        occurredOn: today,
+        scheduleType: TransactionScheduleType.recurring,
+        incomeSource: 'Ana · emprego');
+    expect(store.transactions.single.incomeSource, 'Ana · emprego');
+  });
+  test('lançamentos vinculados exigem estorno no módulo de origem', () {
+    final store =
+        OrganizaStore.inMemory(clock: Clock.fixed(DateTime(2026, 9, 10)));
+    addTearDown(store.dispose);
+    store.addAccount('Principal', 200000);
+    final account = store.accounts.single.id;
+    store.addDebt(
+        name: 'Empréstimo',
+        principalInCents: 100000,
+        monthlyInterestBasisPoints: 100,
+        installmentAmountInCents: 10000,
+        firstDueOn: DateTime(2026, 9, 10),
+        installments: 12,
+        accountId: account);
+    store.recordDebtInstallment(store.debts.single.id);
+    final debtTransaction = store.transactions.single.id;
+    expect(() => store.deleteTransaction(debtTransaction), throwsStateError);
+    expect(
+        () => store.updateTransactionDetails(debtTransaction, 5000, 'Alterada'),
+        throwsStateError);
+    store.addRecurringObligation(
+        name: 'Luz',
+        category: 'Moradia',
+        accountId: account,
+        estimatedAmountInCents: 3000,
+        billingDay: 10,
+        nextDueOn: DateTime(2026, 9, 10));
+    store.confirmRecurringObligation(store.recurringObligations.single.id);
+    final recurringTransaction = store.transactions
+        .firstWhere((item) => item.recurringObligationId != null)
+        .id;
+    expect(
+        () => store.deleteTransaction(recurringTransaction), throwsStateError);
+    expect(
+        () =>
+            store.updateTransactionDetails(recurringTransaction, 1, 'Alterada'),
+        throwsStateError);
+  });
+
+  test('conta com dívida ou obrigação ativa não é excluída', () {
+    final store = OrganizaStore.inMemory();
+    addTearDown(store.dispose);
+    store.addAccount('Principal', 0);
+    final account = store.accounts.single.id;
+    store.addDebt(
+        name: 'Empréstimo',
+        principalInCents: 100000,
+        monthlyInterestBasisPoints: 100,
+        installmentAmountInCents: 10000,
+        firstDueOn: DateTime(2026, 9, 10),
+        installments: 12,
+        accountId: account);
+    expect(() => store.deleteAccount(account), throwsArgumentError);
+  });
+  test('conta recorrente confirma valor real e mantém histórico após exclusão',
+      () {
+    final store =
+        OrganizaStore.inMemory(clock: Clock.fixed(DateTime(2026, 9, 10)));
     addTearDown(store.dispose);
     store.addAccount('Principal', 100000);
-    store.addRecurringObligation(name: 'Energia', category: 'Moradia',
-      accountId: store.accounts.single.id, estimatedAmountInCents: 12000,
-      billingDay: 31, nextDueOn: DateTime(2026, 9, 30));
+    store.addRecurringObligation(
+        name: 'Energia',
+        category: 'Moradia',
+        accountId: store.accounts.single.id,
+        estimatedAmountInCents: 12000,
+        billingDay: 31,
+        nextDueOn: DateTime(2026, 9, 30));
     final id = store.recurringObligations.single.id;
     store.confirmRecurringObligation(id, amountInCents: 13000);
     expect(store.balance, 87000);
-    expect(store.recurringObligations.single.nextDueOn, DateTime.utc(2026, 10, 31));
+    expect(store.recurringObligations.single.nextDueOn,
+        DateTime.utc(2026, 10, 31));
     store.deleteRecurringObligation(id);
     expect(store.recurringObligations, isEmpty);
     expect(store.transactions.single.description, 'Energia');
     expect(store.balance, 87000);
   });
   test('parcela de dívida reduz saldo uma vez mas relata só juros', () {
-    final store = OrganizaStore.inMemory(clock: Clock.fixed(DateTime(2026, 9, 10)));
+    final store =
+        OrganizaStore.inMemory(clock: Clock.fixed(DateTime(2026, 9, 10)));
     addTearDown(store.dispose);
     store.addAccount('Principal', 200000);
-    store.addDebt(name: 'Empréstimo', principalInCents: 100000,
-      monthlyInterestBasisPoints: 100, installmentAmountInCents: 10000,
-      firstDueOn: DateTime(2026, 9, 10), installments: 12,
-      accountId: store.accounts.single.id, category: 'Empréstimos');
+    store.addDebt(
+        name: 'Empréstimo',
+        principalInCents: 100000,
+        monthlyInterestBasisPoints: 100,
+        installmentAmountInCents: 10000,
+        firstDueOn: DateTime(2026, 9, 10),
+        installments: 12,
+        accountId: store.accounts.single.id,
+        category: 'Empréstimos');
     final debt = store.debts.single;
     store.recordDebtInstallment(debt.id);
     expect(store.balance, 190000);
     expect(store.debts.single.outstandingPrincipalInCents, 91000);
-    expect(store.reportTransactions.where((item) =>
-        item.type == TransactionType.expense).single.amountInCents, 1000);
+    expect(
+        store.reportTransactions
+            .where((item) => item.type == TransactionType.expense)
+            .single
+            .amountInCents,
+        1000);
     store.undoDebtInstallment(store.debtPayments.single.id);
     expect(store.balance, 200000);
     expect(store.debts.single.outstandingPrincipalInCents, 100000);
+    expect(
+        () => store.recordDebtInstallment(debt.id,
+            paidOn: DateTime(2026, 10, 10)),
+        throwsArgumentError);
+    expect(store.balance, 200000);
   });
   test('preferências da reserva persistem na sessão e validam meses', () {
     final store = OrganizaStore.inMemory();
     addTearDown(store.dispose);
-    final category = store.financeCategories.firstWhere(
-        (item) => item.type == TransactionType.expense);
+    final category = store.financeCategories
+        .firstWhere((item) => item.type == TransactionType.expense);
     store.updateEmergencyReserveSettings(
       targetMonths: 9,
       reserveBalanceInCents: 12345,
@@ -58,13 +196,18 @@ void main() {
         throwsArgumentError);
   });
   test('classificação e fonte sobrevivem edição de lançamento', () {
-    final store = OrganizaStore.inMemory(clock: Clock.fixed(DateTime(2026, 9, 10)));
+    final store =
+        OrganizaStore.inMemory(clock: Clock.fixed(DateTime(2026, 9, 10)));
     addTearDown(store.dispose);
     store.addAccount('Principal', 0);
-    final category = store.financeCategories.firstWhere(
-        (item) => item.name == 'Alimentação' && item.type == TransactionType.expense);
-    store.setFinanceCategoryEssentiality(category.id, ExpenseEssentiality.essential);
-    expect(store.financeCategories.firstWhere((item) => item.id == category.id).essentiality,
+    final category = store.financeCategories.firstWhere((item) =>
+        item.name == 'Alimentação' && item.type == TransactionType.expense);
+    store.setFinanceCategoryEssentiality(
+        category.id, ExpenseEssentiality.essential);
+    expect(
+        store.financeCategories
+            .firstWhere((item) => item.id == category.id)
+            .essentiality,
         ExpenseEssentiality.essential);
     store.addTransaction(
       accountId: store.accounts.single.id,

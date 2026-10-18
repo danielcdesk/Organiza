@@ -6,38 +6,72 @@ import 'package:organiza/domain/models.dart';
 void main() {
   test('projeção inclui obrigação ativa e ignora pausada', () {
     final today = DateTime.utc(2026, 9, 10);
-    final obligation = RecurringObligation(id: 'r', name: 'Energia',
-      category: 'Moradia', accountId: 'a', estimatedAmountInCents: 12000,
-      billingDay: 11, nextDueOn: DateTime.utc(2026, 9, 11),
-      isActive: true, createdAt: today);
+    final obligation = RecurringObligation(
+        id: 'r',
+        name: 'Energia',
+        category: 'Moradia',
+        accountId: 'a',
+        estimatedAmountInCents: 12000,
+        billingDay: 11,
+        nextDueOn: DateTime.utc(2026, 9, 11),
+        isActive: true,
+        createdAt: today);
     BalanceProjectionResult projected(RecurringObligation item) =>
-        BalanceProjection.calculate(
-          accounts: [Account(id: 'a', name: 'Conta',
-              openingBalanceInCents: 100000, createdAt: today)],
-          transactions: const [], salaries: const [],
-          recurringObligations: [item],
-          clock: Clock.fixed(today), horizonDays: 3);
+        BalanceProjection.calculate(accounts: [
+          Account(
+              id: 'a',
+              name: 'Conta',
+              openingBalanceInCents: 100000,
+              createdAt: today)
+        ], transactions: const [], salaries: const [], recurringObligations: [
+          item
+        ], clock: Clock.fixed(today), horizonDays: 3);
     expect(projected(obligation).points[1].balanceInCents, 88000);
-    expect(projected(RecurringObligation(id: obligation.id,
-      name: obligation.name, category: obligation.category,
-      accountId: obligation.accountId,
-      estimatedAmountInCents: obligation.estimatedAmountInCents,
-      billingDay: obligation.billingDay, nextDueOn: obligation.nextDueOn,
-      isActive: false, createdAt: today)).points[1].balanceInCents, 100000);
+    expect(
+        projected(RecurringObligation(
+                id: obligation.id,
+                name: obligation.name,
+                category: obligation.category,
+                accountId: obligation.accountId,
+                estimatedAmountInCents: obligation.estimatedAmountInCents,
+                billingDay: obligation.billingDay,
+                nextDueOn: obligation.nextDueOn,
+                isActive: false,
+                createdAt: today))
+            .points[1]
+            .balanceInCents,
+        100000);
   });
-  test('projeção inclui próxima parcela de dívida sem lançá-la no histórico', () {
+  test('projeção inclui próxima parcela de dívida sem lançá-la no histórico',
+      () {
     final today = DateTime.utc(2026, 9, 10);
     final result = BalanceProjection.calculate(
-      accounts: [Account(id: 'a', name: 'Conta', openingBalanceInCents: 200000,
-          createdAt: today)],
-      transactions: const [], salaries: const [],
-      debts: [Debt(id: 'd', name: 'Empréstimo',
-        originalPrincipalInCents: 100000, outstandingPrincipalInCents: 100000,
-        monthlyInterestBasisPoints: 100, installmentAmountInCents: 10000,
-        firstDueOn: DateTime.utc(2026, 9, 11), installmentsRemaining: 12,
-        accountId: 'a', category: 'Empréstimos', isActive: true,
-        createdAt: today)],
-      clock: Clock.fixed(today), horizonDays: 3,
+      accounts: [
+        Account(
+            id: 'a',
+            name: 'Conta',
+            openingBalanceInCents: 200000,
+            createdAt: today)
+      ],
+      transactions: const [],
+      salaries: const [],
+      debts: [
+        Debt(
+            id: 'd',
+            name: 'Empréstimo',
+            originalPrincipalInCents: 100000,
+            outstandingPrincipalInCents: 100000,
+            monthlyInterestBasisPoints: 100,
+            installmentAmountInCents: 10000,
+            firstDueOn: DateTime.utc(2026, 9, 11),
+            installmentsRemaining: 12,
+            accountId: 'a',
+            category: 'Empréstimos',
+            isActive: true,
+            createdAt: today)
+      ],
+      clock: Clock.fixed(today),
+      horizonDays: 3,
     );
     expect(result.points[0].balanceInCents, 200000);
     expect(result.points[1].balanceInCents, 190000);

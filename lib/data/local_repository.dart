@@ -89,6 +89,8 @@ class LocalRepository {
           id, obligationId, transactionId, dueOn);
   void deleteRecurringObligationOccurrence(String transactionId) =>
       _database.deleteRecurringObligationOccurrence(transactionId);
+  String? latestRecurringObligationTransactionId(String obligationId) =>
+      _database.latestRecurringObligationTransactionId(obligationId);
   void insertDebt(Debt item) => _database.insertDebt(item);
   void updateDebt(Debt item) => _database.updateDebt(item);
   void deleteDebt(String id) => _database.deleteDebt(id);

@@ -123,6 +123,16 @@ class AppDatabase {
         type TEXT NOT NULL, is_system INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL
       );
+      CREATE TABLE salary_schedules (
+        id TEXT PRIMARY KEY NOT NULL,
+        account_id TEXT NOT NULL,
+        amount_cents INTEGER NOT NULL,
+        description TEXT NOT NULL,
+        subcategory TEXT NOT NULL,
+        first_due_on TEXT NOT NULL,
+        payment_day INTEGER NOT NULL,
+        created_at TEXT NOT NULL
+      );
       CREATE TABLE credit_cards (
         id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, brand TEXT NOT NULL,
         last_four TEXT NOT NULL CHECK(length(last_four) = 4),
@@ -645,11 +655,18 @@ class AppDatabase {
     }
     if (current < 21) {
       transaction(() {
-        if (!_tableColumns('transactions').contains('debt_payment_id')) {
-          _database.execute('ALTER TABLE transactions ADD COLUMN debt_payment_id TEXT');
+        if (!_tableColumns('salary_schedules').contains('income_source')) {
+          _database.execute(
+              'ALTER TABLE salary_schedules ADD COLUMN income_source TEXT');
         }
-        if (!_tableColumns('transactions').contains('recurring_obligation_id')) {
-          _database.execute('ALTER TABLE transactions ADD COLUMN recurring_obligation_id TEXT');
+        if (!_tableColumns('transactions').contains('debt_payment_id')) {
+          _database.execute(
+              'ALTER TABLE transactions ADD COLUMN debt_payment_id TEXT');
+        }
+        if (!_tableColumns('transactions')
+            .contains('recurring_obligation_id')) {
+          _database.execute(
+              'ALTER TABLE transactions ADD COLUMN recurring_obligation_id TEXT');
         }
         _database.execute('''
           CREATE TABLE IF NOT EXISTS debts (
@@ -911,8 +928,8 @@ class AppDatabase {
             incomeSource: row['income_source'] as String?,
             essentialityOverride: row['essentiality_override'] == null
                 ? null
-                : ExpenseEssentiality.values.byName(
-                    row['essentiality_override'] as String),
+                : ExpenseEssentiality.values
+                    .byName(row['essentiality_override'] as String),
             debtPaymentId: row['debt_payment_id'] as String?,
             recurringObligationId: row['recurring_obligation_id'] as String?,
             occurredOn: BusinessDate.parse(row['occurred_on'] as String),
@@ -1166,13 +1183,14 @@ class AppDatabase {
             firstDueOn: BusinessDate.parse(row['first_due_on'] as String),
             paymentDay: row['payment_day'] as int,
             createdAt: DateTime.parse(row['created_at'] as String).toUtc(),
+            incomeSource: row['income_source'] as String?,
           ))
       .toList();
 
   void insertSalarySchedule(SalarySchedule item) =>
       _database.execute('''INSERT INTO salary_schedules
-      (id, account_id, amount_cents, description, subcategory, first_due_on, payment_day, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)''', [
+      (id, account_id, amount_cents, description, subcategory, first_due_on, payment_day, created_at, income_source)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''', [
         item.id,
         item.accountId,
         item.amountInCents,
@@ -1180,7 +1198,8 @@ class AppDatabase {
         item.subcategory,
         BusinessDate.serialize(item.firstDueOn),
         item.paymentDay,
-        item.createdAt.toUtc().toIso8601String()
+        item.createdAt.toUtc().toIso8601String(),
+        item.incomeSource,
       ]);
 
   void deleteSalarySchedule(String id) =>
@@ -1188,7 +1207,7 @@ class AppDatabase {
 
   void updateSalarySchedule(SalarySchedule item) => _database.execute('''
     UPDATE salary_schedules SET account_id = ?, amount_cents = ?, description = ?,
-      subcategory = ?, first_due_on = ?, payment_day = ? WHERE id = ?
+      subcategory = ?, first_due_on = ?, payment_day = ?, income_source = ? WHERE id = ?
   ''', [
         item.accountId,
         item.amountInCents,
@@ -1196,6 +1215,7 @@ class AppDatabase {
         item.subcategory,
         BusinessDate.serialize(item.firstDueOn),
         item.paymentDay,
+        item.incomeSource,
         item.id,
       ]);
 
@@ -1660,9 +1680,9 @@ class AppDatabase {
         item.id,
       ]);
 
-  void setFinanceCategoryEssentiality(
-      String id, ExpenseEssentiality value) =>
-      _database.execute('UPDATE finance_categories SET essentiality = ? WHERE id = ?',
+  void setFinanceCategoryEssentiality(String id, ExpenseEssentiality value) =>
+      _database.execute(
+          'UPDATE finance_categories SET essentiality = ? WHERE id = ?',
           [value.name, id]);
 
   void deleteTransactionRows(Iterable<String> ids) {
@@ -1750,31 +1770,36 @@ class AppDatabase {
   void deleteInvestment(String id) =>
       _database.execute('DELETE FROM investments WHERE id = ?', [id]);
 
-  List<Debt> loadDebts() => _database.select(
-      'SELECT * FROM debts ORDER BY created_at DESC').map((row) => Debt(
-        id: row['id'] as String,
-        name: row['name'] as String,
-        originalPrincipalInCents: row['original_principal_cents'] as int,
-        outstandingPrincipalInCents: row['outstanding_principal_cents'] as int,
-        monthlyInterestBasisPoints: row['monthly_interest_bps'] as int,
-        installmentAmountInCents: row['installment_amount_cents'] as int,
-        firstDueOn: BusinessDate.parse(row['first_due_on'] as String),
-        installmentsRemaining: row['installments_remaining'] as int,
-        accountId: row['account_id'] as String,
-        category: row['category'] as String,
-        isActive: (row['is_active'] as int) == 1,
-        createdAt: DateTime.parse(row['created_at'] as String).toUtc(),
-      )).toList();
+  List<Debt> loadDebts() => _database
+      .select('SELECT * FROM debts ORDER BY created_at DESC')
+      .map((row) => Debt(
+            id: row['id'] as String,
+            name: row['name'] as String,
+            originalPrincipalInCents: row['original_principal_cents'] as int,
+            outstandingPrincipalInCents:
+                row['outstanding_principal_cents'] as int,
+            monthlyInterestBasisPoints: row['monthly_interest_bps'] as int,
+            installmentAmountInCents: row['installment_amount_cents'] as int,
+            firstDueOn: BusinessDate.parse(row['first_due_on'] as String),
+            installmentsRemaining: row['installments_remaining'] as int,
+            accountId: row['account_id'] as String,
+            category: row['category'] as String,
+            isActive: (row['is_active'] as int) == 1,
+            createdAt: DateTime.parse(row['created_at'] as String).toUtc(),
+          ))
+      .toList();
 
-  List<DebtPayment> loadDebtPayments() => _database.select(
-      'SELECT * FROM debt_payments ORDER BY paid_on DESC').map((row) => DebtPayment(
-        id: row['id'] as String,
-        debtId: row['debt_id'] as String,
-        transactionId: row['transaction_id'] as String,
-        principalInCents: row['principal_cents'] as int,
-        interestInCents: row['interest_cents'] as int,
-        paidOn: BusinessDate.parse(row['paid_on'] as String),
-      )).toList();
+  List<DebtPayment> loadDebtPayments() => _database
+      .select('SELECT * FROM debt_payments ORDER BY rowid DESC')
+      .map((row) => DebtPayment(
+            id: row['id'] as String,
+            debtId: row['debt_id'] as String,
+            transactionId: row['transaction_id'] as String,
+            principalInCents: row['principal_cents'] as int,
+            interestInCents: row['interest_cents'] as int,
+            paidOn: BusinessDate.parse(row['paid_on'] as String),
+          ))
+      .toList();
 
   void insertDebt(Debt debt) => _database.execute('''
     INSERT INTO debts(id, name, original_principal_cents,
@@ -1782,21 +1807,38 @@ class AppDatabase {
       installment_amount_cents, first_due_on, installments_remaining,
       account_id, category, is_active, created_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  ''', [debt.id, debt.name, debt.originalPrincipalInCents,
-    debt.outstandingPrincipalInCents, debt.monthlyInterestBasisPoints,
-    debt.installmentAmountInCents, BusinessDate.serialize(debt.firstDueOn),
-    debt.installmentsRemaining, debt.accountId, debt.category,
-    debt.isActive ? 1 : 0, debt.createdAt.toUtc().toIso8601String()]);
+  ''', [
+        debt.id,
+        debt.name,
+        debt.originalPrincipalInCents,
+        debt.outstandingPrincipalInCents,
+        debt.monthlyInterestBasisPoints,
+        debt.installmentAmountInCents,
+        BusinessDate.serialize(debt.firstDueOn),
+        debt.installmentsRemaining,
+        debt.accountId,
+        debt.category,
+        debt.isActive ? 1 : 0,
+        debt.createdAt.toUtc().toIso8601String()
+      ]);
 
   void updateDebt(Debt debt) => _database.execute('''
     UPDATE debts SET name = ?, outstanding_principal_cents = ?,
       monthly_interest_bps = ?, installment_amount_cents = ?,
       first_due_on = ?, installments_remaining = ?, account_id = ?,
       category = ?, is_active = ? WHERE id = ?
-  ''', [debt.name, debt.outstandingPrincipalInCents,
-    debt.monthlyInterestBasisPoints, debt.installmentAmountInCents,
-    BusinessDate.serialize(debt.firstDueOn), debt.installmentsRemaining,
-    debt.accountId, debt.category, debt.isActive ? 1 : 0, debt.id]);
+  ''', [
+        debt.name,
+        debt.outstandingPrincipalInCents,
+        debt.monthlyInterestBasisPoints,
+        debt.installmentAmountInCents,
+        BusinessDate.serialize(debt.firstDueOn),
+        debt.installmentsRemaining,
+        debt.accountId,
+        debt.category,
+        debt.isActive ? 1 : 0,
+        debt.id
+      ]);
 
   void deleteDebt(String id) =>
       _database.execute('DELETE FROM debts WHERE id = ?', [id]);
@@ -1805,56 +1847,88 @@ class AppDatabase {
     INSERT INTO debt_payments(id, debt_id, transaction_id,
       principal_cents, interest_cents, paid_on)
     VALUES (?, ?, ?, ?, ?, ?)
-  ''', [payment.id, payment.debtId, payment.transactionId,
-    payment.principalInCents, payment.interestInCents,
-    BusinessDate.serialize(payment.paidOn)]);
+  ''', [
+        payment.id,
+        payment.debtId,
+        payment.transactionId,
+        payment.principalInCents,
+        payment.interestInCents,
+        BusinessDate.serialize(payment.paidOn)
+      ]);
 
   void deleteDebtPayment(String id) =>
       _database.execute('DELETE FROM debt_payments WHERE id = ?', [id]);
 
-  List<RecurringObligation> loadRecurringObligations() => _database.select(
-      'SELECT * FROM recurring_obligations ORDER BY next_due_on ASC')
+  List<RecurringObligation> loadRecurringObligations() => _database
+      .select('SELECT * FROM recurring_obligations ORDER BY next_due_on ASC')
       .map((row) => RecurringObligation(
-        id: row['id'] as String,
-        name: row['name'] as String,
-        category: row['category'] as String,
-        accountId: row['account_id'] as String,
-        estimatedAmountInCents: row['estimated_amount_cents'] as int,
-        billingDay: row['billing_day'] as int,
-        nextDueOn: BusinessDate.parse(row['next_due_on'] as String),
-        isActive: (row['is_active'] as int) == 1,
-        createdAt: DateTime.parse(row['created_at'] as String).toUtc(),
-      )).toList();
+            id: row['id'] as String,
+            name: row['name'] as String,
+            category: row['category'] as String,
+            accountId: row['account_id'] as String,
+            estimatedAmountInCents: row['estimated_amount_cents'] as int,
+            billingDay: row['billing_day'] as int,
+            nextDueOn: BusinessDate.parse(row['next_due_on'] as String),
+            isActive: (row['is_active'] as int) == 1,
+            createdAt: DateTime.parse(row['created_at'] as String).toUtc(),
+          ))
+      .toList();
 
-  void insertRecurringObligation(RecurringObligation item) => _database.execute('''
+  void insertRecurringObligation(RecurringObligation item) =>
+      _database.execute('''
     INSERT INTO recurring_obligations(id, name, category, account_id,
       estimated_amount_cents, period, billing_day, next_due_on, is_active, created_at)
     VALUES (?, ?, ?, ?, ?, 'monthly', ?, ?, ?, ?)
-  ''', [item.id, item.name, item.category, item.accountId,
-    item.estimatedAmountInCents, item.billingDay,
-    BusinessDate.serialize(item.nextDueOn), item.isActive ? 1 : 0,
-    item.createdAt.toUtc().toIso8601String()]);
+  ''', [
+        item.id,
+        item.name,
+        item.category,
+        item.accountId,
+        item.estimatedAmountInCents,
+        item.billingDay,
+        BusinessDate.serialize(item.nextDueOn),
+        item.isActive ? 1 : 0,
+        item.createdAt.toUtc().toIso8601String()
+      ]);
 
-  void updateRecurringObligation(RecurringObligation item) => _database.execute('''
+  void updateRecurringObligation(RecurringObligation item) =>
+      _database.execute('''
     UPDATE recurring_obligations SET name = ?, category = ?, account_id = ?,
       estimated_amount_cents = ?, billing_day = ?, next_due_on = ?,
       is_active = ? WHERE id = ?
-  ''', [item.name, item.category, item.accountId, item.estimatedAmountInCents,
-    item.billingDay, BusinessDate.serialize(item.nextDueOn),
-    item.isActive ? 1 : 0, item.id]);
+  ''', [
+        item.name,
+        item.category,
+        item.accountId,
+        item.estimatedAmountInCents,
+        item.billingDay,
+        BusinessDate.serialize(item.nextDueOn),
+        item.isActive ? 1 : 0,
+        item.id
+      ]);
 
-  void deleteRecurringObligation(String id) => _database.execute(
-      'DELETE FROM recurring_obligations WHERE id = ?', [id]);
+  void deleteRecurringObligation(String id) =>
+      _database.execute('DELETE FROM recurring_obligations WHERE id = ?', [id]);
 
   void insertRecurringObligationOccurrence(String id, String obligationId,
-      String transactionId, DateTime dueOn) => _database.execute('''
+          String transactionId, DateTime dueOn) =>
+      _database.execute('''
     INSERT INTO recurring_obligation_occurrences(id, obligation_id,
       transaction_id, due_on) VALUES (?, ?, ?, ?)
   ''', [id, obligationId, transactionId, BusinessDate.serialize(dueOn)]);
 
   void deleteRecurringObligationOccurrence(String transactionId) =>
-      _database.execute('DELETE FROM recurring_obligation_occurrences WHERE transaction_id = ?',
+      _database.execute(
+          'DELETE FROM recurring_obligation_occurrences WHERE transaction_id = ?',
           [transactionId]);
+
+  String? latestRecurringObligationTransactionId(String obligationId) {
+    final rows = _database.select('''
+      SELECT transaction_id FROM recurring_obligation_occurrences
+      WHERE obligation_id = ? ORDER BY due_on DESC, rowid DESC LIMIT 1
+    ''', [obligationId]);
+    return rows.isEmpty ? null : rows.first['transaction_id'] as String;
+  }
 
   void saveSalaryAllocation(SalaryAllocation allocation) => _database.execute(
         '''UPDATE salary_allocation

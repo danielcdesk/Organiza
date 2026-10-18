@@ -8,47 +8,93 @@ void main() {
     final source = AppDatabase.openInMemoryFromVersion1ForTest();
     addTearDown(source.close);
     final now = DateTime.utc(2026, 9, 10);
-    source.insertAccount(Account(id: 'a', name: 'Conta',
-        openingBalanceInCents: 0, createdAt: now));
-    source.insertDebt(Debt(id: 'd', name: 'Empréstimo',
-      originalPrincipalInCents: 100000,
-      outstandingPrincipalInCents: 100000,
-      monthlyInterestBasisPoints: 100,
-      installmentAmountInCents: 10000,
-      firstDueOn: now, installmentsRemaining: 12,
-      accountId: 'a', category: 'Empréstimos', isActive: true,
-      createdAt: now));
-    source.insertRecurringObligation(RecurringObligation(id: 'r',
-      name: 'Energia', category: 'Moradia', accountId: 'a',
-      estimatedAmountInCents: 12000, billingDay: 10,
-      nextDueOn: now, isActive: true, createdAt: now));
+    source.insertAccount(Account(
+        id: 'a', name: 'Conta', openingBalanceInCents: 0, createdAt: now));
+    source.insertDebt(Debt(
+        id: 'd',
+        name: 'Empréstimo',
+        originalPrincipalInCents: 100000,
+        outstandingPrincipalInCents: 100000,
+        monthlyInterestBasisPoints: 100,
+        installmentAmountInCents: 10000,
+        firstDueOn: now,
+        installmentsRemaining: 12,
+        accountId: 'a',
+        category: 'Empréstimos',
+        isActive: true,
+        createdAt: now));
+    source.insertTransaction(TransactionRecord(
+        id: 't-debt',
+        accountId: 'a',
+        type: TransactionType.expense,
+        amountInCents: 10000,
+        description: 'Parcela',
+        occurredOn: now,
+        createdAt: now,
+        debtPaymentId: 'p'));
+    source.insertDebtPayment(DebtPayment(
+        id: 'p',
+        debtId: 'd',
+        transactionId: 't-debt',
+        principalInCents: 9000,
+        interestInCents: 1000,
+        paidOn: now));
+    source.insertTransaction(TransactionRecord(
+        id: 't-bill',
+        accountId: 'a',
+        type: TransactionType.expense,
+        amountInCents: 12000,
+        description: 'Energia',
+        occurredOn: now,
+        createdAt: now,
+        recurringObligationId: 'r'));
+    source.insertRecurringObligation(RecurringObligation(
+        id: 'r',
+        name: 'Energia',
+        category: 'Moradia',
+        accountId: 'a',
+        estimatedAmountInCents: 12000,
+        billingDay: 10,
+        nextDueOn: now,
+        isActive: true,
+        createdAt: now));
+    source.insertRecurringObligationOccurrence('o', 'r', 't-bill', now);
     final destination = AppDatabase.openInMemory();
     addTearDown(destination.close);
     destination.restoreSnapshot(source.exportSnapshot());
     expect(destination.loadDebts().single.name, 'Empréstimo');
     expect(destination.loadRecurringObligations().single.name, 'Energia');
+    expect(destination.loadDebtPayments().single.interestInCents, 1000);
+    expect(destination.loadTransactions(), hasLength(2));
   });
-  test('schema 20 preserva dados e persiste classificação e fonte', () {
+  test('schema 21 preserva dados e persiste classificação e fonte', () {
     final database = AppDatabase.openInMemoryFromVersion1ForTest();
     addTearDown(database.close);
     expect(database.schemaVersion, 21);
     expect(database.loadDebts(), isEmpty);
-    final category = database.loadFinanceCategories().firstWhere(
-        (item) => item.name == 'Alimentação' &&
-            item.type == TransactionType.expense);
+    final category = database.loadFinanceCategories().firstWhere((item) =>
+        item.name == 'Alimentação' && item.type == TransactionType.expense);
     expect(category.essentiality, ExpenseEssentiality.unclassified);
     database.setFinanceCategoryEssentiality(
         category.id, ExpenseEssentiality.essential);
     expect(
-        database.loadFinanceCategories().firstWhere((item) => item.id == category.id).essentiality,
+        database
+            .loadFinanceCategories()
+            .firstWhere((item) => item.id == category.id)
+            .essentiality,
         ExpenseEssentiality.essential);
     final now = DateTime.utc(2026, 9, 10);
     database.insertAccount(Account(
         id: 'a', name: 'Conta', openingBalanceInCents: 0, createdAt: now));
     database.insertTransaction(TransactionRecord(
-      id: 't', accountId: 'a', type: TransactionType.income,
-      amountInCents: 1234, description: 'Pagamento',
-      occurredOn: now, createdAt: now, incomeSource: 'Trabalho',
+      id: 't',
+      accountId: 'a',
+      type: TransactionType.income,
+      amountInCents: 1234,
+      description: 'Pagamento',
+      occurredOn: now,
+      createdAt: now,
+      incomeSource: 'Trabalho',
       essentialityOverride: ExpenseEssentiality.nonEssential,
     ));
     final loaded = database.loadTransactions().single;
@@ -60,7 +106,7 @@ void main() {
     restored.restoreSnapshot(snapshot);
     expect(restored.loadTransactions().single.incomeSource, 'Trabalho');
   });
-  test('migração 15 para 20 preserva cartão e compra existentes', () {
+  test('migração 15 para 21 preserva cartão e compra existentes', () {
     final database = AppDatabase.openInMemoryFromVersion15WithCardForTest();
     addTearDown(database.close);
     expect(database.schemaVersion, 21);

@@ -62,18 +62,23 @@ class OrganizaStore extends ChangeNotifier with WidgetsBindingObserver {
   List<CardInvoice> cardInvoices = [];
   List<TransactionRecord> cardInstallmentTransactions = [];
   List<TransactionRecord> get reportTransactions => [
-        ...transactions.where((item) =>
-            item.cardInvoiceId == null && item.debtPaymentId == null),
+        ...transactions.where(
+            (item) => item.cardInvoiceId == null && item.debtPaymentId == null),
         ...cardInstallmentTransactions,
         for (final payment in debtPayments)
           if (payment.interestInCents > 0)
             TransactionRecord(
               id: 'debt-interest-${payment.id}',
-              accountId: debts.firstWhere((debt) => debt.id == payment.debtId).accountId,
+              accountId: debts
+                  .firstWhere((debt) => debt.id == payment.debtId)
+                  .accountId,
               type: TransactionType.expense,
               amountInCents: payment.interestInCents,
-              description: 'Juros: ${debts.firstWhere((debt) => debt.id == payment.debtId).name}',
-              category: debts.firstWhere((debt) => debt.id == payment.debtId).category,
+              description:
+                  'Juros: ${debts.firstWhere((debt) => debt.id == payment.debtId).name}',
+              category: debts
+                  .firstWhere((debt) => debt.id == payment.debtId)
+                  .category,
               occurredOn: payment.paidOn,
               createdAt: payment.paidOn,
             ),
@@ -120,9 +125,11 @@ class OrganizaStore extends ChangeNotifier with WidgetsBindingObserver {
       int.tryParse(_repository.loadPreference('profile_income_cents') ?? '') ??
       0;
   int get emergencyReserveTargetMonths =>
-      int.tryParse(_repository.loadPreference('reserve_target_months') ?? '') ?? 6;
+      int.tryParse(_repository.loadPreference('reserve_target_months') ?? '') ??
+      6;
   int get emergencyReserveBalanceInCents =>
-      int.tryParse(_repository.loadPreference('reserve_balance_cents') ?? '') ?? 0;
+      int.tryParse(_repository.loadPreference('reserve_balance_cents') ?? '') ??
+      0;
   Set<String> get emergencyReserveExcludedCategoryIds {
     final saved = _repository.loadPreference('reserve_excluded_categories');
     if (saved == null || saved.isEmpty) return const {};
@@ -145,8 +152,8 @@ class OrganizaStore extends ChangeNotifier with WidgetsBindingObserver {
       throw ArgumentError('Informe um saldo de reserva válido.');
     }
     if (excludedCategoryIds != null &&
-        excludedCategoryIds.any((id) =>
-            financeCategories.every((category) => category.id != id))) {
+        excludedCategoryIds.any(
+            (id) => financeCategories.every((category) => category.id != id))) {
       throw ArgumentError('Categoria não encontrada.');
     }
     _repository.transaction(() {
@@ -164,6 +171,7 @@ class OrganizaStore extends ChangeNotifier with WidgetsBindingObserver {
     });
     notifyListeners();
   }
+
   String? get profilePhotoPath {
     final value = _repository.loadPreference('profile_photo_path');
     return value == null || value.isEmpty ? null : value;
@@ -452,6 +460,7 @@ class OrganizaStore extends ChangeNotifier with WidgetsBindingObserver {
             scheduleType: TransactionScheduleType.recurring,
             seriesId: schedule.id,
             isSettled: false,
+            incomeSource: schedule.incomeSource,
           ));
           inserted = true;
         }
@@ -601,7 +610,10 @@ class OrganizaStore extends ChangeNotifier with WidgetsBindingObserver {
           firstDueOn: DateTime.utc(
               startMonth.year, startMonth.month, baseDate.day.clamp(1, last)),
           paymentDay: baseDate.day,
-          createdAt: _now));
+          createdAt: _now,
+          incomeSource: incomeSource?.trim().isEmpty == true
+              ? null
+              : incomeSource?.trim()));
       reload();
       return;
     }
@@ -1037,6 +1049,11 @@ class OrganizaStore extends ChangeNotifier with WidgetsBindingObserver {
     if (salarySchedules.any((item) => item.accountId == accountId)) {
       throw ArgumentError('Exclua o salário recorrente desta conta antes.');
     }
+    if (debts.any((item) => item.accountId == accountId) ||
+        recurringObligations.any((item) => item.accountId == accountId)) {
+      throw ArgumentError(
+          'Exclua as dívidas e contas recorrentes desta conta antes.');
+    }
     _repository.deleteAccount(accountId);
     reload();
   }
@@ -1074,6 +1091,10 @@ class OrganizaStore extends ChangeNotifier with WidgetsBindingObserver {
     if (item == null) throw ArgumentError('Lançamento não encontrado.');
     if (item.cardInvoiceId != null) {
       throw StateError('Estorne o pagamento da fatura pela área de cartões.');
+    }
+    if (item.debtPaymentId != null || item.recurringObligationId != null) {
+      throw StateError(
+          'Desfaça o pagamento na área de dívidas e contas recorrentes.');
     }
     final isSalaryOccurrence = item.category.toLowerCase() == 'salário' &&
         item.seriesId != null &&
@@ -1160,6 +1181,11 @@ class OrganizaStore extends ChangeNotifier with WidgetsBindingObserver {
       throw StateError(
           'O pagamento da fatura deve ser alterado na área de cartões.');
     }
+    if (selected.debtPaymentId != null ||
+        selected.recurringObligationId != null) {
+      throw StateError(
+          'Desfaça o pagamento na área de dívidas e contas recorrentes.');
+    }
     if (!FinancialRules.isValidAmount(amountInCents)) {
       throw ArgumentError('Informe um valor válido.');
     }
@@ -1245,6 +1271,7 @@ class OrganizaStore extends ChangeNotifier with WidgetsBindingObserver {
           firstDueOn: firstDue,
           paymentDay: firstDue.day,
           createdAt: schedule.createdAt,
+          incomeSource: incomeSource ?? schedule.incomeSource,
         ));
       }
       for (final update in updates) {
@@ -1379,9 +1406,12 @@ class OrganizaStore extends ChangeNotifier with WidgetsBindingObserver {
     required String accountId,
     String category = 'Empréstimos',
   }) {
-    if (name.trim().isEmpty || principalInCents <= 0 ||
-        installmentAmountInCents <= 0 || installments < 1 ||
-        installments > 360 || monthlyInterestBasisPoints < 0 ||
+    if (name.trim().isEmpty ||
+        principalInCents <= 0 ||
+        installmentAmountInCents <= 0 ||
+        installments < 1 ||
+        installments > 360 ||
+        monthlyInterestBasisPoints < 0 ||
         monthlyInterestBasisPoints > 10000 ||
         accounts.every((account) => account.id != accountId)) {
       throw ArgumentError('Dados da dívida inválidos.');
@@ -1392,14 +1422,18 @@ class OrganizaStore extends ChangeNotifier with WidgetsBindingObserver {
       monthlyInterestBasisPoints: monthlyInterestBasisPoints,
     );
     _repository.insertDebt(Debt(
-      id: _id(), name: name.trim(), originalPrincipalInCents: principalInCents,
+      id: _id(),
+      name: name.trim(),
+      originalPrincipalInCents: principalInCents,
       outstandingPrincipalInCents: principalInCents,
       monthlyInterestBasisPoints: monthlyInterestBasisPoints,
       installmentAmountInCents: installmentAmountInCents,
       firstDueOn: BusinessDate.from(firstDueOn),
-      installmentsRemaining: installments, accountId: accountId,
+      installmentsRemaining: installments,
+      accountId: accountId,
       category: category.trim().isEmpty ? 'Empréstimos' : category.trim(),
-      isActive: true, createdAt: _now,
+      isActive: true,
+      createdAt: _now,
     ));
     reload();
   }
@@ -1422,7 +1456,9 @@ class OrganizaStore extends ChangeNotifier with WidgetsBindingObserver {
 
   void recordDebtInstallment(String debtId, {DateTime? paidOn}) {
     final debt = debts.where((item) => item.id == debtId).firstOrNull;
-    if (debt == null || !debt.isActive || debt.installmentsRemaining <= 0 ||
+    if (debt == null ||
+        !debt.isActive ||
+        debt.installmentsRemaining <= 0 ||
         debt.outstandingPrincipalInCents <= 0) {
       throw StateError('Dívida sem parcela disponível.');
     }
@@ -1434,20 +1470,32 @@ class OrganizaStore extends ChangeNotifier with WidgetsBindingObserver {
     final paymentId = _id();
     final transactionId = _id();
     final date = BusinessDate.from(paidOn ?? _now);
+    if (date.isAfter(BusinessDate.from(_now))) {
+      throw ArgumentError('Não é possível pagar uma parcela em data futura.');
+    }
     _repository.transaction(() {
       _repository.insertTransaction(TransactionRecord(
-        id: transactionId, accountId: debt.accountId,
-        type: TransactionType.expense, amountInCents: part.paymentInCents,
-        description: 'Parcela: ${debt.name}', category: debt.category,
-        occurredOn: date, createdAt: _now, debtPaymentId: paymentId,
+        id: transactionId,
+        accountId: debt.accountId,
+        type: TransactionType.expense,
+        amountInCents: part.paymentInCents,
+        description: 'Parcela: ${debt.name}',
+        category: debt.category,
+        occurredOn: date,
+        createdAt: _now,
+        debtPaymentId: paymentId,
       ));
       _repository.insertDebtPayment(DebtPayment(
-        id: paymentId, debtId: debt.id, transactionId: transactionId,
+        id: paymentId,
+        debtId: debt.id,
+        transactionId: transactionId,
         principalInCents: part.principalInCents,
-        interestInCents: part.interestInCents, paidOn: date,
+        interestInCents: part.interestInCents,
+        paidOn: date,
       ));
       _repository.updateDebt(Debt(
-        id: debt.id, name: debt.name,
+        id: debt.id,
+        name: debt.name,
         originalPrincipalInCents: debt.originalPrincipalInCents,
         outstandingPrincipalInCents:
             debt.outstandingPrincipalInCents - part.principalInCents,
@@ -1455,7 +1503,8 @@ class OrganizaStore extends ChangeNotifier with WidgetsBindingObserver {
         installmentAmountInCents: debt.installmentAmountInCents,
         firstDueOn: debt.firstDueOn,
         installmentsRemaining: debt.installmentsRemaining - 1,
-        accountId: debt.accountId, category: debt.category,
+        accountId: debt.accountId,
+        category: debt.category,
         isActive: debt.isActive &&
             debt.outstandingPrincipalInCents > part.principalInCents,
         createdAt: debt.createdAt,
@@ -1465,14 +1514,20 @@ class OrganizaStore extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   void undoDebtInstallment(String paymentId) {
-    final payment = debtPayments.where((item) => item.id == paymentId).firstOrNull;
+    final payment =
+        debtPayments.where((item) => item.id == paymentId).firstOrNull;
     if (payment == null) throw ArgumentError('Parcela não encontrada.');
+    if (debtPayments.firstWhere((item) => item.debtId == payment.debtId).id !=
+        paymentId) {
+      throw StateError('Estorne primeiro a parcela mais recente.');
+    }
     final debt = debts.firstWhere((item) => item.id == payment.debtId);
     _repository.transaction(() {
       _repository.deleteDebtPayment(paymentId);
       _repository.deleteTransaction(payment.transactionId);
       _repository.updateDebt(Debt(
-        id: debt.id, name: debt.name,
+        id: debt.id,
+        name: debt.name,
         originalPrincipalInCents: debt.originalPrincipalInCents,
         outstandingPrincipalInCents:
             debt.outstandingPrincipalInCents + payment.principalInCents,
@@ -1480,8 +1535,10 @@ class OrganizaStore extends ChangeNotifier with WidgetsBindingObserver {
         installmentAmountInCents: debt.installmentAmountInCents,
         firstDueOn: debt.firstDueOn,
         installmentsRemaining: debt.installmentsRemaining + 1,
-        accountId: debt.accountId, category: debt.category,
-        isActive: true, createdAt: debt.createdAt,
+        accountId: debt.accountId,
+        category: debt.category,
+        isActive: true,
+        createdAt: debt.createdAt,
       ));
     });
     reload();
@@ -1495,20 +1552,24 @@ class OrganizaStore extends ChangeNotifier with WidgetsBindingObserver {
     required int billingDay,
     required DateTime nextDueOn,
   }) {
-    if (name.trim().isEmpty || estimatedAmountInCents <= 0 ||
-        billingDay < 1 || billingDay > 31 ||
+    if (name.trim().isEmpty ||
+        estimatedAmountInCents <= 0 ||
+        billingDay < 1 ||
+        billingDay > 31 ||
         accounts.every((account) => account.id != accountId)) {
       throw ArgumentError('Dados da conta recorrente inválidos.');
     }
     _repository.insertRecurringObligation(RecurringObligation(
-      id: _id(), name: name.trim(),
+      id: _id(),
+      name: name.trim(),
       category: category.trim().isEmpty ? 'Outros' : category.trim(),
       accountId: accountId,
       estimatedAmountInCents: estimatedAmountInCents,
       billingDay: billingDay,
       nextDueOn: RecurringObligationRules.monthlyDue(nextDueOn,
           billingDay: billingDay, monthOffset: 0),
-      isActive: true, createdAt: _now,
+      isActive: true,
+      createdAt: _now,
     ));
     reload();
   }
@@ -1517,7 +1578,8 @@ class OrganizaStore extends ChangeNotifier with WidgetsBindingObserver {
     if (recurringObligations.every((item) => item.id != obligation.id) ||
         obligation.name.trim().isEmpty ||
         obligation.estimatedAmountInCents <= 0 ||
-        obligation.billingDay < 1 || obligation.billingDay > 31) {
+        obligation.billingDay < 1 ||
+        obligation.billingDay > 31) {
       throw ArgumentError('Dados da conta recorrente inválidos.');
     }
     _repository.updateRecurringObligation(obligation);
@@ -1530,8 +1592,8 @@ class OrganizaStore extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   void confirmRecurringObligation(String id, {int? amountInCents}) {
-    final obligation = recurringObligations
-        .where((item) => item.id == id).firstOrNull;
+    final obligation =
+        recurringObligations.where((item) => item.id == id).firstOrNull;
     if (obligation == null || !obligation.isActive) {
       throw StateError('Conta recorrente inativa ou ausente.');
     }
@@ -1543,57 +1605,66 @@ class OrganizaStore extends ChangeNotifier with WidgetsBindingObserver {
     final date = BusinessDate.from(_now);
     _repository.transaction(() {
       _repository.insertTransaction(TransactionRecord(
-        id: transactionId, accountId: obligation.accountId,
-        type: TransactionType.expense, amountInCents: amount,
-        description: obligation.name, category: obligation.category,
-        occurredOn: date, createdAt: _now,
+        id: transactionId,
+        accountId: obligation.accountId,
+        type: TransactionType.expense,
+        amountInCents: amount,
+        description: obligation.name,
+        category: obligation.category,
+        occurredOn: date,
+        createdAt: _now,
         recurringObligationId: obligation.id,
       ));
       _repository.insertRecurringObligationOccurrence(
           _id(), obligation.id, transactionId, obligation.nextDueOn);
       _repository.updateRecurringObligation(RecurringObligation(
-        id: obligation.id, name: obligation.name,
-        category: obligation.category, accountId: obligation.accountId,
+        id: obligation.id,
+        name: obligation.name,
+        category: obligation.category,
+        accountId: obligation.accountId,
         estimatedAmountInCents: obligation.estimatedAmountInCents,
         billingDay: obligation.billingDay,
-        nextDueOn: RecurringObligationRules.monthlyDue(
-            obligation.nextDueOn,
+        nextDueOn: RecurringObligationRules.monthlyDue(obligation.nextDueOn,
             billingDay: obligation.billingDay, monthOffset: 1),
-        isActive: obligation.isActive, createdAt: obligation.createdAt,
+        isActive: obligation.isActive,
+        createdAt: obligation.createdAt,
       ));
     });
     reload();
   }
 
   void undoRecurringObligationConfirmation(String transactionId) {
-    final transaction = transactions.where((item) =>
-        item.id == transactionId && item.recurringObligationId != null).firstOrNull;
+    final transaction = transactions
+        .where((item) =>
+            item.id == transactionId && item.recurringObligationId != null)
+        .firstOrNull;
     if (transaction == null) {
       throw ArgumentError('Confirmação não encontrada.');
     }
-    final obligation = recurringObligations.where((item) =>
-        item.id == transaction.recurringObligationId).firstOrNull;
+    final obligation = recurringObligations
+        .where((item) => item.id == transaction.recurringObligationId)
+        .firstOrNull;
     if (obligation == null) {
       throw StateError('A conta recorrente já foi removida.');
     }
-    final same = transactions.where((item) =>
-        item.recurringObligationId == obligation.id).toList()
-      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    if (same.first.id != transactionId) {
+    if (_repository.latestRecurringObligationTransactionId(obligation.id) !=
+        transactionId) {
       throw StateError('Desfaça primeiro a confirmação mais recente.');
     }
     _repository.transaction(() {
       _repository.deleteRecurringObligationOccurrence(transactionId);
       _repository.deleteTransaction(transactionId);
       _repository.updateRecurringObligation(RecurringObligation(
-        id: obligation.id, name: obligation.name,
-        category: obligation.category, accountId: obligation.accountId,
+        id: obligation.id,
+        name: obligation.name,
+        category: obligation.category,
+        accountId: obligation.accountId,
         estimatedAmountInCents: obligation.estimatedAmountInCents,
         billingDay: obligation.billingDay,
-        nextDueOn: RecurringObligationRules.monthlyDue(
-            obligation.nextDueOn,
+        nextDueOn: RecurringObligationRules.monthlyDue(obligation.nextDueOn,
             billingDay: obligation.billingDay, monthOffset: -1),
-        isActive: obligation.isActive, createdAt: obligation.createdAt,
+        isActive: obligation.isActive,
+        createdAt: obligation.createdAt,
       ));
     });
     reload();

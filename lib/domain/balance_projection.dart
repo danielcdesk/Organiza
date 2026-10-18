@@ -121,10 +121,12 @@ class BalanceProjection {
 
     for (final debt in debts) {
       if (!debt.isActive || debt.outstandingPrincipalInCents <= 0) continue;
-      final paidCount = debtPayments.where((item) => item.debtId == debt.id).length;
+      final paidCount =
+          debtPayments.where((item) => item.debtId == debt.id).length;
       var outstanding = debt.outstandingPrincipalInCents;
-      for (var index = 0; index < debt.installmentsRemaining &&
-          outstanding > 0; index++) {
+      for (var index = 0;
+          index < debt.installmentsRemaining && outstanding > 0;
+          index++) {
         final due = DebtRules.nextDueDate(debt.firstDueOn, paidCount + index);
         if (due.isAfter(lastDay)) break;
         final part = DebtRules.splitInstallment(
@@ -132,29 +134,33 @@ class BalanceProjection {
           installmentAmountInCents: debt.installmentAmountInCents,
           monthlyInterestBasisPoints: debt.monthlyInterestBasisPoints,
         );
-        _addEvent(events, _ProjectionEvent(
-          date: _effectiveDate(due, today),
-          accountId: debt.accountId,
-          type: TransactionType.expense,
-          amountInCents: part.paymentInCents,
-        ), accountIds: balances.keys);
+        _addEvent(
+            events,
+            _ProjectionEvent(
+              date: _effectiveDate(due, today),
+              accountId: debt.accountId,
+              type: TransactionType.expense,
+              amountInCents: part.paymentInCents,
+            ),
+            accountIds: balances.keys);
         outstanding -= part.principalInCents;
       }
     }
     for (final obligation in recurringObligations) {
       if (!obligation.isActive) continue;
       for (var offset = 0; offset < 120; offset++) {
-        final due = RecurringObligationRules.monthlyDue(
-            obligation.nextDueOn,
-            billingDay: obligation.billingDay,
-            monthOffset: offset);
+        final due = RecurringObligationRules.monthlyDue(obligation.nextDueOn,
+            billingDay: obligation.billingDay, monthOffset: offset);
         if (due.isAfter(lastDay)) break;
-        _addEvent(events, _ProjectionEvent(
-          date: _effectiveDate(due, today),
-          accountId: obligation.accountId,
-          type: TransactionType.expense,
-          amountInCents: obligation.estimatedAmountInCents,
-        ), accountIds: balances.keys);
+        _addEvent(
+            events,
+            _ProjectionEvent(
+              date: _effectiveDate(due, today),
+              accountId: obligation.accountId,
+              type: TransactionType.expense,
+              amountInCents: obligation.estimatedAmountInCents,
+            ),
+            accountIds: balances.keys);
       }
     }
 

@@ -1,17 +1,18 @@
 import 'financial_planning.dart';
 
 class EmergencyReserve {
-  const EmergencyReserve({required this.averageMonthlyEssentialsInCents,
-    required this.targetInCents});
+  const EmergencyReserve(
+      {required this.averageMonthlyEssentialsInCents,
+      required this.targetInCents});
 
   final int averageMonthlyEssentialsInCents;
   final int targetInCents;
 }
 
 List<DateTime> previousCompleteMonths(DateTime today, {int count = 3}) => [
-  for (var offset = count; offset >= 1; offset--)
-    DateTime.utc(today.year, today.month - offset),
-];
+      for (var offset = count; offset >= 1; offset--)
+        DateTime.utc(today.year, today.month - offset),
+    ];
 
 EmergencyReserve calculateEmergencyReserve({
   required List<MonthlyFinancialPlan> completeMonths,
@@ -20,8 +21,8 @@ EmergencyReserve calculateEmergencyReserve({
   if (targetMonths < 1 || targetMonths > 120) {
     throw ArgumentError('Informe entre 1 e 120 meses para a reserva.');
   }
-  final total = completeMonths.fold<int>(0,
-      (sum, plan) => sum + plan.reserveEligibleEssentialsInCents);
+  final total = completeMonths.fold<int>(
+      0, (sum, plan) => sum + plan.reserveEligibleEssentialsInCents);
   final average = completeMonths.isEmpty
       ? 0
       : (total + completeMonths.length ~/ 2) ~/ completeMonths.length;
@@ -49,7 +50,8 @@ FinancialHealthIndicators calculateHealth({
   required int investmentsInCents,
   required int reserveBalanceInCents,
   required int reserveTargetInCents,
-}) => FinancialHealthIndicators(
+}) =>
+    FinancialHealthIndicators(
       savingsRateBasisPoints: plan.savingsRateBasisPoints,
       essentialIncomeRatioBasisPoints: plan.incomeInCents <= 0
           ? 0

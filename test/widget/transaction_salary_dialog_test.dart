@@ -5,11 +5,14 @@ import 'package:organiza/domain/models.dart';
 import 'package:organiza/presentation/dialogs.dart';
 
 void main() {
-  testWidgets('receita oferece fonte e despesa oferece classificação', (tester) async {
+  testWidgets('receita oferece fonte e despesa oferece classificação',
+      (tester) async {
     final store = OrganizaStore.inMemory();
     addTearDown(store.dispose);
     store.addAccount('Principal', 0);
-    await tester.pumpWidget(MaterialApp(home: Scaffold(body: Builder(
+    await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+            body: Builder(
       builder: (context) => TextButton(
         onPressed: () => showDialog<TransactionInput>(
           context: context,

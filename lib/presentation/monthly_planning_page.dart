@@ -27,8 +27,18 @@ class _MonthlyPlanningPageState extends State<MonthlyPlanningPage> {
       widget.store.clock.now().year, widget.store.clock.now().month);
 
   static const _months = [
-    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+    'Janeiro',
+    'Fevereiro',
+    'Março',
+    'Abril',
+    'Maio',
+    'Junho',
+    'Julho',
+    'Agosto',
+    'Setembro',
+    'Outubro',
+    'Novembro',
+    'Dezembro',
   ];
 
   String _money(int cents) =>
@@ -61,8 +71,8 @@ class _MonthlyPlanningPageState extends State<MonthlyPlanningPage> {
     );
     final health = calculateHealth(
       plan: summary,
-      investmentsInCents: widget.store.investments.fold<int>(0,
-          (sum, item) => sum + item.currentValueInCents),
+      investmentsInCents: widget.store.investments
+          .fold<int>(0, (sum, item) => sum + item.currentValueInCents),
       reserveBalanceInCents: widget.store.emergencyReserveBalanceInCents,
       reserveTargetInCents: reserve.targetInCents,
     );
@@ -76,23 +86,25 @@ class _MonthlyPlanningPageState extends State<MonthlyPlanningPage> {
             Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
               IconButton(
                 tooltip: 'Mês anterior',
-                onPressed: () => setState(() =>
-                    _month = DateTime.utc(_month.year, _month.month - 1)),
+                onPressed: () => setState(
+                    () => _month = DateTime.utc(_month.year, _month.month - 1)),
                 icon: const Icon(Icons.chevron_left_rounded),
               ),
-              Flexible(child: Text('${_months[_month.month - 1]} ${_month.year}',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.titleMedium)),
+              Flexible(
+                  child: Text('${_months[_month.month - 1]} ${_month.year}',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.titleMedium)),
               IconButton(
                 tooltip: 'Próximo mês',
-                onPressed: () => setState(() =>
-                    _month = DateTime.utc(_month.year, _month.month + 1)),
+                onPressed: () => setState(
+                    () => _month = DateTime.utc(_month.year, _month.month + 1)),
                 icon: const Icon(Icons.chevron_right_rounded),
               ),
             ]),
             _line('Receitas', summary.incomeInCents),
             _line('Despesas essenciais', summary.essentialExpensesInCents),
-            _line('Despesas não essenciais', summary.nonEssentialExpensesInCents),
+            _line(
+                'Despesas não essenciais', summary.nonEssentialExpensesInCents),
             _line('Não classificadas', summary.unclassifiedExpensesInCents),
             const Divider(),
             _line('Sobra do mês', summary.surplusInCents),
@@ -103,21 +115,26 @@ class _MonthlyPlanningPageState extends State<MonthlyPlanningPage> {
         const SizedBox(height: 14),
         Panel(
           title: 'Meta de reserva',
-          subtitle: 'Média dos últimos 3 meses completos × ${widget.store.emergencyReserveTargetMonths} meses',
-          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
+          subtitle:
+              'Média dos últimos 3 meses completos × ${widget.store.emergencyReserveTargetMonths} meses',
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             _line('Custo essencial médio',
                 reserve.averageMonthlyEssentialsInCents),
             _line('Alvo', reserve.targetInCents),
             _line('Reserva informada',
                 widget.store.emergencyReserveBalanceInCents),
-            LinearProgressIndicator(value:
-                (health.reserveProgressBasisPoints / 10000).clamp(0, 1)),
+            LinearProgressIndicator(
+                value: (health.reserveProgressBasisPoints / 10000).clamp(0, 1)),
             const SizedBox(height: 8),
-            Text('Comprometimento essencial: ${(health.essentialIncomeRatioBasisPoints / 100).toStringAsFixed(2)}%'),
-            Text('Investimentos cadastrados: ${_money(health.investmentsInCents)}'),
+            Text(widget.hideValues
+                ? 'Comprometimento essencial: ••••'
+                : 'Comprometimento essencial: ${(health.essentialIncomeRatioBasisPoints / 100).toStringAsFixed(2)}%'),
+            Text(
+                'Investimentos cadastrados: ${_money(health.investmentsInCents)}'),
             const SizedBox(height: 8),
-            Align(alignment: Alignment.centerLeft,
+            Align(
+                alignment: Alignment.centerLeft,
                 child: OutlinedButton(
                   onPressed: _openReserveSettings,
                   child: const Text('Ajustar reserva'),
@@ -127,7 +144,8 @@ class _MonthlyPlanningPageState extends State<MonthlyPlanningPage> {
         const SizedBox(height: 14),
         Panel(
           title: 'Categorias essenciais',
-          subtitle: 'Classifique uma vez; lançamentos antigos continuam no total',
+          subtitle:
+              'Classifique uma vez; lançamentos antigos continuam no total',
           child: categories.isEmpty
               ? const Text('Nenhuma categoria de despesa')
               : Column(children: [
@@ -138,16 +156,20 @@ class _MonthlyPlanningPageState extends State<MonthlyPlanningPage> {
                         width: 156,
                         child: DropdownButtonFormField<ExpenseEssentiality>(
                           isExpanded: true,
-                          key: ValueKey('essentiality-${category.id}-${category.essentiality.name}'),
+                          key: ValueKey(
+                              'essentiality-${category.id}-${category.essentiality.name}'),
                           initialValue: category.essentiality,
-                          decoration: const InputDecoration(
-                              labelText: 'Classificação'),
+                          decoration:
+                              const InputDecoration(labelText: 'Classificação'),
                           items: const [
-                            DropdownMenuItem(value: ExpenseEssentiality.unclassified,
+                            DropdownMenuItem(
+                                value: ExpenseEssentiality.unclassified,
                                 child: Text('Não classificada')),
-                            DropdownMenuItem(value: ExpenseEssentiality.essential,
+                            DropdownMenuItem(
+                                value: ExpenseEssentiality.essential,
                                 child: Text('Essencial')),
-                            DropdownMenuItem(value: ExpenseEssentiality.nonEssential,
+                            DropdownMenuItem(
+                                value: ExpenseEssentiality.nonEssential,
                                 child: Text('Não essencial')),
                           ],
                           onChanged: (value) {
@@ -182,7 +204,7 @@ class _MonthlyPlanningPageState extends State<MonthlyPlanningPage> {
         text: '${widget.store.emergencyReserveTargetMonths}');
     final balance = TextEditingController(
         text: FinancialRules.formatBrl(
-            widget.store.emergencyReserveBalanceInCents)
+                widget.store.emergencyReserveBalanceInCents)
             .replaceFirst('R\$ ', ''));
     final excluded = {...widget.store.emergencyReserveExcludedCategoryIds};
     final expenseCategories = widget.store.financeCategories
@@ -190,49 +212,63 @@ class _MonthlyPlanningPageState extends State<MonthlyPlanningPage> {
         .toList();
     final result = await showDialog<(int, int, Set<String>)>(
       context: context,
-      builder: (context) => StatefulBuilder(builder: (context, updateDialog) => AlertDialog(
-        title: const Text('Ajustar reserva'),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          TextField(controller: months,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Meses de proteção')),
-          TextField(controller: balance,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(labelText: 'Reserva atual (R\$)')),
-          const SizedBox(height: 12),
-          const Text('Excluir categorias do cálculo'),
-          SizedBox(height: 180, width: 330,
-            child: ListView(children: [
-              for (final category in expenseCategories)
-                CheckboxListTile(
-                  dense: true,
-                  title: Text(category.name),
-                  value: excluded.contains(category.id),
-                  onChanged: (value) => updateDialog(() {
-                    if (value == true) {
-                      excluded.add(category.id);
-                    } else {
-                      excluded.remove(category.id);
-                    }
-                  }),
-                ),
-            ]),
-          ),
-        ]),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context),
-              child: const Text('Cancelar')),
-          FilledButton(onPressed: () {
-            final target = int.tryParse(months.text);
-            final cents = parseMoney(balance.text);
-            if (target == null || target < 1 || target > 120 ||
-                cents == null || cents < 0) {
-              return;
-            }
-            Navigator.pop(context, (target, cents, excluded));
-          }, child: const Text('Salvar')),
-        ],
-      )),
+      builder: (context) => StatefulBuilder(
+          builder: (context, updateDialog) => AlertDialog(
+                title: const Text('Ajustar reserva'),
+                content: Column(mainAxisSize: MainAxisSize.min, children: [
+                  TextField(
+                      controller: months,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                          labelText: 'Meses de proteção')),
+                  TextField(
+                      controller: balance,
+                      keyboardType:
+                          const TextInputType.numberWithOptions(decimal: true),
+                      decoration: const InputDecoration(
+                          labelText: 'Reserva atual (R\$)')),
+                  const SizedBox(height: 12),
+                  const Text('Excluir categorias do cálculo'),
+                  SizedBox(
+                    height: 180,
+                    width: 330,
+                    child: ListView(children: [
+                      for (final category in expenseCategories)
+                        CheckboxListTile(
+                          dense: true,
+                          title: Text(category.name),
+                          value: excluded.contains(category.id),
+                          onChanged: (value) => updateDialog(() {
+                            if (value == true) {
+                              excluded.add(category.id);
+                            } else {
+                              excluded.remove(category.id);
+                            }
+                          }),
+                        ),
+                    ]),
+                  ),
+                ]),
+                actions: [
+                  TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Cancelar')),
+                  FilledButton(
+                      onPressed: () {
+                        final target = int.tryParse(months.text);
+                        final cents = parseMoney(balance.text);
+                        if (target == null ||
+                            target < 1 ||
+                            target > 120 ||
+                            cents == null ||
+                            cents < 0) {
+                          return;
+                        }
+                        Navigator.pop(context, (target, cents, excluded));
+                      },
+                      child: const Text('Salvar')),
+                ],
+              )),
     );
     months.dispose();
     balance.dispose();

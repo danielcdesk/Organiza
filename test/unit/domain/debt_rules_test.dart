@@ -27,10 +27,12 @@ void main() {
   });
 
   test('parcela insuficiente para juros é recusada', () {
-    expect(() => DebtRules.splitInstallment(
-      outstandingPrincipalInCents: 100000,
-      installmentAmountInCents: 100,
-      monthlyInterestBasisPoints: 100,
-    ), throwsArgumentError);
+    expect(
+        () => DebtRules.splitInstallment(
+              outstandingPrincipalInCents: 100000,
+              installmentAmountInCents: 100,
+              monthlyInterestBasisPoints: 100,
+            ),
+        throwsArgumentError);
   });
 }
