@@ -48,6 +48,7 @@ logs/
 Thumbs.db
 coverage/
 test/**/failures/
+.worktrees/
 
 # Mantido localmente até a credencial do GitHub permitir atualizar workflows.
 .github/workflows/ci.yml
