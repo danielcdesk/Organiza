@@ -1,5 +1,15 @@
 # Dossiê técnico do Organiza
 
+## Atualização de planejamento (schema 20)
+
+O schema 20 acrescenta `finance_categories.essentiality` (padrão
+`unclassified`) e os campos opcionais `transactions.income_source` e
+`transactions.essentiality_override`. A migração é transacional, preserva
+linhas existentes e mantém essas colunas no snapshot criptografado por meio
+das tabelas já incluídas no backup. O resumo mensal exclui transferências e
+pagamentos de fatura, mas considera as parcelas de cartão materializadas pela
+competência da fatura. Fontes ausentes continuam computadas como receita.
+
 Documento preparado para revisão arquitetural, de qualidade e de evolução do projeto.
 
 **Projeto auditado:** Organiza

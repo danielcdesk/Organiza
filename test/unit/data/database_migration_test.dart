@@ -4,10 +4,41 @@ import 'package:organiza/domain/models.dart';
 import 'package:organiza/domain/app_route.dart';
 
 void main() {
-  test('migração 15 para 19 preserva cartão e compra existentes', () {
+  test('schema 20 preserva dados e persiste classificação e fonte', () {
+    final database = AppDatabase.openInMemoryFromVersion1ForTest();
+    addTearDown(database.close);
+    expect(database.schemaVersion, 20);
+    final category = database.loadFinanceCategories().firstWhere(
+        (item) => item.name == 'Alimentação' &&
+            item.type == TransactionType.expense);
+    expect(category.essentiality, ExpenseEssentiality.unclassified);
+    database.setFinanceCategoryEssentiality(
+        category.id, ExpenseEssentiality.essential);
+    expect(
+        database.loadFinanceCategories().firstWhere((item) => item.id == category.id).essentiality,
+        ExpenseEssentiality.essential);
+    final now = DateTime.utc(2026, 9, 10);
+    database.insertAccount(Account(
+        id: 'a', name: 'Conta', openingBalanceInCents: 0, createdAt: now));
+    database.insertTransaction(TransactionRecord(
+      id: 't', accountId: 'a', type: TransactionType.income,
+      amountInCents: 1234, description: 'Pagamento',
+      occurredOn: now, createdAt: now, incomeSource: 'Trabalho',
+      essentialityOverride: ExpenseEssentiality.nonEssential,
+    ));
+    final loaded = database.loadTransactions().single;
+    expect(loaded.incomeSource, 'Trabalho');
+    expect(loaded.essentialityOverride, ExpenseEssentiality.nonEssential);
+    final snapshot = database.exportSnapshot();
+    final restored = AppDatabase.openInMemory();
+    addTearDown(restored.close);
+    restored.restoreSnapshot(snapshot);
+    expect(restored.loadTransactions().single.incomeSource, 'Trabalho');
+  });
+  test('migração 15 para 20 preserva cartão e compra existentes', () {
     final database = AppDatabase.openInMemoryFromVersion15WithCardForTest();
     addTearDown(database.close);
-    expect(database.schemaVersion, 19);
+    expect(database.schemaVersion, 20);
     expect(database.loadCreditCards().single.name, 'Cartão antigo');
     expect(database.loadCreditCards().single.lastFour, '4242');
     expect(database.loadCardPurchases().single.description, 'Compra antiga');
@@ -94,7 +125,7 @@ void main() {
       createdAt: now,
     ));
 
-    expect(database.schemaVersion, 19);
+    expect(database.schemaVersion, 20);
     expect(database.loadAccounts().single.name, 'Principal');
     expect(
         database.loadAccounts().single.institution, AccountInstitution.generic);

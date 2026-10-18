@@ -13,7 +13,7 @@ class AppDatabase {
   AppDatabase._(this._database);
 
   final Database _database;
-  static const _schemaVersion = 19;
+  static const _schemaVersion = 20;
   static const _backupTables = <String>[
     'accounts',
     'transactions',
@@ -114,6 +114,11 @@ class AppDatabase {
         is_settled INTEGER NOT NULL DEFAULT 1
       );
       CREATE TABLE subscriptions (id TEXT PRIMARY KEY NOT NULL);
+      CREATE TABLE finance_categories (
+        id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL,
+        type TEXT NOT NULL, is_system INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL
+      );
       CREATE TABLE credit_cards (
         id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, brand TEXT NOT NULL,
         last_four TEXT NOT NULL CHECK(length(last_four) = 4),
@@ -615,6 +620,25 @@ class AppDatabase {
         _database.execute('PRAGMA user_version = 19');
       });
     }
+    if (current < 20) {
+      transaction(() {
+        if (!_tableColumns('finance_categories').contains('essentiality')) {
+          _database.execute('''ALTER TABLE finance_categories
+            ADD COLUMN essentiality TEXT NOT NULL DEFAULT 'unclassified'
+            CHECK(essentiality IN ('essential', 'nonEssential', 'unclassified'))''');
+        }
+        if (!_tableColumns('transactions').contains('income_source')) {
+          _database.execute(
+              'ALTER TABLE transactions ADD COLUMN income_source TEXT');
+        }
+        if (!_tableColumns('transactions').contains('essentiality_override')) {
+          _database.execute('''ALTER TABLE transactions
+            ADD COLUMN essentiality_override TEXT
+            CHECK(essentiality_override IN ('essential', 'nonEssential', 'unclassified'))''');
+        }
+        _database.execute('PRAGMA user_version = 20');
+      });
+    }
   }
 
   static Future<Directory> _applicationDataDirectory() async {
@@ -824,6 +848,11 @@ class AppDatabase {
             installmentCount: row['installment_count'] as int,
             isSettled: (row['is_settled'] as int) == 1,
             cardInvoiceId: row['card_invoice_id'] as String?,
+            incomeSource: row['income_source'] as String?,
+            essentialityOverride: row['essentiality_override'] == null
+                ? null
+                : ExpenseEssentiality.values.byName(
+                    row['essentiality_override'] as String),
             occurredOn: BusinessDate.parse(row['occurred_on'] as String),
             createdAt: DateTime.parse(row['created_at'] as String).toUtc(),
           ))
@@ -1139,6 +1168,8 @@ class AppDatabase {
             name: row['name'] as String,
             type: TransactionType.values.byName(row['type'] as String),
             isSystem: (row['is_system'] as int) == 1,
+            essentiality: ExpenseEssentiality.values
+                .byName(row['essentiality'] as String),
             createdAt: DateTime.parse(row['created_at'] as String).toUtc(),
           ))
       .toList();
@@ -1194,8 +1225,8 @@ class AppDatabase {
           id, account_id, destination_account_id, type, amount_cents,
           description, category, subcategory, occurred_on, created_at,
           schedule_type, series_id, installment_number, installment_count, is_settled,
-          card_invoice_id
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+          card_invoice_id, income_source, essentiality_override
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
         [
           item.id,
           item.accountId,
@@ -1213,6 +1244,8 @@ class AppDatabase {
           item.installmentCount,
           item.isSettled ? 1 : 0,
           item.cardInvoiceId,
+          item.incomeSource,
+          item.essentialityOverride?.name,
         ],
       );
 
@@ -1504,14 +1537,15 @@ class AppDatabase {
       );
 
   void insertFinanceCategory(FinanceCategory category) => _database.execute(
-        '''INSERT INTO finance_categories(id, name, type, is_system, created_at)
-        VALUES (?, ?, ?, ?, ?)''',
+        '''INSERT INTO finance_categories(id, name, type, is_system, created_at, essentiality)
+        VALUES (?, ?, ?, ?, ?, ?)''',
         [
           category.id,
           category.name,
           category.type.name,
           category.isSystem ? 1 : 0,
           category.createdAt.toUtc().toIso8601String(),
+          category.essentiality.name,
         ],
       );
 
@@ -1542,7 +1576,8 @@ class AppDatabase {
   void updateTransactionRecord(TransactionRecord item) => _database.execute('''
     UPDATE transactions SET account_id = ?, destination_account_id = ?,
       amount_cents = ?, description = ?, category = ?, subcategory = ?,
-      occurred_on = ?, is_settled = ? WHERE id = ?
+      occurred_on = ?, is_settled = ?, income_source = ?,
+      essentiality_override = ? WHERE id = ?
   ''', [
         item.accountId,
         item.destinationAccountId,
@@ -1552,8 +1587,15 @@ class AppDatabase {
         item.subcategory,
         BusinessDate.serialize(item.occurredOn),
         item.isSettled ? 1 : 0,
+        item.incomeSource,
+        item.essentialityOverride?.name,
         item.id,
       ]);
+
+  void setFinanceCategoryEssentiality(
+      String id, ExpenseEssentiality value) =>
+      _database.execute('UPDATE finance_categories SET essentiality = ? WHERE id = ?',
+          [value.name, id]);
 
   void deleteTransactionRows(Iterable<String> ids) {
     for (final id in ids) {

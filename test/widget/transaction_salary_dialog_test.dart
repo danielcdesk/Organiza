@@ -5,6 +5,34 @@ import 'package:organiza/domain/models.dart';
 import 'package:organiza/presentation/dialogs.dart';
 
 void main() {
+  testWidgets('receita oferece fonte e despesa oferece classificação', (tester) async {
+    final store = OrganizaStore.inMemory();
+    addTearDown(store.dispose);
+    store.addAccount('Principal', 0);
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: Builder(
+      builder: (context) => TextButton(
+        onPressed: () => showDialog<TransactionInput>(
+          context: context,
+          builder: (_) => TransactionDialog(
+            accounts: store.accounts,
+            categories: store.financeCategories,
+            subcategories: store.financeSubcategories,
+            onCreateCategory: store.addFinanceCategory,
+            onCreateSubcategory: store.addFinanceSubcategory,
+          ),
+        ),
+        child: const Text('Abrir'),
+      ),
+    ))));
+    await tester.tap(find.text('Abrir'));
+    await tester.pumpAndSettle();
+    expect(find.text('Essencialidade'), findsOneWidget);
+    await tester.tap(find.text('Despesa').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Receita').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Fonte da receita (opcional)'), findsOneWidget);
+  });
   testWidgets('salário mensal não pede parcelas nem descrição', (tester) async {
     final store = OrganizaStore.inMemory();
     addTearDown(store.dispose);

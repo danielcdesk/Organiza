@@ -12,6 +12,8 @@ class TransactionInput {
     required this.occurredOn,
     required this.scheduleType,
     required this.repeatCount,
+    this.incomeSource,
+    this.essentialityOverride,
   });
   final String accountId;
   final String? destinationAccountId;
@@ -23,6 +25,8 @@ class TransactionInput {
   final DateTime occurredOn;
   final TransactionScheduleType scheduleType;
   final int repeatCount;
+  final String? incomeSource;
+  final ExpenseEssentiality? essentialityOverride;
 }
 
 const budgetCategories = <String>[
@@ -107,6 +111,8 @@ class _TransactionDialogState extends State<TransactionDialog> {
   final _amount = TextEditingController();
   final _description = TextEditingController();
   final _repeatCount = TextEditingController(text: '12');
+  final _incomeSource = TextEditingController();
+  ExpenseEssentiality? _essentialityOverride;
   late List<FinanceCategory> _categories;
   late List<FinanceSubcategory> _subcategories;
   late String _category;
@@ -129,6 +135,7 @@ class _TransactionDialogState extends State<TransactionDialog> {
     _amount.dispose();
     _description.dispose();
     _repeatCount.dispose();
+    _incomeSource.dispose();
     super.dispose();
   }
 
@@ -268,6 +275,31 @@ class _TransactionDialogState extends State<TransactionDialog> {
                   ),
                 ]),
                 const SizedBox(height: 12),
+                if (_type == TransactionType.income) ...[
+                  TextField(
+                    controller: _incomeSource,
+                    decoration: const InputDecoration(
+                        labelText: 'Fonte da receita (opcional)'),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                if (_type == TransactionType.expense) ...[
+                  DropdownButtonFormField<String>(
+                    key: ValueKey('essentiality-${_essentialityOverride?.name}'),
+                    isExpanded: true,
+                    initialValue: _essentialityOverride?.name ?? 'category',
+                    decoration: const InputDecoration(labelText: 'Essencialidade'),
+                    items: const [
+                      DropdownMenuItem(value: 'category', child: Text('Padrão da categoria')),
+                      DropdownMenuItem(value: 'essential', child: Text('Essencial')),
+                      DropdownMenuItem(value: 'nonEssential', child: Text('Não essencial')),
+                      DropdownMenuItem(value: 'unclassified', child: Text('Não classificada')),
+                    ],
+                    onChanged: (value) => setState(() => _essentialityOverride =
+                        value == 'category' ? null : ExpenseEssentiality.values.byName(value!)),
+                  ),
+                  const SizedBox(height: 12),
+                ],
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(
@@ -383,6 +415,9 @@ class _TransactionDialogState extends State<TransactionDialog> {
         occurredOn: _occurredOn,
         scheduleType: _scheduleType,
         repeatCount: count,
+        incomeSource: _type == TransactionType.income ? _incomeSource.text : null,
+        essentialityOverride: _type == TransactionType.expense
+            ? _essentialityOverride : null,
       ),
     );
   }

@@ -162,6 +162,8 @@ class LocalRepository {
       _database.insertFinancialGoal(item);
   void insertFinanceCategory(FinanceCategory item) =>
       _database.insertFinanceCategory(item);
+  void setFinanceCategoryEssentiality(String id, ExpenseEssentiality value) =>
+      _database.setFinanceCategoryEssentiality(id, value);
   void insertFinanceSubcategory(FinanceSubcategory item) =>
       _database.insertFinanceSubcategory(item);
   void setTransactionSettled(String id, bool value) =>

@@ -29,6 +29,8 @@ extension _OrganizaShellPart2 on _OrganizaShellState {
         occurredOn: value.occurredOn,
         scheduleType: value.scheduleType,
         repeatCount: value.repeatCount,
+        incomeSource: value.incomeSource,
+        essentialityOverride: value.essentialityOverride,
       );
     } on ArgumentError catch (error) {
       _showError(

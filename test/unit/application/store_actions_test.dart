@@ -7,6 +7,30 @@ import 'package:organiza/domain/app_route.dart';
 import 'package:organiza/domain/financial_rules.dart';
 
 void main() {
+  test('classificação e fonte sobrevivem edição de lançamento', () {
+    final store = OrganizaStore.inMemory(clock: Clock.fixed(DateTime(2026, 9, 10)));
+    addTearDown(store.dispose);
+    store.addAccount('Principal', 0);
+    final category = store.financeCategories.firstWhere(
+        (item) => item.name == 'Alimentação' && item.type == TransactionType.expense);
+    store.setFinanceCategoryEssentiality(category.id, ExpenseEssentiality.essential);
+    expect(store.financeCategories.firstWhere((item) => item.id == category.id).essentiality,
+        ExpenseEssentiality.essential);
+    store.addTransaction(
+      accountId: store.accounts.single.id,
+      type: TransactionType.expense,
+      amountInCents: 1000,
+      description: 'Mercado',
+      category: 'Alimentação',
+      incomeSource: 'Benefício',
+      essentialityOverride: ExpenseEssentiality.nonEssential,
+    );
+    final id = store.transactions.single.id;
+    store.updateTransactionDetails(id, 1100, 'Mercado maior');
+    expect(store.transactions.single.incomeSource, 'Benefício');
+    expect(store.transactions.single.essentialityOverride,
+        ExpenseEssentiality.nonEssential);
+  });
   test(
       'compra cria fatura, pagamento sai da conta uma vez e estorno é reversível',
       () {

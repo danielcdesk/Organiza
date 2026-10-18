@@ -480,6 +480,8 @@ class OrganizaStore extends ChangeNotifier with WidgetsBindingObserver {
     String? destinationAccountId,
     String category = 'Outros',
     String subcategory = 'Geral',
+    String? incomeSource,
+    ExpenseEssentiality? essentialityOverride,
     DateTime? occurredOn,
     TransactionScheduleType scheduleType = TransactionScheduleType.single,
     int repeatCount = 1,
@@ -553,6 +555,10 @@ class OrganizaStore extends ChangeNotifier with WidgetsBindingObserver {
           category: category.trim().isEmpty ? 'Outros' : category.trim(),
           subcategory:
               subcategory.trim().isEmpty ? 'Geral' : subcategory.trim(),
+          incomeSource: incomeSource?.trim().isEmpty == true
+              ? null
+              : incomeSource?.trim(),
+          essentialityOverride: essentialityOverride,
           occurredOn: date,
           createdAt: _now,
           scheduleType: scheduleType,
@@ -1077,6 +1083,8 @@ class OrganizaStore extends ChangeNotifier with WidgetsBindingObserver {
     required String accountId,
     required String? destinationAccountId,
     required DateTime occurredOn,
+    String? incomeSource,
+    ExpenseEssentiality? essentialityOverride,
     TransactionSeriesScope scope = TransactionSeriesScope.occurrence,
   }) {
     final selected = transactions.where((item) => item.id == id).firstOrNull;
@@ -1148,6 +1156,9 @@ class OrganizaStore extends ChangeNotifier with WidgetsBindingObserver {
         installmentNumber: current.installmentNumber,
         installmentCount: current.installmentCount,
         isSettled: !_dateOnly(date).isAfter(_dateOnly(_now)),
+        incomeSource: incomeSource ?? current.incomeSource,
+        essentialityOverride:
+            essentialityOverride ?? current.essentialityOverride,
       ));
     }
     _repository.transaction(() {
@@ -1310,6 +1321,15 @@ class OrganizaStore extends ChangeNotifier with WidgetsBindingObserver {
     reload();
     return financeCategories.firstWhere((item) =>
         item.type == type && item.name.toLowerCase() == clean.toLowerCase());
+  }
+
+  void setFinanceCategoryEssentiality(
+      String categoryId, ExpenseEssentiality value) {
+    if (financeCategories.every((item) => item.id != categoryId)) {
+      throw ArgumentError('Categoria não encontrada.');
+    }
+    _repository.setFinanceCategoryEssentiality(categoryId, value);
+    reload();
   }
 
   FinanceSubcategory addFinanceSubcategory(
