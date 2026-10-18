@@ -5,13 +5,15 @@ import 'package:path_provider/path_provider.dart';
 import 'package:sqlite3/sqlite3.dart';
 
 import '../domain/models.dart';
+import '../domain/business_date.dart';
+import '../domain/app_route.dart';
 
 /// Owns schema migrations and keeps user data on the local machine only.
 class AppDatabase {
   AppDatabase._(this._database);
 
   final Database _database;
-  static const _schemaVersion = 17;
+  static const _schemaVersion = 19;
   static const _backupTables = <String>[
     'accounts',
     'transactions',
@@ -30,6 +32,7 @@ class AppDatabase {
     'finance_subcategories',
     'shopping_items',
     'salary_schedules',
+    'salary_schedule_exceptions',
     'app_settings',
     'goal_categories',
   ];
@@ -132,6 +135,11 @@ class AppDatabase {
         ('legacy-card', 'Cartão antigo', 'visa', '4242', 100000, 10, 17, 123, '2025-01-01');
       INSERT INTO card_purchases VALUES
         ('legacy-purchase', 'legacy-card', 'Compra antiga', 2500, '2025-01-02', 1, '2025-01-02');
+      INSERT INTO accounts VALUES ('legacy-account', 'Legada', 0, '2025-01-01');
+      INSERT INTO transactions(id, account_id, destination_account_id, type, amount_cents,
+        description, occurred_on, created_at) VALUES
+        ('legacy-transaction', 'legacy-account', NULL, 'expense', 100, 'Data antiga',
+         '2025-01-02T23:45:00.000-03:00', '2025-01-02');
       PRAGMA user_version = 15;
     ''');
     final instance = AppDatabase._(database);
@@ -570,6 +578,43 @@ class AppDatabase {
         _database.execute('PRAGMA user_version = 17');
       });
     }
+    if (current < 18) {
+      transaction(() {
+        for (final (table, column) in const <(String, String)>[
+          ('transactions', 'occurred_on'),
+          ('tasks', 'due_on'),
+          ('financial_goals', 'deadline'),
+          ('investments', 'maturity_date'),
+          ('salary_schedules', 'first_due_on'),
+          ('card_purchases', 'purchased_on'),
+          ('card_invoices', 'cycle_start'),
+          ('card_invoices', 'closing_date'),
+          ('card_invoices', 'due_date'),
+          ('card_invoice_payments', 'paid_on'),
+        ]) {
+          if (!_tableColumns(table).contains(column)) continue;
+          _database.execute('''
+            UPDATE "$table" SET "$column" = substr("$column", 1, 10)
+            WHERE "$column" IS NOT NULL AND length("$column") > 10
+          ''');
+        }
+        _database.execute('PRAGMA user_version = 18');
+      });
+    }
+    if (current < 19) {
+      transaction(() {
+        _database.execute('''
+          CREATE TABLE salary_schedule_exceptions (
+            id TEXT PRIMARY KEY NOT NULL,
+            schedule_id TEXT NOT NULL REFERENCES salary_schedules(id) ON DELETE CASCADE,
+            occurred_on TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            UNIQUE(schedule_id, occurred_on)
+          );
+        ''');
+        _database.execute('PRAGMA user_version = 19');
+      });
+    }
   }
 
   static Future<Directory> _applicationDataDirectory() async {
@@ -727,7 +772,7 @@ class AppDatabase {
         ['Geral', 'Presente', 'Prêmio', 'Cashback']
       ),
     ];
-    final createdAt = DateTime(2026).toIso8601String();
+    final createdAt = DateTime.utc(2026).toIso8601String();
     for (final (id, name, type, subcategories) in defaults) {
       _database.execute(
         '''INSERT OR IGNORE INTO finance_categories(
@@ -752,7 +797,7 @@ class AppDatabase {
             id: row['id'] as String,
             name: row['name'] as String,
             openingBalanceInCents: row['opening_balance_cents'] as int,
-            createdAt: DateTime.parse(row['created_at'] as String),
+            createdAt: DateTime.parse(row['created_at'] as String).toUtc(),
             institution:
                 AccountInstitution.values.byName(row['institution'] as String),
             customInstitutionName: row['custom_institution_name'] as String?,
@@ -779,8 +824,8 @@ class AppDatabase {
             installmentCount: row['installment_count'] as int,
             isSettled: (row['is_settled'] as int) == 1,
             cardInvoiceId: row['card_invoice_id'] as String?,
-            occurredOn: DateTime.parse(row['occurred_on'] as String),
-            createdAt: DateTime.parse(row['created_at'] as String),
+            occurredOn: BusinessDate.parse(row['occurred_on'] as String),
+            createdAt: DateTime.parse(row['created_at'] as String).toUtc(),
           ))
       .toList();
 
@@ -792,9 +837,9 @@ class AppDatabase {
             title: row['title'] as String,
             dueOn: row['due_on'] == null
                 ? null
-                : DateTime.parse(row['due_on'] as String),
+                : BusinessDate.parse(row['due_on'] as String),
             isDone: (row['is_done'] as int) == 1,
-            createdAt: DateTime.parse(row['created_at'] as String),
+            createdAt: DateTime.parse(row['created_at'] as String).toUtc(),
           ))
       .toList();
 
@@ -811,7 +856,7 @@ class AppDatabase {
             isPurchased: (row['is_purchased'] as int) == 1,
             imagePath: row['image_path'] as String?,
             description: row['description'] as String? ?? '',
-            createdAt: DateTime.parse(row['created_at'] as String),
+            createdAt: DateTime.parse(row['created_at'] as String).toUtc(),
           ))
       .toList();
 
@@ -826,7 +871,7 @@ class AppDatabase {
             closingDay: row['closing_day'] as int,
             dueDay: row['due_day'] as int,
             colorValue: row['color_value'] as int,
-            createdAt: DateTime.parse(row['created_at'] as String),
+            createdAt: DateTime.parse(row['created_at'] as String).toUtc(),
           ))
       .toList();
 
@@ -838,9 +883,9 @@ class AppDatabase {
             cardId: row['card_id'] as String,
             description: row['description'] as String,
             amountInCents: row['amount_cents'] as int,
-            purchasedOn: DateTime.parse(row['purchased_on'] as String),
+            purchasedOn: BusinessDate.parse(row['purchased_on'] as String),
             installments: row['installments'] as int,
-            createdAt: DateTime.parse(row['created_at'] as String),
+            createdAt: DateTime.parse(row['created_at'] as String).toUtc(),
             category: row['category'] as String? ?? 'Outros',
             subcategory: row['subcategory'] as String? ?? 'Geral',
           ))
@@ -859,14 +904,14 @@ class AppDatabase {
       .map((row) => CardInvoice(
             id: row['id'] as String,
             cardId: row['card_id'] as String,
-            cycleStart: DateTime.parse(row['cycle_start'] as String),
-            closingDate: DateTime.parse(row['closing_date'] as String),
-            dueDate: DateTime.parse(row['due_date'] as String),
+            cycleStart: BusinessDate.parse(row['cycle_start'] as String),
+            closingDate: BusinessDate.parse(row['closing_date'] as String),
+            dueDate: BusinessDate.parse(row['due_date'] as String),
             status: CardInvoiceStatus.values.byName(row['status'] as String),
             totalInCents: row['total_cents'] as int,
             paidOn: row['paid_on'] == null
                 ? null
-                : DateTime.parse(row['paid_on'] as String),
+                : BusinessDate.parse(row['paid_on'] as String),
             paymentAccountId: row['payment_account_id'] as String?,
           ))
       .toList();
@@ -887,8 +932,8 @@ class AppDatabase {
             description: row['description'] as String,
             category: row['category'] as String,
             subcategory: row['subcategory'] as String,
-            occurredOn: DateTime.parse(row['closing_date'] as String),
-            createdAt: DateTime.parse(row['created_at'] as String),
+            occurredOn: BusinessDate.parse(row['closing_date'] as String),
+            createdAt: DateTime.parse(row['created_at'] as String).toUtc(),
           ))
       .toList();
 
@@ -907,14 +952,14 @@ class AppDatabase {
             institutionName: row['institution_name'] as String?,
             maturityDate: row['maturity_date'] == null
                 ? null
-                : DateTime.parse(row['maturity_date'] as String),
+                : BusinessDate.parse(row['maturity_date'] as String),
             quotedRateBasisPoints: row['quoted_rate_bps'] as int?,
             quotedRatePeriod: row['quoted_rate_period'] == null
                 ? null
                 : InvestmentRatePeriod.values
                     .byName(row['quoted_rate_period'] as String),
             yieldPaymentDay: row['yield_payment_day'] as int?,
-            createdAt: DateTime.parse(row['created_at'] as String),
+            createdAt: DateTime.parse(row['created_at'] as String).toUtc(),
           ))
       .toList();
 
@@ -927,7 +972,7 @@ class AppDatabase {
             limitInCents: row['limit_cents'] as int,
             year: row['year'] as int,
             month: row['month'] as int,
-            createdAt: DateTime.parse(row['created_at'] as String),
+            createdAt: DateTime.parse(row['created_at'] as String).toUtc(),
           ))
       .toList();
 
@@ -941,7 +986,7 @@ class AppDatabase {
             billingDay: row['billing_day'] as int,
             category: row['category'] as String,
             isActive: (row['is_active'] as int) == 1,
-            createdAt: DateTime.parse(row['created_at'] as String),
+            createdAt: DateTime.parse(row['created_at'] as String).toUtc(),
           ))
       .toList();
 
@@ -965,10 +1010,10 @@ class AppDatabase {
             savedInCents: row['saved_cents'] as int,
             deadline: row['deadline'] == null
                 ? null
-                : DateTime.parse(row['deadline'] as String),
+                : BusinessDate.parse(row['deadline'] as String),
             iconKey: row['icon_key'] as String,
             category: row['category'] as String,
-            createdAt: DateTime.parse(row['created_at'] as String),
+            createdAt: DateTime.parse(row['created_at'] as String).toUtc(),
           ))
       .toList();
 
@@ -977,25 +1022,30 @@ class AppDatabase {
       .map((row) => row['name'] as String)
       .toList();
 
-  List<int> loadMobileQuickPages() {
+  List<AppRoute> loadMobileQuickPages() {
     final rows = _database.select(
         "SELECT value FROM app_settings WHERE key = 'mobile_quick_pages'");
-    if (rows.isEmpty) return [0, 1, 6, 8];
-    final parsed =
-        (rows.first['value'] as String).split(',').map(int.tryParse).toList();
-    if (parsed.length != 4 ||
-        parsed.contains(null) ||
-        parsed.any((value) => value! < 0 || value > 11 || value == 9)) {
-      return [0, 1, 6, 8];
+    const fallback = <AppRoute>[
+      AppRoute.overview,
+      AppRoute.finances,
+      AppRoute.organization,
+      AppRoute.reports,
+    ];
+    if (rows.isEmpty) return fallback;
+    final tokens = (rows.first['value'] as String).split(',');
+    final normalized = <AppRoute>[];
+    for (final token in tokens) {
+      final route = AppRoute.fromId(token) ??
+          (int.tryParse(token) == null
+              ? null
+              : AppRoute.fromLegacyIndex(int.parse(token)));
+      if (route == null || !route.quick || normalized.contains(route)) continue;
+      normalized.add(route);
     }
-    final normalized = <int>[];
-    for (final page in parsed.cast<int>()) {
-      final mapped = page == 4 ? 6 : page;
-      if (!normalized.contains(mapped)) normalized.add(mapped);
-    }
-    for (final fallback in [0, 1, 6, 8]) {
+    if (normalized.length > 4) normalized.removeRange(4, normalized.length);
+    for (final route in fallback) {
       if (normalized.length == 4) break;
-      if (!normalized.contains(fallback)) normalized.add(fallback);
+      if (!normalized.contains(route)) normalized.add(route);
     }
     return normalized;
   }
@@ -1010,9 +1060,9 @@ class AppDatabase {
       'INSERT OR REPLACE INTO app_settings(key, value) VALUES (?, ?)',
       [key, value]);
 
-  void saveMobileQuickPages(List<int> pages) => _database.execute(
+  void saveMobileQuickPages(List<AppRoute> pages) => _database.execute(
       "INSERT OR REPLACE INTO app_settings(key, value) VALUES ('mobile_quick_pages', ?)",
-      [pages.join(',')]);
+      [pages.map((route) => route.id).join(',')]);
 
   List<SalarySchedule> loadSalarySchedules() => _database
       .select('SELECT * FROM salary_schedules ORDER BY created_at')
@@ -1022,9 +1072,9 @@ class AppDatabase {
             amountInCents: row['amount_cents'] as int,
             description: row['description'] as String,
             subcategory: row['subcategory'] as String,
-            firstDueOn: DateTime.parse(row['first_due_on'] as String),
+            firstDueOn: BusinessDate.parse(row['first_due_on'] as String),
             paymentDay: row['payment_day'] as int,
-            createdAt: DateTime.parse(row['created_at'] as String),
+            createdAt: DateTime.parse(row['created_at'] as String).toUtc(),
           ))
       .toList();
 
@@ -1037,13 +1087,47 @@ class AppDatabase {
         item.amountInCents,
         item.description,
         item.subcategory,
-        item.firstDueOn.toIso8601String(),
+        BusinessDate.serialize(item.firstDueOn),
         item.paymentDay,
-        item.createdAt.toIso8601String()
+        item.createdAt.toUtc().toIso8601String()
       ]);
 
   void deleteSalarySchedule(String id) =>
       _database.execute('DELETE FROM salary_schedules WHERE id = ?', [id]);
+
+  void updateSalarySchedule(SalarySchedule item) => _database.execute('''
+    UPDATE salary_schedules SET account_id = ?, amount_cents = ?, description = ?,
+      subcategory = ?, first_due_on = ?, payment_day = ? WHERE id = ?
+  ''', [
+        item.accountId,
+        item.amountInCents,
+        item.description,
+        item.subcategory,
+        BusinessDate.serialize(item.firstDueOn),
+        item.paymentDay,
+        item.id,
+      ]);
+
+  bool isSalaryOccurrenceSkipped(String scheduleId, DateTime date) =>
+      _database.select('''SELECT 1 FROM salary_schedule_exceptions
+        WHERE schedule_id = ? AND occurred_on = ? LIMIT 1''',
+          [scheduleId, BusinessDate.serialize(date)]).isNotEmpty;
+
+  void skipSalaryOccurrence(
+          String id, String scheduleId, DateTime date, DateTime createdAt) =>
+      _database.execute('''INSERT OR IGNORE INTO salary_schedule_exceptions(
+        id, schedule_id, occurred_on, created_at
+      ) VALUES (?, ?, ?, ?)''', [
+        id,
+        scheduleId,
+        BusinessDate.serialize(date),
+        createdAt.toUtc().toIso8601String(),
+      ]);
+
+  void unskipSalaryOccurrence(String scheduleId, DateTime date) =>
+      _database.execute('''DELETE FROM salary_schedule_exceptions
+        WHERE schedule_id = ? AND occurred_on = ?''',
+          [scheduleId, BusinessDate.serialize(date)]);
 
   void insertGoalCategory(String name) =>
       _database.execute('INSERT INTO goal_categories(name) VALUES (?)', [name]);
@@ -1055,7 +1139,7 @@ class AppDatabase {
             name: row['name'] as String,
             type: TransactionType.values.byName(row['type'] as String),
             isSystem: (row['is_system'] as int) == 1,
-            createdAt: DateTime.parse(row['created_at'] as String),
+            createdAt: DateTime.parse(row['created_at'] as String).toUtc(),
           ))
       .toList();
 
@@ -1067,7 +1151,7 @@ class AppDatabase {
             categoryId: row['category_id'] as String,
             name: row['name'] as String,
             isSystem: (row['is_system'] as int) == 1,
-            createdAt: DateTime.parse(row['created_at'] as String),
+            createdAt: DateTime.parse(row['created_at'] as String).toUtc(),
           ))
       .toList();
 
@@ -1080,7 +1164,7 @@ class AppDatabase {
           account.id,
           account.name,
           account.openingBalanceInCents,
-          account.createdAt.toIso8601String(),
+          account.createdAt.toUtc().toIso8601String(),
           account.institution.name,
           account.customInstitutionName,
           account.customIconKey,
@@ -1121,8 +1205,8 @@ class AppDatabase {
           item.description,
           item.category,
           item.subcategory,
-          item.occurredOn.toIso8601String(),
-          item.createdAt.toIso8601String(),
+          BusinessDate.serialize(item.occurredOn),
+          item.createdAt.toUtc().toIso8601String(),
           item.scheduleType.name,
           item.seriesId,
           item.installmentNumber,
@@ -1137,9 +1221,9 @@ class AppDatabase {
         [
           item.id,
           item.title,
-          item.dueOn?.toIso8601String(),
+          item.dueOn == null ? null : BusinessDate.serialize(item.dueOn!),
           item.isDone ? 1 : 0,
-          item.createdAt.toIso8601String()
+          item.createdAt.toUtc().toIso8601String()
         ],
       );
 
@@ -1165,7 +1249,7 @@ class AppDatabase {
           item.isPurchased ? 1 : 0,
           item.imagePath,
           item.description,
-          item.createdAt.toIso8601String(),
+          item.createdAt.toUtc().toIso8601String(),
         ],
       );
 
@@ -1195,7 +1279,7 @@ class AppDatabase {
           card.closingDay,
           card.dueDay,
           card.colorValue,
-          card.createdAt.toIso8601String(),
+          card.createdAt.toUtc().toIso8601String(),
         ],
       );
 
@@ -1235,9 +1319,9 @@ class AppDatabase {
           purchase.cardId,
           purchase.description,
           purchase.amountInCents,
-          purchase.purchasedOn.toIso8601String(),
+          BusinessDate.serialize(purchase.purchasedOn),
           purchase.installments,
-          purchase.createdAt.toIso8601String(),
+          purchase.createdAt.toUtc().toIso8601String(),
           purchase.category,
           purchase.subcategory,
         ],
@@ -1250,7 +1334,7 @@ class AppDatabase {
         purchase.cardId,
         purchase.description,
         purchase.amountInCents,
-        purchase.purchasedOn.toIso8601String(),
+        BusinessDate.serialize(purchase.purchasedOn),
         purchase.installments,
         purchase.category,
         purchase.subcategory,
@@ -1306,7 +1390,7 @@ class AppDatabase {
       date,
       _dateOnly(dueDate),
       status.name,
-      createdAt.toIso8601String()
+      createdAt.toUtc().toIso8601String()
     ]);
     return id;
   }
@@ -1370,8 +1454,7 @@ class AppDatabase {
     }
   }
 
-  static String _dateOnly(DateTime date) =>
-      DateTime(date.year, date.month, date.day).toIso8601String();
+  static String _dateOnly(DateTime date) => BusinessDate.serialize(date);
 
   void insertInvestment(InvestmentPosition investment) => _database.execute(
         '''INSERT INTO investments(
@@ -1385,10 +1468,12 @@ class AppDatabase {
           investment.type.name,
           investment.investedAmountInCents,
           investment.currentValueInCents,
-          investment.createdAt.toIso8601String(),
+          investment.createdAt.toUtc().toIso8601String(),
           investment.fixedIncomeType?.name,
           investment.institutionName,
-          investment.maturityDate?.toIso8601String(),
+          investment.maturityDate == null
+              ? null
+              : BusinessDate.serialize(investment.maturityDate!),
           investment.quotedRateBasisPoints,
           investment.quotedRatePeriod?.name,
           investment.yieldPaymentDay,
@@ -1408,7 +1493,9 @@ class AppDatabase {
           investment.currentValueInCents,
           investment.fixedIncomeType?.name,
           investment.institutionName,
-          investment.maturityDate?.toIso8601String(),
+          investment.maturityDate == null
+              ? null
+              : BusinessDate.serialize(investment.maturityDate!),
           investment.quotedRateBasisPoints,
           investment.quotedRatePeriod?.name,
           investment.yieldPaymentDay,
@@ -1424,7 +1511,7 @@ class AppDatabase {
           category.name,
           category.type.name,
           category.isSystem ? 1 : 0,
-          category.createdAt.toIso8601String(),
+          category.createdAt.toUtc().toIso8601String(),
         ],
       );
 
@@ -1438,7 +1525,7 @@ class AppDatabase {
           subcategory.categoryId,
           subcategory.name,
           subcategory.isSystem ? 1 : 0,
-          subcategory.createdAt.toIso8601String(),
+          subcategory.createdAt.toUtc().toIso8601String(),
         ],
       );
 
@@ -1452,6 +1539,28 @@ class AppDatabase {
           'UPDATE transactions SET amount_cents = ?, description = ? WHERE id = ?',
           [cents, description, id]);
 
+  void updateTransactionRecord(TransactionRecord item) => _database.execute('''
+    UPDATE transactions SET account_id = ?, destination_account_id = ?,
+      amount_cents = ?, description = ?, category = ?, subcategory = ?,
+      occurred_on = ?, is_settled = ? WHERE id = ?
+  ''', [
+        item.accountId,
+        item.destinationAccountId,
+        item.amountInCents,
+        item.description,
+        item.category,
+        item.subcategory,
+        BusinessDate.serialize(item.occurredOn),
+        item.isSettled ? 1 : 0,
+        item.id,
+      ]);
+
+  void deleteTransactionRows(Iterable<String> ids) {
+    for (final id in ids) {
+      _database.execute('DELETE FROM transactions WHERE id = ?', [id]);
+    }
+  }
+
   void insertBudget(Budget budget) => _database.execute(
         '''INSERT INTO budgets(id, category, limit_cents, year, month, created_at)
         VALUES (?, ?, ?, ?, ?, ?)''',
@@ -1461,7 +1570,7 @@ class AppDatabase {
           budget.limitInCents,
           budget.year,
           budget.month,
-          budget.createdAt.toIso8601String(),
+          budget.createdAt.toUtc().toIso8601String(),
         ],
       );
 
@@ -1475,7 +1584,7 @@ class AppDatabase {
           subscription.billingDay,
           subscription.category,
           subscription.isActive ? 1 : 0,
-          subscription.createdAt.toIso8601String(),
+          subscription.createdAt.toUtc().toIso8601String(),
         ],
       );
 
@@ -1504,9 +1613,9 @@ class AppDatabase {
           goal.name,
           goal.targetInCents,
           goal.savedInCents,
-          goal.deadline?.toIso8601String(),
+          goal.deadline == null ? null : BusinessDate.serialize(goal.deadline!),
           goal.iconKey,
-          goal.createdAt.toIso8601String(),
+          goal.createdAt.toUtc().toIso8601String(),
           goal.category,
         ],
       );

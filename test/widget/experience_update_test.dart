@@ -19,17 +19,27 @@ void main() {
         amountInCents: 1000,
         description: 'Original',
         occurredOn: now,
-        createdAt: now);
-    (int, String)? result;
+        createdAt: now,
+        seriesId: 'series',
+        scheduleType: TransactionScheduleType.recurring);
+    TransactionEditInput? result;
     await tester.pumpWidget(MaterialApp(
         theme: OrganizaTheme.light(),
         home: Builder(
             builder: (context) => Scaffold(
                 body: TextButton(
                     onPressed: () async {
-                      result = await showDialog<(int, String)>(
+                      result = await showDialog<TransactionEditInput>(
                           context: context,
-                          builder: (_) => TransactionEditDialog(item: item));
+                          builder: (_) => TransactionEditDialog(
+                                  item: item,
+                                  accounts: [
+                                    Account(
+                                        id: 'a',
+                                        name: 'Conta',
+                                        openingBalanceInCents: 0,
+                                        createdAt: now)
+                                  ]));
                     },
                     child: const Text('Editar'))))));
     await tester.tap(find.text('Editar'));
@@ -39,10 +49,17 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Informe um valor válido.'), findsOneWidget);
     await tester.enterText(find.byType(TextField).first, '25,50');
-    await tester.enterText(find.byType(TextField).last, 'Corrigido');
+    await tester.enterText(find.byType(TextField).at(1), 'Corrigido');
+    await tester
+        .tap(find.byType(DropdownButtonFormField<TransactionSeriesScope>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Esta e as próximas').last);
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Salvar alteração'));
     await tester.pumpAndSettle();
-    expect(result, (2550, 'Corrigido'));
+    expect(result?.amountInCents, 2550);
+    expect(result?.description, 'Corrigido');
+    expect(result?.scope, TransactionSeriesScope.fromHere);
   });
   testWidgets('goals fit a compact viewport', (tester) async {
     tester.view.physicalSize = const Size(390, 844);

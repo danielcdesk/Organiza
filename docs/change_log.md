@@ -1,5 +1,12 @@
 # Registro de mudanças
 
+## 2026-10-11 — Lembretes locais e bloqueio de acesso
+
+- Adicionada programação local de lembretes para lançamentos pendentes, faturas fechadas e assinaturas ativas, com antecedência de 0, 1 ou 3 dias e horário configurável; datas seguem o calendário civil e usam o Clock injetável.
+- A permissão de notificações só é solicitada ao ativar a função. A recusa não bloqueia o restante do app; valores não aparecem nos lembretes quando “ocultar valores” está ativo. Alterações/restore recalculam a agenda.
+- Adicionado bloqueio pela biometria ou credencial do sistema ao abrir e ao retornar após o intervalo escolhido. Android aplica `FLAG_SECURE`; Windows pode bloquear ao minimizar/ocultar a janela.
+- O bloqueio é proteção de interface, não criptografia do banco SQLite. SQLCipher continua em avaliação. Sem rede e sem permissão `INTERNET`.
+
 ## 2026-10-11 — Compras e faturas de cartão integradas
 
 - Compras agora aceitam data, categoria e subcategoria e podem ser editadas/removidas antes de uma fatura associada ser paga. Cartões podem ser editados; exclusão é bloqueada quando existem compras ou faturas.
@@ -198,3 +205,9 @@
 - Orçamentos mensais por categoria persistidos no schema 4; transações agora registram categoria e o consumo é calculado localmente.
 - Criada tela de Orçamentos com resumo de limite/utilizado/disponível, progresso por categoria e estado vazio orientado à ação.
 - Integração Windows passou a capturar também o módulo de Orçamentos.
+# 2026-10-11
+
+- Padronizadas datas civis sem fuso (`yyyy-MM-dd`) e atualizado o schema para 18; ocorrências salariais excluídas individualmente são lembradas no schema 19.
+- Edição e exclusão de séries agora oferecem escopo por ocorrência, próximas ou série inteira; salários têm cancelamento separado e explícito. Exclusões podem ser desfeitas.
+- Edição de parcelas redistribui centavos; categorias, subcategorias, conta e data podem ser alteradas. Saldos negativos representam cheque especial e são destacados.
+- Atualização de ocorrências devidas também acontece quando o app retorna ao primeiro plano.

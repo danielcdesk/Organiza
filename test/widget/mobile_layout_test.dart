@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:organiza/application/organiza_store.dart';
 import 'package:organiza/domain/models.dart';
+import 'package:organiza/domain/app_route.dart';
 import 'package:organiza/presentation/organiza_app.dart';
 import 'package:organiza/presentation/shared_widgets.dart';
 
@@ -116,11 +117,16 @@ void main() {
     await tester.pumpAndSettle();
     await tester.drag(find.byType(ListView).first, const Offset(0, -500));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('quick-3-8')));
+    await tester.tap(find.byKey(const ValueKey('quick-3-reports')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Metas').last);
     await tester.pumpAndSettle();
-    expect(store.mobileQuickPages, [0, 1, 6, 7]);
+    expect(store.mobileQuickPages, [
+      AppRoute.overview,
+      AppRoute.finances,
+      AppRoute.organization,
+      AppRoute.goals,
+    ]);
     expect(
         find.descendant(
             of: find.byType(AppBottomNav), matching: find.text('Metas')),

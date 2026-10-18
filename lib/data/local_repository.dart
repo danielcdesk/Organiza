@@ -1,5 +1,6 @@
 import '../database/app_database.dart';
 import '../domain/models.dart';
+import '../domain/app_route.dart';
 
 /// Data boundary used by application services; UI and domain never import SQLite.
 class LocalRepository {
@@ -26,15 +27,24 @@ class LocalRepository {
   List<Subscription> loadSubscriptions() => _database.loadSubscriptions();
   List<SalarySchedule> loadSalarySchedules() => _database.loadSalarySchedules();
   List<String> loadGoalCategories() => _database.loadGoalCategories();
-  List<int> loadMobileQuickPages() => _database.loadMobileQuickPages();
+  List<AppRoute> loadMobileQuickPages() => _database.loadMobileQuickPages();
   String? loadPreference(String key) => _database.loadPreference(key);
   void savePreference(String key, String value) =>
       _database.savePreference(key, value);
-  void saveMobileQuickPages(List<int> pages) =>
+  void saveMobileQuickPages(List<AppRoute> pages) =>
       _database.saveMobileQuickPages(pages);
   void insertSalarySchedule(SalarySchedule item) =>
       _database.insertSalarySchedule(item);
   void deleteSalarySchedule(String id) => _database.deleteSalarySchedule(id);
+  void updateSalarySchedule(SalarySchedule item) =>
+      _database.updateSalarySchedule(item);
+  bool isSalaryOccurrenceSkipped(String scheduleId, DateTime date) =>
+      _database.isSalaryOccurrenceSkipped(scheduleId, date);
+  void skipSalaryOccurrence(
+          String id, String scheduleId, DateTime date, DateTime createdAt) =>
+      _database.skipSalaryOccurrence(id, scheduleId, date, createdAt);
+  void unskipSalaryOccurrence(String scheduleId, DateTime date) =>
+      _database.unskipSalaryOccurrence(scheduleId, date);
   void insertGoalCategory(String name) => _database.insertGoalCategory(name);
   void updateAccountOpeningBalance(String id, int cents) =>
       _database.updateAccountOpeningBalance(id, cents);
@@ -162,6 +172,10 @@ class LocalRepository {
   void deleteTransaction(String id) => _database.deleteTransaction(id);
   void updateTransactionDetails(String id, int cents, String description) =>
       _database.updateTransactionDetails(id, cents, description);
+  void updateTransactionRecord(TransactionRecord item) =>
+      _database.updateTransactionRecord(item);
+  void deleteTransactionRows(Iterable<String> ids) =>
+      _database.deleteTransactionRows(ids);
   void deleteBudget(String id) => _database.deleteBudget(id);
   void deleteSubscription(String id) => _database.deleteSubscription(id);
   void deleteFinancialGoal(String id) => _database.deleteFinancialGoal(id);

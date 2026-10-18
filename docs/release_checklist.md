@@ -7,6 +7,9 @@
 - [ ] Confirmar que a migração SQLite e o `technical_dossier.md` usam o mesmo schema.
 - [ ] Revisar a política de privacidade com a identidade jurídica e o canal de suporte do publicador.
 - [ ] Confirmar que o manifesto Android mantém `android:allowBackup="false"` e que o fluxo de backup manual está documentado.
+- [ ] Revisar permissões do APK de release: `POST_NOTIFICATIONS` existe apenas para lembretes opcionais, `USE_BIOMETRIC`/credencial do sistema é usado pelo bloqueio, `VIBRATE` é usado no alerta, e não há `INTERNET` nem `SCHEDULE_EXACT_ALARM` (as variantes debug/profile do Flutter podem incluir `INTERNET` para ferramentas de desenvolvimento).
+- [ ] Testar ativar/recusar notificações, texto com “ocultar valores”, bloqueio ao abrir/retornar e prévia protegida em Android recentes; confirmar que recusar notificações não impede o uso.
+- [ ] Testar Windows com bloqueio ao minimizar/ocultar ativado e desativado. Confirmar que o app não grava PIN/biometria e que a declaração de segurança não promete cifra do SQLite (SQLCipher segue em avaliação).
 
 ## Android / Google Play
 

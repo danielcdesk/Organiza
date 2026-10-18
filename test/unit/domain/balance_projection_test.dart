@@ -109,7 +109,7 @@ void main() {
       horizonDays: 30,
     );
 
-    expect(result.firstNegativeDate, DateTime(2026, 1, 10));
+    expect(result.firstNegativeDate, DateTime.utc(2026, 1, 10));
     expect(result.firstNegativeBalanceInCents, -2000);
   });
 
@@ -158,7 +158,7 @@ void main() {
     );
 
     final february = result.points
-        .firstWhere((point) => point.date == DateTime(2026, 2, 28));
+        .firstWhere((point) => point.date == DateTime.utc(2026, 2, 28));
     expect(february.balanceInCents, 20000);
   });
 
@@ -183,7 +183,7 @@ void main() {
     );
 
     final february = result.points
-        .firstWhere((point) => point.date == DateTime(2026, 2, 28));
+        .firstWhere((point) => point.date == DateTime.utc(2026, 2, 28));
     expect(february.balanceInCents, -1000);
   });
 
@@ -231,7 +231,7 @@ void main() {
     );
 
     final march = result.points
-        .firstWhere((point) => point.date == DateTime(2026, 3, 10));
+        .firstWhere((point) => point.date == DateTime.utc(2026, 3, 10));
     expect(march.balanceInCents, -1000);
   });
 

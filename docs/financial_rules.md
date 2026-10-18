@@ -8,6 +8,12 @@
 - Edição de valor/descrição preserva ID, conta, data, tipo, série e status. A edição não se propaga para outras parcelas ou salários.
 - Totais do histórico acompanham o filtro ativo e consideram apenas ocorrências confirmadas, com transferências fora de receitas/despesas.
 
+- Datas de negócio são datas civis `yyyy-MM-dd`, sem horário/fuso; timestamps de criação são UTC. Séries mensais ajustam 29/30/31 ao último dia do mês, inclusive em ano bissexto.
+- Edição e exclusão de recorrências e parcelamentos oferecem somente esta ocorrência, esta e as próximas, ou todas. Salário recorrente é excluído por ocorrência por padrão; cancelar futuros salários exige ação explícita e confirmação.
+- Alterar total de um parcelamento redistribui o total pelas parcelas abrangidas, com os centavos restantes nas primeiras, sem perda nem criação de valor.
+- Saldos negativos são válidos para representar cheque especial, respeitando magnitude absoluta inferior a R$ 1 bilhão. O saldo consolidado pode ser negativo; transferências próprias continuam neutras.
+- Após exclusão, a interface oferece desfazer; a restauração de todas as linhas é uma única transação.
+
 
 - Valores monetários são centavos inteiros; `double`, `NaN` e `Infinity` não entram no domínio.
 - Saldo de uma conta: saldo inicial + receitas pagas − despesas pagas − transferências enviadas + transferências recebidas.

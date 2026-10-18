@@ -1,4 +1,5 @@
 import 'models.dart';
+import 'business_date.dart';
 
 class CreditCardRules {
   const CreditCardRules._();
@@ -72,10 +73,8 @@ class CreditCardRules {
     final closing = currentCycleClosingDate(card, reference);
     var total = 0;
     for (final purchase in purchases.where((item) => item.cardId == card.id)) {
-      final purchaseDate = DateTime(purchase.purchasedOn.year,
-          purchase.purchasedOn.month, purchase.purchasedOn.day);
-      final referenceDate =
-          DateTime(reference.year, reference.month, reference.day);
+      final purchaseDate = BusinessDate.from(purchase.purchasedOn);
+      final referenceDate = BusinessDate.from(reference);
       if (purchaseDate.isAfter(referenceDate)) continue;
       final currentIndex = installmentIndex(card, purchase, closing);
       final firstOutstanding = currentIndex < 1 ? 1 : currentIndex;
@@ -115,8 +114,9 @@ class CreditCardRules {
       (to.year - from.year) * 12 + to.month - from.month;
 
   static DateTime _safeDate(int year, int month, int day) {
-    final normalized = DateTime(year, month);
-    final lastDay = DateTime(normalized.year, normalized.month + 1, 0).day;
-    return DateTime(normalized.year, normalized.month, day.clamp(1, lastDay));
+    final normalized = DateTime.utc(year, month);
+    final lastDay = DateTime.utc(normalized.year, normalized.month + 1, 0).day;
+    return DateTime.utc(
+        normalized.year, normalized.month, day.clamp(1, lastDay));
   }
 }

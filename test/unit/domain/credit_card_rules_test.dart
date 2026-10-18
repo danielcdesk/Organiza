@@ -28,14 +28,14 @@ void main() {
   test('ciclo fecha no mês atual antes do fechamento', () {
     expect(
       CreditCardRules.currentCycleClosingDate(card, DateTime(2026, 9, 5)),
-      DateTime(2026, 9, 10),
+      DateTime.utc(2026, 9, 10),
     );
   });
 
   test('ciclo avança para o mês seguinte após o fechamento', () {
     expect(
       CreditCardRules.currentCycleClosingDate(card, DateTime(2026, 9, 11)),
-      DateTime(2026, 10, 10),
+      DateTime.utc(2026, 10, 10),
     );
   });
 
@@ -107,8 +107,8 @@ void main() {
       createdAt: DateTime(2026),
     );
     final closing = CreditCardRules.installmentClosingDate(card31, purchase, 1);
-    expect(closing, DateTime(2026, 1, 31));
+    expect(closing, DateTime.utc(2026, 1, 31));
     expect(CreditCardRules.invoiceDueDate(card31, DateTime(2026, 1, 31)),
-        DateTime(2026, 2, 28));
+        DateTime.utc(2026, 2, 28));
   });
 }

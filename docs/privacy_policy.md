@@ -6,7 +6,9 @@ O Organiza é um aplicativo local-first. As informações inseridas pelo usuári
 
 ## Dados armazenados
 
-O aplicativo pode armazenar localmente nome e foto do perfil, contas, instituições, lançamentos, categorias, cartões com apenas os quatro últimos dígitos, investimentos, metas, tarefas, compras da lista de desejos, preferências e imagens escolhidas pelo usuário. Valores são guardados em um banco SQLite privado da aplicação.
+O aplicativo pode armazenar localmente nome e foto do perfil, contas, instituições, lançamentos, categorias, cartões com apenas os quatro últimos dígitos, investimentos, metas, tarefas, compras da lista de desejos, preferências e imagens escolhidas pelo usuário. Valores são guardados em um banco SQLite privado da aplicação. Preferências de lembretes e bloqueio também ficam no dispositivo.
+
+Lembretes opcionais de pendências, faturas e assinaturas são agendados no próprio dispositivo, sem servidor ou sincronização. No Android, a permissão de notificações é solicitada apenas quando o usuário ativa o recurso. O texto das notificações omite valores monetários se a opção de ocultar valores estiver ligada. A biometria/PIN do sistema é processada pelo sistema operacional; o Organiza não recebe nem armazena essa credencial.
 
 ## Arquivos exportados
 
@@ -18,7 +20,7 @@ O aplicativo não compartilha os dados por conta própria. Os dados permanecem a
 
 ## Segurança e limites
 
-O aplicativo reduz dados sensíveis de cartões e não solicita número completo, CVV ou senha bancária. A proteção do dispositivo, do perfil do sistema operacional e dos arquivos exportados continua sendo responsabilidade do usuário. Não use o Organiza como autorização para movimentar dinheiro ou como recomendação de investimento.
+O aplicativo reduz dados sensíveis de cartões e não solicita número completo, CVV ou senha bancária. O bloqueio de interface não cifra o SQLite nem protege contra acesso ao arquivo por outro processo com acesso à conta do dispositivo. A proteção do dispositivo, do perfil do sistema operacional e dos arquivos exportados continua sendo responsabilidade do usuário. Não use o Organiza como autorização para movimentar dinheiro ou como recomendação de investimento.
 
 ## Contato e alterações
 

@@ -82,6 +82,8 @@ class TransactionRecord {
 
 enum TransactionScheduleType { single, recurring, installment }
 
+enum TransactionSeriesScope { occurrence, fromHere, entireSeries }
+
 class TaskItem {
   const TaskItem({
     required this.id,

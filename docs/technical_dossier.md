@@ -164,7 +164,11 @@ O estado é compartilhado por composição: não há Provider, Riverpod, Bloc ou
 
 ### Database
 
-`lib/database/app_database.dart` é a única classe que conhece SQL. Ela abre o SQLite, ativa `PRAGMA foreign_keys = ON`, `busy_timeout`, WAL e `synchronous=NORMAL` no banco persistente, mantém `PRAGMA user_version`, executa migrações incrementais, converte linhas para modelos e expõe operações de leitura/escrita.
+`lib/database/app_database.dart` é a única classe que conhece SQL. Ela abre o SQLite, ativa `PRAGMA foreign_keys = ON`, `busy_timeout`, WAL e `synchronous=NORMAL` no banco persistente, mantém `PRAGMA user_version`, executa migrações incrementais até schema 19, converte linhas para modelos e expõe operações de leitura/escrita.
+
+Datas civis financeiras passam por `lib/domain/business_date.dart`: são persistidas como `yyyy-MM-dd`, sem hora ou fuso. `created_at` é um instante e continua em UTC. A migração 18 normaliza datas ISO preexistentes mantendo a parte civil original; a 19 adiciona exceções de ocorrência para salários recorrentes. A atualização de vencimentos é disparada no retorno ao primeiro plano e também por timer, ambos baseados no `Clock` injetável.
+
+Edição e exclusão de recorrências/parcelamentos são transacionais e podem atingir somente a ocorrência, esta e as próximas ou toda a série. Exclusão de salário por padrão cria uma exceção apenas para a competência; cancelar a série é ação separada. Edição de total parcelado reparte os centavos restantes nas parcelas selecionadas. Saldos de contas podem ser negativos (cheque especial), permanecendo transferências neutras no saldo consolidado; exclusões oferecem restauração por ação temporária.
 
 O banco persistente fica no diretório privado de suporte da aplicação, separado por plataforma. O banco de Windows não é sincronizado automaticamente com o banco do Android.
 
@@ -209,7 +213,7 @@ O banco persistente fica no diretório privado de suporte da aplicação, separa
 
 ## 6. Banco SQLite e migrações
 
-O schema atual no código é a versão **17**. As migrações são incrementais; a migração 17 reconstrói as tabelas de cartões/compras preservando as linhas existentes para ampliar os dias permitidos e cria as tabelas de fatura, itens e pagamentos.
+O schema atual no código é a versão **19**. A migração 17 cria faturas e preserva dados de cartão; a 18 normaliza datas de negócio ISO antigas para `yyyy-MM-dd`; a 19 registra exclusões de ocorrências salariais sem cancelar toda a recorrência.
 
 | Versão | Alteração |
 |---:|---|
@@ -230,6 +234,8 @@ O schema atual no código é a versão **17**. As migrações são incrementais;
 | 15 | índice único para impedir duas ocorrências da mesma série na mesma data |
 | 16 | chave de ícone opcional para assinaturas |
 | 17 | fechamento/vencimento de cartão entre 1 e 31, categoria/subcategoria de compra, faturas, parcelas por ciclo e pagamentos reversíveis |
+| 18 | datas civis sem hora/fuso nas transações, vencimentos, metas, investimentos, cartões e séries |
+| 19 | exceções para exclusão de ocorrência em salário recorrente |
 
 Constraints e índices relevantes:
 
@@ -388,7 +394,7 @@ O fluxo integrado está em `integration_test/first_use_flow_test.dart` e cobre p
 - Não há golden tests para proteger o visual desktop/mobile.
 - Não há benchmark com o volume-alvo de 10.000 transações e 1.000 tarefas.
 - A cobertura de acessibilidade está baseada em semântica pontual e testes de presença; não há auditoria automatizada de contraste, leitor de tela ou navegação por teclado em todas as telas.
-- A documentação histórica de releases ainda pode citar contagens antigas; o código atual está no schema 17. A suíte foi rodada novamente para a entrega de 2026-10-11.
+- A documentação histórica de releases ainda pode citar contagens antigas; o código atual está no schema 19. A suíte foi rodada novamente para a entrega de 2026-10-11.
 
 ## 12. Build, distribuição e organização de artefatos
 
@@ -445,7 +451,7 @@ Também gera instaladores auxiliares para emulador Android, um `LEIA-ME.txt`, co
 
 ### Prioridade alta
 
-**P0 — Alinhar documentação e fonte.** Revisar também documentos de arquitetura e estado conhecido quando a próxima auditoria completa for feita; este dossiê, matriz e changelog registram o schema 17 e o fluxo de faturas.
+**P0 — Alinhar documentação e fonte.** Revisar documentos de arquitetura e estado conhecido em cada mudança; este dossiê registra o schema 19 e o fluxo de faturas.
 
 **P0 — Definir uma política de backup real.** O fluxo local agora tem snapshot versionado, restauração transacional e backup criptografado. Ainda é necessário conectar a UI de confirmação e decidir se haverá merge ou apenas substituição integral.
 

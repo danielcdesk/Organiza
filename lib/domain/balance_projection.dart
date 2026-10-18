@@ -1,6 +1,7 @@
 import 'package:clock/clock.dart';
 
 import 'models.dart';
+import 'business_date.dart';
 
 /// A daily consolidated balance, with the corresponding per-account balances.
 class BalanceProjectionPoint {
@@ -55,7 +56,7 @@ class BalanceProjection {
 
     final today = _dateOnly(clock.now());
     final lastDay =
-        DateTime(today.year, today.month, today.day + horizonDays - 1);
+        DateTime.utc(today.year, today.month, today.day + horizonDays - 1);
     final accountList = accounts.toList(growable: false);
     final transactionList = transactions.toList(growable: false);
     final balances = <String, int>{
@@ -89,7 +90,8 @@ class BalanceProjection {
       }
     }
     for (final schedule in salaries) {
-      var month = DateTime(schedule.firstDueOn.year, schedule.firstDueOn.month);
+      var month =
+          DateTime.utc(schedule.firstDueOn.year, schedule.firstDueOn.month);
       while (!month.isAfter(lastDay)) {
         final due =
             _safeMonthlyDate(month.year, month.month, schedule.paymentDay);
@@ -107,7 +109,7 @@ class BalanceProjection {
             );
           }
         }
-        month = DateTime(month.year, month.month + 1);
+        month = DateTime.utc(month.year, month.month + 1);
       }
     }
 
@@ -135,7 +137,7 @@ class BalanceProjection {
     DateTime? firstNegativeDate;
     int? firstNegativeBalance;
     for (var offset = 0; offset < horizonDays; offset++) {
-      final date = DateTime(today.year, today.month, today.day + offset);
+      final date = DateTime.utc(today.year, today.month, today.day + offset);
       for (final event in eventsByDate[date] ?? const <_ProjectionEvent>[]) {
         _applyEvent(balances, event);
       }
@@ -329,16 +331,15 @@ class BalanceProjection {
     return date.isBefore(today) ? today : date;
   }
 
-  static DateTime _dateOnly(DateTime value) =>
-      DateTime(value.year, value.month, value.day);
+  static DateTime _dateOnly(DateTime value) => BusinessDate.from(value);
 
   static DateTime _safeMonthlyDate(int year, int month, int day) {
-    final last = DateTime(year, month + 1, 0).day;
-    return DateTime(year, month, day.clamp(1, last));
+    final last = DateTime.utc(year, month + 1, 0).day;
+    return DateTime.utc(year, month, day.clamp(1, last));
   }
 
   static DateTime _addMonths(DateTime value, int months) {
-    final normalized = DateTime(value.year, value.month + months);
+    final normalized = DateTime.utc(value.year, value.month + months);
     return _safeMonthlyDate(normalized.year, normalized.month, value.day);
   }
 }

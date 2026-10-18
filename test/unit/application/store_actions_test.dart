@@ -1,7 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/widgets.dart';
 import 'package:clock/clock.dart';
 import 'package:organiza/application/organiza_store.dart';
 import 'package:organiza/domain/models.dart';
+import 'package:organiza/domain/app_route.dart';
+import 'package:organiza/domain/financial_rules.dart';
 
 void main() {
   test(
@@ -124,8 +127,18 @@ void main() {
     store.setAccountCurrentBalance(account, 15000);
     expect(store.balance, 15000);
     expect(store.transactions.length, 1);
-    store.updateMobileQuickPages([0, 1, 4, 7]);
-    expect(store.mobileQuickPages, [0, 1, 6, 7]);
+    store.updateMobileQuickPages([
+      AppRoute.overview,
+      AppRoute.finances,
+      AppRoute.organization,
+      AppRoute.goals,
+    ]);
+    expect(store.mobileQuickPages, [
+      AppRoute.overview,
+      AppRoute.finances,
+      AppRoute.organization,
+      AppRoute.goals,
+    ]);
   });
 
   test('assinatura pode ser editada, pausada e reativada', () {
@@ -207,7 +220,157 @@ void main() {
     );
 
     expect(store.transactions.single.subcategory, 'Restaurantes');
-    expect(store.transactions.single.occurredOn, occurredOn);
+    expect(store.transactions.single.occurredOn, DateTime.utc(2026, 2, 14));
+  });
+
+  test('edita e desfaz exclusão das parcelas com centavos redistribuídos', () {
+    final store =
+        OrganizaStore.inMemory(clock: Clock.fixed(DateTime(2026, 1, 1)));
+    addTearDown(store.dispose);
+    store.addAccount('Principal', 0);
+    store.addTransaction(
+      accountId: store.accounts.single.id,
+      type: TransactionType.expense,
+      amountInCents: 1200,
+      description: 'Compra',
+      scheduleType: TransactionScheduleType.installment,
+      repeatCount: 12,
+      occurredOn: DateTime(2026, 1, 31),
+    );
+    final seventh =
+        store.transactions.firstWhere((item) => item.installmentNumber == 7);
+    store.updateTransactionSeries(
+      id: seventh.id,
+      amountInCents: 1000,
+      description: 'Atualizada',
+      category: 'Casa',
+      subcategory: 'Móveis',
+      accountId: store.accounts.single.id,
+      destinationAccountId: null,
+      occurredOn: seventh.occurredOn,
+      scope: TransactionSeriesScope.fromHere,
+    );
+    final remaining = store.transactions
+        .where((item) => item.installmentNumber >= 7)
+        .toList()
+      ..sort((a, b) => a.installmentNumber.compareTo(b.installmentNumber));
+    expect(remaining.map((item) => item.amountInCents),
+        [167, 167, 167, 167, 166, 166]);
+    expect(remaining.map((item) => item.amountInCents).reduce((a, b) => a + b),
+        1000);
+    expect(
+        remaining.every(
+            (item) => item.category == 'Casa' && item.subcategory == 'Móveis'),
+        isTrue);
+    final removed = store.deleteTransaction(seventh.id,
+        scope: TransactionSeriesScope.fromHere);
+    expect(store.transactions, hasLength(6));
+    store.restoreDeletedTransactions(removed);
+    expect(store.transactions, hasLength(12));
+  });
+
+  test('salário excluído por padrão remove só uma ocorrência e pode desfazer',
+      () {
+    final store =
+        OrganizaStore.inMemory(clock: Clock.fixed(DateTime(2026, 3, 20)));
+    addTearDown(store.dispose);
+    store.addAccount('Principal', 0);
+    store.addTransaction(
+      accountId: store.accounts.single.id,
+      type: TransactionType.income,
+      amountInCents: 100000,
+      description: 'Salário',
+      category: 'Salário',
+      scheduleType: TransactionScheduleType.recurring,
+      occurredOn: DateTime(2026, 1, 10),
+    );
+    final occurrence = store.transactions.single;
+    final removed = store.deleteTransaction(occurrence.id);
+    expect(store.salarySchedules, hasLength(1));
+    expect(
+        store.transactions
+            .where((item) => item.seriesId == occurrence.seriesId),
+        isEmpty);
+    store.reload();
+    expect(
+        store.transactions
+            .where((item) => item.seriesId == occurrence.seriesId),
+        isEmpty);
+    store.restoreDeletedTransactions(removed);
+    expect(
+        store.transactions
+            .where((item) => item.seriesId == occurrence.seriesId),
+        hasLength(1));
+  });
+
+  test('saldo negativo é permitido e respeita limite absoluto', () {
+    final store =
+        OrganizaStore.inMemory(clock: Clock.fixed(DateTime(2026, 1, 1)));
+    addTearDown(store.dispose);
+    store.addAccount('Cheque especial', -5000);
+    expect(store.balance, -5000);
+    store.setAccountCurrentBalance(store.accounts.single.id, -25000);
+    expect(store.balance, -25000);
+    expect(
+        () => store.setAccountCurrentBalance(
+            store.accounts.single.id, -100000000000),
+        throwsArgumentError);
+  });
+
+  testWidgets('retomar app após meia-noite materializa salário usando Clock',
+      (tester) async {
+    var now = DateTime(2026, 1, 30, 23, 50);
+    final store = OrganizaStore.inMemory(clock: Clock(() => now));
+    addTearDown(store.dispose);
+    store.addAccount('Principal', 0);
+    store.addTransaction(
+      accountId: store.accounts.single.id,
+      type: TransactionType.income,
+      amountInCents: 100000,
+      description: 'Salário',
+      category: 'Salário',
+      scheduleType: TransactionScheduleType.recurring,
+      occurredOn: DateTime(2026, 1, 31),
+    );
+    expect(store.transactions, isEmpty);
+    now = DateTime(2026, 1, 31, 0, 5);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+    expect(store.transactions, hasLength(1));
+    expect(store.transactions.single.occurredOn, DateTime.utc(2026, 1, 31));
+  });
+
+  test('editar transferência continua neutra no saldo consolidado', () {
+    final store =
+        OrganizaStore.inMemory(clock: Clock.fixed(DateTime(2026, 1, 3)));
+    addTearDown(store.dispose);
+    store.addAccount('Origem', 10000);
+    store.addAccount('Destino', 0);
+    store.addTransaction(
+      accountId: store.accounts[0].id,
+      destinationAccountId: store.accounts[1].id,
+      type: TransactionType.transfer,
+      amountInCents: 3000,
+      description: 'Transferência',
+      occurredOn: DateTime(2026, 1, 1),
+    );
+    store.updateTransactionSeries(
+      id: store.transactions.single.id,
+      amountInCents: 4500,
+      description: 'Ajuste',
+      category: 'Outros',
+      subcategory: 'Geral',
+      accountId: store.accounts[0].id,
+      destinationAccountId: store.accounts[1].id,
+      occurredOn: DateTime(2026, 1, 2),
+    );
+    expect(store.balance, 10000);
+    expect(store.transactions.single.isSettled, isTrue);
+    expect(store.transactions.single.amountInCents, 4500);
+    expect(
+        store.accounts.map((account) =>
+            FinancialRules.accountBalance(account, store.transactions)),
+        [5500, 4500]);
   });
 
   test('cria meta e limita o aporte ao valor objetivo', () {

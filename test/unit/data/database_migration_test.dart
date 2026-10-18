@@ -1,15 +1,18 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:organiza/database/app_database.dart';
 import 'package:organiza/domain/models.dart';
+import 'package:organiza/domain/app_route.dart';
 
 void main() {
-  test('migração 15 para 17 preserva cartão e compra existentes', () {
+  test('migração 15 para 19 preserva cartão e compra existentes', () {
     final database = AppDatabase.openInMemoryFromVersion15WithCardForTest();
     addTearDown(database.close);
-    expect(database.schemaVersion, 17);
+    expect(database.schemaVersion, 19);
     expect(database.loadCreditCards().single.name, 'Cartão antigo');
     expect(database.loadCreditCards().single.lastFour, '4242');
     expect(database.loadCardPurchases().single.description, 'Compra antiga');
+    expect(database.loadTransactions().single.occurredOn,
+        DateTime.utc(2025, 1, 2));
     expect(database.loadCardPurchases().single.category, 'Outros');
     database.insertCreditCard(CreditCard(
       id: 'card-31',
@@ -91,7 +94,7 @@ void main() {
       createdAt: now,
     ));
 
-    expect(database.schemaVersion, 17);
+    expect(database.schemaVersion, 19);
     expect(database.loadAccounts().single.name, 'Principal');
     expect(
         database.loadAccounts().single.institution, AccountInstitution.generic);
@@ -114,7 +117,12 @@ void main() {
     );
     expect(database.loadShoppingItems(), isEmpty);
     expect(database.loadGoalCategories(), contains('Reserva'));
-    expect(database.loadMobileQuickPages(), [0, 1, 6, 8]);
+    expect(database.loadMobileQuickPages(), [
+      AppRoute.overview,
+      AppRoute.finances,
+      AppRoute.organization,
+      AppRoute.reports,
+    ]);
     expect(database.loadFinanceCategories().any((item) => item.name == 'Pets'),
         isTrue);
 

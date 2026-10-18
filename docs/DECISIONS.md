@@ -33,3 +33,11 @@ O menor saldo considera os pontos anteriores ao dia do próximo salário. Os
 resultado usa centavos inteiros e divisão inteira para não criar valor acima do
 limite seguro. Se não houver próximo salário projetado ou se ele ocorrer hoje,
 o valor exibido é `R$ 0,00`.
+# Datas de negócio e séries financeiras (2026-10-11)
+
+- Datas civis financeiras são representadas por `BusinessDate` como `yyyy-MM-dd`; UTC é apenas o transporte estável do ano/mês/dia, não um instante. `created_at` permanece timestamp UTC.
+- Schema 18 normaliza datas ISO antigas pelo dia civil escrito originalmente. Schema 19 armazena exclusões de ocorrências salariais sem apagar a programação da série.
+- Ao editar/excluir série recorrente ou parcelada, o usuário escolhe ocorrência, esta e próximas, ou série inteira. O padrão é apenas a ocorrência. Salários têm ação separada e confirmada para cancelar a recorrência.
+- Total de parcelamento editado é redistribuído entre as parcelas selecionadas com centavos restantes nas primeiras parcelas. Cada edição/exclusão multi-linha é atômica.
+- Saldos negativos são permitidos como cheque especial, dentro do limite de segurança monetária; transferências continuam neutras no consolidado. Exclusões exibem ação temporária de desfazer.
+- A atualização de ocorrências vencidas roda ao retomar o app e também por timer; ambos consultam o `Clock` injetado.
