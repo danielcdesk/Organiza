@@ -1131,6 +1131,7 @@ class AppDatabase {
             billingDay: row['billing_day'] as int,
             category: row['category'] as String,
             isActive: (row['is_active'] as int) == 1,
+            iconKey: row['icon_key'] as String?,
             createdAt: DateTime.parse(row['created_at'] as String).toUtc(),
           ))
       .toList();
@@ -1759,8 +1760,8 @@ class AppDatabase {
       );
 
   void insertSubscription(Subscription subscription) => _database.execute(
-        '''INSERT INTO subscriptions(id, name, amount_cents, billing_day, category, is_active, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?)''',
+        '''INSERT INTO subscriptions(id, name, amount_cents, billing_day, category, is_active, created_at, icon_key)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
         [
           subscription.id,
           subscription.name,
@@ -1769,18 +1770,20 @@ class AppDatabase {
           subscription.category,
           subscription.isActive ? 1 : 0,
           subscription.createdAt.toUtc().toIso8601String(),
+          subscription.iconKey,
         ],
       );
 
   void updateSubscription(Subscription item) => _database.execute(
           '''UPDATE subscriptions SET name = ?, amount_cents = ?, billing_day = ?,
-      category = ?, is_active = ? WHERE id = ?''',
+      category = ?, is_active = ?, icon_key = ? WHERE id = ?''',
           [
             item.name,
             item.amountInCents,
             item.billingDay,
             item.category,
             item.isActive ? 1 : 0,
+            item.iconKey,
             item.id
           ]);
 

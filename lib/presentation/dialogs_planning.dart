@@ -11,11 +11,13 @@ class SubscriptionInput {
       {required this.name,
       required this.amountInCents,
       required this.billingDay,
-      required this.category});
+      required this.category,
+      required this.iconKey});
   final String name;
   final int amountInCents;
   final int billingDay;
   final String category;
+  final String iconKey;
 }
 
 class SubscriptionDialog extends StatefulWidget {
@@ -34,6 +36,7 @@ class _SubscriptionDialogState extends State<SubscriptionDialog> {
   final _amount = TextEditingController();
   final _day = TextEditingController(text: '10');
   late String _category;
+  String _iconKey = 'auto';
   String? _error;
 
   @override
@@ -46,10 +49,12 @@ class _SubscriptionDialogState extends State<SubscriptionDialog> {
             ? 'Lazer'
             : widget.categories.first;
     if (item != null) {
+      _iconKey = item.iconKey ?? 'auto';
       _name.text = item.name;
       _amount.text = _investmentMoneyInput(item.amountInCents);
       _day.text = item.billingDay.toString();
     }
+    _name.addListener(() => setState(() {}));
   }
 
   @override
@@ -102,6 +107,26 @@ class _SubscriptionDialogState extends State<SubscriptionDialog> {
                         DropdownMenuItem(value: value, child: Text(value)))
                     .toList(),
                 onChanged: (value) => setState(() => _category = value!)),
+            const SizedBox(height: 12),
+            Row(children: [
+              SubscriptionBrandIcon(name: _name.text, iconKey: _iconKey),
+              const SizedBox(width: 12),
+              Expanded(
+                  child: DropdownButtonFormField<String>(
+                initialValue: _iconKey,
+                isExpanded: true,
+                decoration: const InputDecoration(labelText: 'Ícone'),
+                items: [
+                  const DropdownMenuItem(
+                      value: 'auto', child: Text('Automático pelo nome')),
+                  const DropdownMenuItem(
+                      value: 'generic', child: Text('Genérico')),
+                  for (final brand in subscriptionBrands)
+                    DropdownMenuItem(value: brand.key, child: Text(brand.name)),
+                ],
+                onChanged: (value) => setState(() => _iconKey = value!),
+              )),
+            ]),
             _DialogError(_error),
           ]),
         ),
@@ -132,7 +157,8 @@ class _SubscriptionDialogState extends State<SubscriptionDialog> {
             name: _name.text,
             amountInCents: amount,
             billingDay: day,
-            category: _category));
+            category: _category,
+            iconKey: _iconKey));
   }
 }
 

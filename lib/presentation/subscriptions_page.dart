@@ -4,6 +4,7 @@ import '../application/organiza_store.dart';
 import '../domain/financial_rules.dart';
 import 'organiza_theme.dart';
 import 'shared_widgets.dart';
+import 'subscription_brand.dart';
 
 class SubscriptionsPage extends StatelessWidget {
   const SubscriptionsPage(
@@ -96,6 +97,8 @@ class SubscriptionsPage extends StatelessWidget {
                     children: store.subscriptions
                         .map((item) => DataListRow(
                             icon: Icons.autorenew_rounded,
+                            leading: SubscriptionBrandIcon(
+                                name: item.name, iconKey: item.iconKey),
                             iconColor: OrganizaTheme.orange,
                             title: item.name,
                             subtitle:

@@ -461,6 +461,27 @@ void main() {
     expect(store.allocationForMonth(DateTime(2026, 9)), isNull);
   });
 
+  test('ícone escolhido de assinatura persiste ao editar', () {
+    final store = OrganizaStore.inMemory();
+    addTearDown(store.dispose);
+    store.addSubscription(
+        name: 'Streaming',
+        amountInCents: 1000,
+        billingDay: 10,
+        category: 'Lazer',
+        iconKey: 'netflix');
+    final id = store.subscriptions.single.id;
+    expect(store.subscriptions.single.iconKey, 'netflix');
+    store.updateSubscription(
+        id: id,
+        name: 'Streaming',
+        amountInCents: 1000,
+        billingDay: 10,
+        category: 'Lazer',
+        iconKey: 'spotify');
+    expect(store.subscriptions.single.iconKey, 'spotify');
+  });
+
   test('preserva data e subcategoria de um lançamento', () {
     final store = OrganizaStore.inMemory();
     addTearDown(store.dispose);

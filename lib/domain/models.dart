@@ -417,6 +417,7 @@ class Subscription {
     required this.category,
     required this.createdAt,
     this.isActive = true,
+    this.iconKey,
   });
 
   final String id;
@@ -426,6 +427,7 @@ class Subscription {
   final String category;
   final DateTime createdAt;
   final bool isActive;
+  final String? iconKey;
 }
 
 class SalaryAllocation {

@@ -22,6 +22,9 @@
 - Visão Geral e Organização priorizam o próximo passo conforme renda,
   distribuição, pendências e uso do orçamento. A ação principal abre a área
   correspondente; o acompanhamento de faturas, assinaturas e limites permanece.
+- Assinaturas agora permitem escolher ícone manualmente ou identificar a marca
+  pelo nome. O catálogo local inclui 21 logotipos vetoriais e fallback
+  genérico, visíveis também na lista mobile, sem carregamento pela rede.
 
 ## 2026-10-18 — Planejamento mensal familiar
 

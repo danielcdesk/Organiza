@@ -1075,6 +1075,7 @@ class OrganizaStore extends ChangeNotifier with WidgetsBindingObserver {
     required int amountInCents,
     required int billingDay,
     required String category,
+    String? iconKey,
   }) {
     final cleanName = name.trim();
     if (cleanName.isEmpty) throw ArgumentError('Informe o nome da assinatura.');
@@ -1090,6 +1091,7 @@ class OrganizaStore extends ChangeNotifier with WidgetsBindingObserver {
       amountInCents: amountInCents,
       billingDay: billingDay,
       category: category.trim().isEmpty ? 'Outros' : category.trim(),
+      iconKey: iconKey,
       createdAt: _now,
     ));
     reload();
@@ -1358,7 +1360,8 @@ class OrganizaStore extends ChangeNotifier with WidgetsBindingObserver {
       required String name,
       required int amountInCents,
       required int billingDay,
-      required String category}) {
+      required String category,
+      String? iconKey}) {
     final previous = subscriptions.where((item) => item.id == id).firstOrNull;
     if (previous == null) throw ArgumentError('Assinatura não encontrada.');
     if (name.trim().isEmpty ||
@@ -1373,6 +1376,7 @@ class OrganizaStore extends ChangeNotifier with WidgetsBindingObserver {
         amountInCents: amountInCents,
         billingDay: billingDay,
         category: category,
+        iconKey: iconKey,
         createdAt: previous.createdAt,
         isActive: previous.isActive));
     reload();

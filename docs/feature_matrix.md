@@ -31,6 +31,7 @@
 | Seletor mensal, comparação anterior e modo previsto | Sim | Sim | Sim | Sim | 2026-09-14 |
 | Orçamentos mensais por categoria | Sim | Sim | Sim | Sim | 2026-09-11 |
 | Assinaturas recorrentes | Sim | Sim | Sim | Sim | 2026-09-11 |
+| Ícones locais de marcas em assinaturas | Sim | Sim | Widget | Sim | 2026-10-18 |
 | Categorias e subcategorias personalizadas | Sim | Sim | Sim | Sim | 2026-09-14 |
 | Lançamento único, recorrente e parcelado | Sim | Sim | Sim | Sim | 2026-09-14 |
 | Estado pago/pendente | Sim | Sim | Sim | Sim | 2026-09-14 |

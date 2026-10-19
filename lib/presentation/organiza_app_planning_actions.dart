@@ -98,14 +98,16 @@ extension _OrganizaShellPart4 on _OrganizaShellState {
             name: value.name,
             amountInCents: value.amountInCents,
             billingDay: value.billingDay,
-            category: value.category);
+            category: value.category,
+            iconKey: value.iconKey);
       } else {
         widget.store.updateSubscription(
             id: existing.id,
             name: value.name,
             amountInCents: value.amountInCents,
             billingDay: value.billingDay,
-            category: value.category);
+            category: value.category,
+            iconKey: value.iconKey);
       }
     } on ArgumentError catch (error) {
       _showError(
