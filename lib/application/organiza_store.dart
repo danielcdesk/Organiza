@@ -15,6 +15,7 @@ import '../domain/business_date.dart';
 import '../domain/models.dart';
 import '../domain/app_route.dart';
 import '../services/backup_service.dart';
+import '../services/backup_images.dart';
 import '../services/notifications/local_notification_service.dart';
 import '../services/notifications/reminder_schedule.dart';
 
@@ -330,14 +331,15 @@ class OrganizaStore extends ChangeNotifier with WidgetsBindingObserver {
     return store;
   }
 
-  Future<File> exportEncryptedBackup(String password) => const BackupService()
-      .exportEncrypted(_repository.exportSnapshot(), password);
+  Future<File> exportEncryptedBackup(String password) async =>
+      const BackupService().exportEncrypted(
+          await BackupImages.embed(_repository.exportSnapshot()), password);
 
   Future<File> restoreEncryptedBackup(File file, String password) async {
     final snapshot =
         await const BackupService().decryptEncrypted(file, password);
     final safetyCopy = await exportEncryptedBackup(password);
-    _repository.restoreSnapshot(snapshot);
+    _repository.restoreSnapshot(await BackupImages.restore(snapshot));
     reload();
     return safetyCopy;
   }
@@ -1318,6 +1320,9 @@ class OrganizaStore extends ChangeNotifier with WidgetsBindingObserver {
     DateTime? deadline,
     String iconKey = 'savings',
     String category = 'Reserva',
+    int colorValue = 0xFFFF9800,
+    String note = '',
+    String? imagePath,
   }) {
     final cleanName = name.trim();
     if (cleanName.isEmpty) throw ArgumentError('Informe o nome da meta.');
@@ -1335,7 +1340,46 @@ class OrganizaStore extends ChangeNotifier with WidgetsBindingObserver {
       deadline: deadline,
       iconKey: iconKey,
       category: category,
+      colorValue: colorValue,
+      note: note.trim(),
+      imagePath: imagePath,
       createdAt: _now,
+    ));
+    reload();
+  }
+
+  void updateFinancialGoal({
+    required String id,
+    required String name,
+    required int targetInCents,
+    required String iconKey,
+    required String category,
+    DateTime? deadline,
+    int colorValue = 0xFFFF9800,
+    String note = '',
+    String? imagePath,
+    bool removeImage = false,
+  }) {
+    final previous = financialGoals.where((item) => item.id == id).firstOrNull;
+    if (previous == null) throw ArgumentError('Meta não encontrada.');
+    if (name.trim().isEmpty ||
+        !FinancialRules.isValidAmount(targetInCents) ||
+        targetInCents < previous.savedInCents) {
+      throw ArgumentError(
+          'O objetivo deve ser válido e não menor que o valor já guardado.');
+    }
+    _repository.updateFinancialGoal(FinancialGoal(
+      id: id,
+      name: name.trim(),
+      targetInCents: targetInCents,
+      savedInCents: previous.savedInCents,
+      deadline: deadline,
+      iconKey: iconKey,
+      category: category,
+      colorValue: colorValue,
+      note: note.trim(),
+      imagePath: removeImage ? null : imagePath ?? previous.imagePath,
+      createdAt: previous.createdAt,
     ));
     reload();
   }

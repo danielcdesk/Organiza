@@ -279,8 +279,10 @@ void main() {
     store.payCardInvoice(invoice.id, store.accounts.single.id,
         paidOn: DateTime(2026, 2, 18));
     expect(store.balance, before - 12000);
-    expect(() => store.payCardInvoice(invoice.id, store.accounts.single.id,
-        paidOn: DateTime(2026, 2, 21)), throwsArgumentError);
+    expect(
+        () => store.payCardInvoice(invoice.id, store.accounts.single.id,
+            paidOn: DateTime(2026, 2, 21)),
+        throwsArgumentError);
     expect(store.cardInvoices.single.paidOn, DateTime.utc(2026, 2, 18));
     expect(() => store.payCardInvoice(invoice.id, store.accounts.single.id),
         throwsStateError);
@@ -503,6 +505,33 @@ void main() {
         category: 'Lazer',
         iconKey: 'spotify');
     expect(store.subscriptions.single.iconKey, 'spotify');
+  });
+
+  test('meta pode ser editada sem perder id ou aporte', () {
+    final store = OrganizaStore.inMemory();
+    addTearDown(store.dispose);
+    store.addFinancialGoal(
+        name: 'Viagem',
+        targetInCents: 100000,
+        initialSavedInCents: 20000,
+        iconKey: 'travel',
+        colorValue: 0xFF123456,
+        note: 'Férias');
+    final id = store.financialGoals.single.id;
+    store.updateFinancialGoal(
+        id: id,
+        name: 'Viagem 2027',
+        targetInCents: 150000,
+        iconKey: 'travel',
+        category: 'Viagem',
+        colorValue: 0xFFABCDEF,
+        note: 'Praia');
+    final goal = store.financialGoals.single;
+    expect(goal.id, id);
+    expect(goal.savedInCents, 20000);
+    expect(goal.targetInCents, 150000);
+    expect(goal.note, 'Praia');
+    expect(goal.colorValue, 0xFFABCDEF);
   });
 
   test('preserva data e subcategoria de um lançamento', () {

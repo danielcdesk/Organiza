@@ -288,6 +288,10 @@ class FinancialGoalInput {
     required this.deadline,
     required this.iconKey,
     required this.category,
+    required this.colorValue,
+    required this.note,
+    this.imagePath,
+    this.removeImage = false,
   });
 
   final String name;
@@ -296,13 +300,21 @@ class FinancialGoalInput {
   final DateTime? deadline;
   final String iconKey;
   final String category;
+  final int colorValue;
+  final String note;
+  final String? imagePath;
+  final bool removeImage;
 }
 
 class FinancialGoalDialog extends StatefulWidget {
   const FinancialGoalDialog(
-      {super.key, required this.categories, required this.onCreateCategory});
+      {super.key,
+      required this.categories,
+      required this.onCreateCategory,
+      this.goal});
   final List<String> categories;
   final void Function(String name) onCreateCategory;
+  final FinancialGoal? goal;
 
   @override
   State<FinancialGoalDialog> createState() => _FinancialGoalDialogState();
@@ -312,8 +324,12 @@ class _FinancialGoalDialogState extends State<FinancialGoalDialog> {
   final _name = TextEditingController();
   final _target = TextEditingController();
   final _initial = TextEditingController(text: '0,00');
+  final _note = TextEditingController();
   DateTime? _deadline;
   var _iconKey = 'savings';
+  var _colorValue = 0xFFFF9800;
+  String? _imagePath;
+  bool _removeImage = false;
   late List<String> _categories;
   late String _category;
   String? _error;
@@ -322,7 +338,22 @@ class _FinancialGoalDialogState extends State<FinancialGoalDialog> {
   void initState() {
     super.initState();
     _categories = List.of(widget.categories);
-    _category = _categories.contains('Reserva') ? 'Reserva' : _categories.first;
+    final goal = widget.goal;
+    _category = goal != null && _categories.contains(goal.category)
+        ? goal.category
+        : _categories.contains('Reserva')
+            ? 'Reserva'
+            : _categories.first;
+    if (goal != null) {
+      _name.text = goal.name;
+      _target.text = formatMoneyInput(goal.targetInCents);
+      _initial.text = formatMoneyInput(goal.savedInCents);
+      _note.text = goal.note;
+      _deadline = goal.deadline;
+      _iconKey = goal.iconKey;
+      _colorValue = goal.colorValue;
+      _imagePath = goal.imagePath;
+    }
   }
 
   @override
@@ -330,15 +361,18 @@ class _FinancialGoalDialogState extends State<FinancialGoalDialog> {
     _name.dispose();
     _target.dispose();
     _initial.dispose();
+    _note.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-        title: const Text('Nova meta financeira'),
+        title:
+            Text(widget.goal == null ? 'Nova meta financeira' : 'Editar meta'),
         content: SizedBox(
           width: 460,
-          child: Column(
+          child: SingleChildScrollView(
+              child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
@@ -365,6 +399,7 @@ class _FinancialGoalDialogState extends State<FinancialGoalDialog> {
                 Expanded(
                   child: TextField(
                     controller: _initial,
+                    enabled: widget.goal == null,
                     keyboardType:
                         const TextInputType.numberWithOptions(decimal: true),
                     inputFormatters: [BrlCentsInputFormatter()],
@@ -402,9 +437,57 @@ class _FinancialGoalDialogState extends State<FinancialGoalDialog> {
                   DropdownMenuItem(value: 'travel', child: Text('Viagem')),
                   DropdownMenuItem(value: 'education', child: Text('Estudos')),
                   DropdownMenuItem(value: 'car', child: Text('Veículo')),
+                  DropdownMenuItem(
+                      value: 'custom', child: Text('Personalizada')),
                 ],
                 onChanged: (value) => setState(() => _iconKey = value!),
               ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _note,
+                maxLines: 2,
+                decoration: const InputDecoration(labelText: 'Nota (opcional)'),
+              ),
+              const SizedBox(height: 12),
+              Wrap(spacing: 8, children: [
+                for (final color in const [
+                  0xFFFF9800,
+                  0xFF258A5A,
+                  0xFF5472B8,
+                  0xFF9B59B6,
+                  0xFFC94D4D
+                ])
+                  IconButton(
+                    tooltip: 'Cor da meta',
+                    onPressed: () => setState(() => _colorValue = color),
+                    icon: Icon(
+                        _colorValue == color
+                            ? Icons.check_circle
+                            : Icons.circle,
+                        color: Color(color)),
+                  ),
+              ]),
+              OutlinedButton.icon(
+                onPressed: () async {
+                  final selected = await LocalImageService.pickAndStore();
+                  if (selected != null && mounted) {
+                    setState(() {
+                      _imagePath = selected;
+                      _removeImage = false;
+                    });
+                  }
+                },
+                icon: const Icon(Icons.image_outlined),
+                label: Text(
+                    _imagePath == null ? 'Adicionar imagem' : 'Trocar imagem'),
+              ),
+              if (_imagePath != null)
+                TextButton(
+                    onPressed: () => setState(() {
+                          _imagePath = null;
+                          _removeImage = true;
+                        }),
+                    child: const Text('Remover imagem')),
               const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
@@ -421,13 +504,15 @@ class _FinancialGoalDialogState extends State<FinancialGoalDialog> {
               ),
               _DialogError(_error),
             ],
-          ),
+          )),
         ),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context),
               child: const Text('Cancelar')),
-          FilledButton(onPressed: _submit, child: const Text('Criar meta')),
+          FilledButton(
+              onPressed: _submit,
+              child: Text(widget.goal == null ? 'Criar meta' : 'Salvar meta')),
         ],
       );
 
@@ -463,6 +548,10 @@ class _FinancialGoalDialogState extends State<FinancialGoalDialog> {
         deadline: _deadline,
         iconKey: _iconKey,
         category: _category,
+        colorValue: _colorValue,
+        note: _note.text,
+        imagePath: _imagePath,
+        removeImage: _removeImage,
       ),
     );
   }

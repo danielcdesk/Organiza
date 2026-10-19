@@ -84,3 +84,9 @@ O emissor é apenas um nome opcional, sem número completo nem CVV. A cor é
 visual e não altera cálculos. O pagamento de fatura usa a conta e a data civil
 escolhidas; datas futuras não são aceitas como pagamento realizado. A saída é
 criada uma vez por fatura fechada, e segunda tentativa falha sem novo débito.
+
+# Metas
+
+O aporte já registrado permanece ao editar uma meta. O novo alvo não pode
+ficar abaixo do valor guardado. Tipo, cor, nota e imagem são atributos de
+apresentação e não alteram saldo ou transações.

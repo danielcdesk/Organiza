@@ -281,6 +281,7 @@ extension _OrganizaShellPart0 on _OrganizaShellState {
             hideValues: _hideValues,
             onAdd: _openFinancialGoalDialog,
             onContribute: _openGoalContributionDialog,
+            onEdit: _openFinancialGoalDialog,
             onDelete: _deleteFinancialGoal,
           ),
         AppRoute.reports => ReportsPage(

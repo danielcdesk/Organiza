@@ -1,9 +1,12 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 import '../application/organiza_store.dart';
 import '../domain/financial_rules.dart';
 import '../domain/models.dart';
 import 'shared_widgets.dart';
+import '../services/local_image_service.dart';
 
 class GoalsPage extends StatelessWidget {
   const GoalsPage({
@@ -13,6 +16,7 @@ class GoalsPage extends StatelessWidget {
     required this.onAdd,
     required this.onContribute,
     required this.onDelete,
+    this.onEdit,
   });
 
   final OrganizaStore store;
@@ -20,6 +24,7 @@ class GoalsPage extends StatelessWidget {
   final VoidCallback onAdd;
   final ValueChanged<FinancialGoal> onContribute;
   final ValueChanged<String> onDelete;
+  final ValueChanged<FinancialGoal>? onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -88,6 +93,7 @@ class GoalsPage extends StatelessWidget {
                             hideValues: hideValues,
                             onContribute: () => onContribute(goal),
                             onDelete: () => onDelete(goal.id),
+                            onEdit: onEdit == null ? null : () => onEdit!(goal),
                           ),
                         ))
                     .toList(),
@@ -208,12 +214,14 @@ class _GoalCard extends StatelessWidget {
     required this.hideValues,
     required this.onContribute,
     required this.onDelete,
+    this.onEdit,
   });
 
   final FinancialGoal goal;
   final bool hideValues;
   final VoidCallback onContribute;
   final VoidCallback onDelete;
+  final VoidCallback? onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -233,19 +241,35 @@ class _GoalCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(children: [
-              IconTile(
-                  icon: goalIcon(goal.iconKey),
-                  color: done
-                      ? const Color(0xFF258A5A)
-                      : Theme.of(context).colorScheme.primary),
+              if (LocalImageService.exists(goal.imagePath))
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.file(File(goal.imagePath!),
+                      width: 44,
+                      height: 44,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => IconTile(
+                          icon: goalIcon(goal.iconKey),
+                          color: Color(goal.colorValue))),
+                )
+              else
+                IconTile(
+                    icon: goalIcon(goal.iconKey),
+                    color: done
+                        ? const Color(0xFF258A5A)
+                        : Color(goal.colorValue)),
               const Spacer(),
               if (done) const StatusPill(label: 'Concluída'),
               PopupMenuButton<String>(
                 tooltip: 'Ações da meta',
                 onSelected: (value) {
+                  if (value == 'edit') onEdit?.call();
                   if (value == 'delete') onDelete();
                 },
-                itemBuilder: (_) => const [
+                itemBuilder: (_) => [
+                  if (onEdit != null)
+                    const PopupMenuItem(
+                        value: 'edit', child: Text('Editar meta')),
                   PopupMenuItem(value: 'delete', child: Text('Excluir meta')),
                 ],
               ),
@@ -260,6 +284,10 @@ class _GoalCard extends StatelessWidget {
                 '${goal.category} · ${money(goal.savedInCents)} de ${money(goal.targetInCents)}',
                 style: TextStyle(
                     color: Theme.of(context).colorScheme.onSurfaceVariant)),
+            if (goal.note.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(goal.note, maxLines: 2, overflow: TextOverflow.ellipsis),
+            ],
             const SizedBox(height: 18),
             TweenAnimationBuilder<double>(
               tween: Tween(begin: 0, end: ratio),

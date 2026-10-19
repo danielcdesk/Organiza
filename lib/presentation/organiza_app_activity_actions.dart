@@ -113,23 +113,42 @@ extension _OrganizaShellPart2 on _OrganizaShellState {
     }
   }
 
-  Future<void> _openFinancialGoalDialog() async {
+  Future<void> _openFinancialGoalDialog([FinancialGoal? existing]) async {
     final value = await showDialog<FinancialGoalInput>(
       context: context,
       builder: (_) => FinancialGoalDialog(
           categories: widget.store.goalCategories,
-          onCreateCategory: widget.store.addGoalCategory),
+          onCreateCategory: widget.store.addGoalCategory,
+          goal: existing),
     );
     if (value == null || !mounted) return;
     try {
-      widget.store.addFinancialGoal(
-        name: value.name,
-        targetInCents: value.targetInCents,
-        initialSavedInCents: value.initialSavedInCents,
-        deadline: value.deadline,
-        iconKey: value.iconKey,
-        category: value.category,
-      );
+      if (existing == null) {
+        widget.store.addFinancialGoal(
+          name: value.name,
+          targetInCents: value.targetInCents,
+          initialSavedInCents: value.initialSavedInCents,
+          deadline: value.deadline,
+          iconKey: value.iconKey,
+          category: value.category,
+          colorValue: value.colorValue,
+          note: value.note,
+          imagePath: value.imagePath,
+        );
+      } else {
+        widget.store.updateFinancialGoal(
+          id: existing.id,
+          name: value.name,
+          targetInCents: value.targetInCents,
+          deadline: value.deadline,
+          iconKey: value.iconKey,
+          category: value.category,
+          colorValue: value.colorValue,
+          note: value.note,
+          imagePath: value.imagePath,
+          removeImage: value.removeImage,
+        );
+      }
     } on ArgumentError catch (error) {
       _showError(error.message?.toString() ?? 'Não foi possível criar a meta.');
     }

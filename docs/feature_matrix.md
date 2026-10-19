@@ -44,7 +44,8 @@
 | Parcelas distribuídas entre faturas | Sim | Sim | Sim | Sim | 2026-09-11 |
 | Mapa anual de gastos | Sim | Sim | Sim | Sim | 2026-09-11 |
 | Metas financeiras e aportes | Sim | Sim | Sim | Sim | 2026-09-11 |
-| Migração schema 1 → 23 | Sim | Sim | Sim | Sim | 2026-10-18 |
+| Edição, cor, nota e imagem local de metas | Sim | Sim | Widget | Sim | 2026-10-18 |
+| Migração schema 1 → 24 | Sim | Sim | Sim | Sim | 2026-10-18 |
 | Salário apenas por categoria e recorrência sob demanda | Sim | Sim | Parcial | Sim | 2026-09-16 |
 | Ajuste de saldo atual sem apagar movimentações | Sim | Sim | Sim | Sim | 2026-09-16 |
 | Dia de crédito de rendimento informado | Sim | Sim | Sim | Sim | 2026-09-16 |

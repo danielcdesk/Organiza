@@ -460,6 +460,9 @@ class FinancialGoal {
     this.deadline,
     this.iconKey = 'savings',
     this.category = 'Reserva',
+    this.colorValue = 0xFFFF9800,
+    this.note = '',
+    this.imagePath,
   });
 
   final String id;
@@ -469,5 +472,8 @@ class FinancialGoal {
   final DateTime? deadline;
   final String iconKey;
   final String category;
+  final int colorValue;
+  final String note;
+  final String? imagePath;
   final DateTime createdAt;
 }

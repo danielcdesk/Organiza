@@ -185,6 +185,8 @@ class LocalRepository {
       _database.insertSubscription(item);
   void insertFinancialGoal(FinancialGoal item) =>
       _database.insertFinancialGoal(item);
+  void updateFinancialGoal(FinancialGoal item) =>
+      _database.updateFinancialGoal(item);
   void insertFinanceCategory(FinanceCategory item) =>
       _database.insertFinanceCategory(item);
   void setFinanceCategoryEssentiality(String id, ExpenseEssentiality value) =>

@@ -18,7 +18,7 @@ class AppDatabase {
       isPreviewBuild ? 'OrganizaPreview' : 'Organiza';
 
   final Database _database;
-  static const _schemaVersion = 23;
+  static const _schemaVersion = 24;
   static const _backupTables = <String>[
     'accounts',
     'transactions',
@@ -132,6 +132,13 @@ class AppDatabase {
         free_percent INTEGER NOT NULL
       );
       INSERT INTO salary_allocation VALUES (1, 50, 30, 20);
+      CREATE TABLE financial_goals (
+        id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL,
+        target_cents INTEGER NOT NULL, saved_cents INTEGER NOT NULL DEFAULT 0,
+        deadline TEXT, icon_key TEXT NOT NULL DEFAULT 'savings',
+        created_at TEXT NOT NULL,
+        category TEXT NOT NULL DEFAULT 'Reserva'
+      );
       CREATE TABLE finance_categories (
         id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL,
         type TEXT NOT NULL, is_system INTEGER NOT NULL DEFAULT 0,
@@ -761,6 +768,24 @@ class AppDatabase {
         _database.execute('PRAGMA user_version = 23');
       });
     }
+    if (current < 24) {
+      transaction(() {
+        final columns = _tableColumns('financial_goals');
+        if (!columns.contains('color_value')) {
+          _database.execute(
+              'ALTER TABLE financial_goals ADD COLUMN color_value INTEGER NOT NULL DEFAULT 4294940672');
+        }
+        if (!columns.contains('note')) {
+          _database.execute(
+              "ALTER TABLE financial_goals ADD COLUMN note TEXT NOT NULL DEFAULT ''");
+        }
+        if (!columns.contains('image_path')) {
+          _database.execute(
+              'ALTER TABLE financial_goals ADD COLUMN image_path TEXT');
+        }
+        _database.execute('PRAGMA user_version = 24');
+      });
+    }
   }
 
   static Future<Directory> _applicationDataDirectory() async {
@@ -1185,6 +1210,9 @@ class AppDatabase {
                 : BusinessDate.parse(row['deadline'] as String),
             iconKey: row['icon_key'] as String,
             category: row['category'] as String,
+            colorValue: row['color_value'] as int,
+            note: row['note'] as String,
+            imagePath: row['image_path'] as String?,
             createdAt: DateTime.parse(row['created_at'] as String).toUtc(),
           ))
       .toList();
@@ -1804,8 +1832,9 @@ class AppDatabase {
 
   void insertFinancialGoal(FinancialGoal goal) => _database.execute(
         '''INSERT INTO financial_goals(
-          id, name, target_cents, saved_cents, deadline, icon_key, created_at, category
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
+          id, name, target_cents, saved_cents, deadline, icon_key, created_at, category,
+          color_value, note, image_path
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
         [
           goal.id,
           goal.name,
@@ -1815,8 +1844,27 @@ class AppDatabase {
           goal.iconKey,
           goal.createdAt.toUtc().toIso8601String(),
           goal.category,
+          goal.colorValue,
+          goal.note,
+          goal.imagePath,
         ],
       );
+
+  void updateFinancialGoal(FinancialGoal goal) => _database.execute('''
+    UPDATE financial_goals SET name = ?, target_cents = ?, deadline = ?,
+      icon_key = ?, category = ?, color_value = ?, note = ?, image_path = ?
+    WHERE id = ?
+  ''', [
+        goal.name,
+        goal.targetInCents,
+        goal.deadline == null ? null : BusinessDate.serialize(goal.deadline!),
+        goal.iconKey,
+        goal.category,
+        goal.colorValue,
+        goal.note,
+        goal.imagePath,
+        goal.id
+      ]);
 
   void updateFinancialGoalSaved(String id, int savedInCents) =>
       _database.execute(

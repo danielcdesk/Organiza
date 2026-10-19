@@ -1,5 +1,16 @@
 # Dossiê técnico do Organiza
 
+## Personalização de metas e imagens (schema 24)
+
+O schema 24 adiciona `financial_goals.color_value`, `note` e `image_path`,
+preservando metas legadas com cor padrão e campos opcionais vazios. A edição
+mantém id, data de criação e valor guardado. Imagens são copiadas à pasta
+privada por `LocalImageService` (até 10 MiB, tipos permitidos) e mostradas com
+fallback quando indisponíveis. `BackupImages` incorpora as imagens de perfil,
+compras e metas no payload criptografado, reescrevendo caminhos ao restaurar.
+O envelope versão 1 continua legível; backups antigos sem seção `images`
+continuam aceitos pelo transportador.
+
 ## Emissor de cartão (schema 23)
 
 O schema 23 acrescenta `credit_cards.issuer` opcional por migração

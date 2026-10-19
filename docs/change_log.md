@@ -28,6 +28,9 @@
 - Cartões aceitam emissor/banco opcional e cor personalizada; texto e ícones
   se adaptam a cartões claros. O pagamento de fatura permite escolher data
   passada ou atual e continua a debitar a conta uma única vez.
+- Metas agora permitem edição sem perder aportes, nota, tipo, cor e imagem
+  privada opcional. Imagem ausente usa ícone local. Fotos de perfil, compras e
+  metas passam a ser incluídas no conteúdo criptografado do backup.
 
 ## 2026-10-18 — Planejamento mensal familiar
 

@@ -1,9 +1,52 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:organiza/database/app_database.dart';
 import 'package:organiza/domain/models.dart';
 import 'package:organiza/services/backup_service.dart';
+import 'package:organiza/services/backup_images.dart';
 
 void main() {
+  test('imagens de perfil, compra e meta ficam no envelope criptografado',
+      () async {
+    final temporary =
+        Directory.systemTemp.createTempSync('organiza-image-test-');
+    addTearDown(() => temporary.deleteSync(recursive: true));
+    final original = File('${temporary.path}${Platform.pathSeparator}goal.png')
+      ..writeAsBytesSync([137, 80, 78, 71, 1, 2, 3]);
+    final snapshot = await BackupImages.embed({
+      'schemaVersion': 24,
+      'tables': {
+        'app_settings': [
+          {'key': 'profile_photo_path', 'value': original.path}
+        ],
+        'shopping_items': [
+          {'image_path': original.path}
+        ],
+        'financial_goals': [
+          {'image_path': original.path}
+        ],
+      },
+    });
+    expect(snapshot.toString(), isNot(contains(original.path)));
+    const service = BackupService();
+    final envelope = await service.encryptContent(snapshot, 'senha-segura');
+    final decrypted = await service.decryptContent(envelope, 'senha-segura');
+    final restored = await BackupImages.restore(decrypted,
+        targetDirectory:
+            Directory('${temporary.path}${Platform.pathSeparator}restored'));
+    final tables = restored['tables'] as Map;
+    for (final (table, column) in [
+      ('app_settings', 'value'),
+      ('shopping_items', 'image_path'),
+      ('financial_goals', 'image_path')
+    ]) {
+      final row = (tables[table] as List).single as Map;
+      final path = row[column] as String;
+      expect(File(path).readAsBytesSync(), original.readAsBytesSync());
+      expect(path, isNot(original.path));
+    }
+  });
   test('backup criptografado autentica e rejeita senha incorreta', () async {
     const service = BackupService();
     final envelope = await service.encryptContent(
