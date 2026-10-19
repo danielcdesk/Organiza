@@ -17,6 +17,35 @@ void main() {
     expect(find.byTooltip('Próximo mês'), findsNothing);
   });
 
+  testWidgets('próximo passo leva à organização quando falta renda',
+      (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final store = _store();
+    addTearDown(store.dispose);
+    store.addAccount('Principal', 0);
+    var opened = false;
+    await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+            body: DashboardPage(
+      store: store,
+      hideValues: false,
+      onNewTransaction: () {},
+      onOpenCards: () {},
+      onOpenTransactions: () {},
+      onOpenGoals: () {},
+      onOpenReports: () {},
+      onNewAccount: () {},
+      onOpenOrganization: () => opened = true,
+    ))));
+    await tester.scrollUntilVisible(find.text('Informe sua renda').first, 150,
+        scrollable: find.byType(Scrollable).first);
+    await tester.tap(find.text('Informe sua renda').first);
+    expect(opened, isTrue);
+  });
+
   testWidgets('dashboard vazio convida a criar conta e lançamento',
       (tester) async {
     final store = _store();

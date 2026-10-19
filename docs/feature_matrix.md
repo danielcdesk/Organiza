@@ -3,6 +3,7 @@
 | Funcionalidade | Implementada | Testada | Integração | Regressão | Última validação |
 |---|---:|---:|---:|---:|---|
 | Planejamento mensal por essencialidade, sobra e taxa de poupança | Sim | Sim | Widget | Sim | 2026-10-18 |
+| Próximo passo contextual na Visão Geral e Organização | Sim | Sim | Widget | Sim | 2026-10-18 |
 | Fonte opcional de receita e classificação editável de categorias | Sim | Sim | Widget | Sim | 2026-10-18 |
 | Meta de reserva e indicadores de saúde financeira | Sim | Sim | Widget | Sim | 2026-10-18 |
 | Dívidas, parcelas pagas, estorno e previsão | Sim | Sim | Widget | Sim | 2026-10-18 |

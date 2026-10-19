@@ -101,6 +101,11 @@ class OrganizaStore extends ChangeNotifier with WidgetsBindingObserver {
     AppRoute.reports,
   ];
   SalaryAllocation salaryAllocation = SalaryAllocation.defaults;
+  bool get distributionConfigured =>
+      _repository.loadPreference('allocation_configured') == 'true' ||
+      salaryAllocation.essentialsPercent != 50 ||
+      salaryAllocation.goalsPercent != 30 ||
+      salaryAllocation.freePercent != 20;
   SalaryAllocation? allocationForMonth(DateTime month) =>
       _repository.loadSalaryAllocationForMonth(month);
   String get themePreference => _repository.loadPreference('theme') ?? 'dark';
@@ -1762,6 +1767,7 @@ class OrganizaStore extends ChangeNotifier with WidgetsBindingObserver {
     _repository.transaction(() {
       _repository.saveSalaryAllocation(allocation);
       _repository.saveSalaryAllocationForMonth(allocation, _now);
+      _repository.savePreference('allocation_configured', 'true');
     });
     reload();
   }

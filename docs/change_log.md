@@ -19,6 +19,9 @@
   Relatórios mantém a navegação histórica e exibe a distribuição salarial
   vigente em cada mês quando ela foi registrada; meses sem histórico são
   identificados, sem reconstrução presumida.
+- Visão Geral e Organização priorizam o próximo passo conforme renda,
+  distribuição, pendências e uso do orçamento. A ação principal abre a área
+  correspondente; o acompanhamento de faturas, assinaturas e limites permanece.
 
 ## 2026-10-18 — Planejamento mensal familiar
 

@@ -199,6 +199,7 @@ class _DashboardPageState extends State<DashboardPage> {
       ],
       SizedBox(height: tokens.spaceXl),
       _EssentialsSection(
+        steps: _organizationSteps(budget, overdue),
         invoice: invoice,
         subscription: subscription,
         budget: budget,
@@ -207,6 +208,9 @@ class _DashboardPageState extends State<DashboardPage> {
         onOpenCards: widget.onOpenCards,
         onOpenSubscriptions: widget.onOpenSubscriptions ?? widget.onOpenReports,
         onOpenBudgets: widget.onOpenBudgets ?? widget.onOpenReports,
+        onOpenOrganization: widget.onOpenOrganization ?? widget.onOpenReports,
+        onOpenTransactions: widget.onOpenTransactions,
+        onOpenReports: widget.onOpenReports,
       ),
       SizedBox(height: tokens.spaceXl),
       _RecentSection(
@@ -282,6 +286,7 @@ class _DashboardPageState extends State<DashboardPage> {
           SizedBox(height: tokens.spaceLg),
         ],
         _EssentialsSection(
+          steps: _organizationSteps(budget, overdue),
           invoice: invoice,
           subscription: subscription,
           budget: budget,
@@ -291,6 +296,9 @@ class _DashboardPageState extends State<DashboardPage> {
           onOpenSubscriptions:
               widget.onOpenSubscriptions ?? widget.onOpenReports,
           onOpenBudgets: widget.onOpenBudgets ?? widget.onOpenReports,
+          onOpenOrganization: widget.onOpenOrganization ?? widget.onOpenReports,
+          onOpenTransactions: widget.onOpenTransactions,
+          onOpenReports: widget.onOpenReports,
         ),
         SizedBox(height: tokens.spaceLg),
         _ReportLink(onPressed: widget.onOpenReports),
@@ -387,6 +395,22 @@ class _DashboardPageState extends State<DashboardPage> {
       ),
     ];
   }
+
+  List<OrganizationStep> _organizationSteps(
+          _BudgetSummary? budget, List<TransactionRecord> overdue) =>
+      buildOrganizationNextSteps(
+        plannedIncomeInCents: widget.store.planningIncomeInCents,
+        distributionConfigured: widget.store.distributionConfigured,
+        overdueCount: overdue.length,
+        pendingCount: widget.store.transactions
+            .where((item) =>
+                item.type == TransactionType.expense &&
+                !item.isSettled &&
+                item.occurredOn.year == _month.year &&
+                item.occurredOn.month == _month.month)
+            .length,
+        budgetUsedPercent: budget?.usedPercent,
+      );
 
   bool get _showTip => widget.store.accounts.isEmpty && !_tipDismissed;
 

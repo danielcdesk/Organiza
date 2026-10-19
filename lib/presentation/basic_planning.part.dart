@@ -45,6 +45,22 @@ class _PlanningPageState extends State<PlanningPage> {
     final store = widget.store;
     final pending = store.tasks.where((task) => !task.isDone).length;
     final salary = store.planningIncomeInCents;
+    final now = store.clock.now();
+    final monthPending = store.transactions.where((item) =>
+        item.type == TransactionType.expense &&
+        !item.isSettled &&
+        item.occurredOn.year == now.year &&
+        item.occurredOn.month == now.month);
+    final overdue = monthPending.where((item) => DateTime(
+            item.occurredOn.year, item.occurredOn.month, item.occurredOn.day)
+        .isBefore(DateTime(now.year, now.month, now.day)));
+    final nextStep = buildOrganizationNextSteps(
+      plannedIncomeInCents: salary,
+      distributionConfigured: store.distributionConfigured,
+      overdueCount: overdue.length,
+      pendingCount: monthPending.length,
+      budgetUsedPercent: null,
+    ).first;
     return _Page(
       heading: PageHeading(
         eyebrow: 'ORGANIZAÇÃO',
@@ -61,6 +77,18 @@ class _PlanningPageState extends State<PlanningPage> {
       ),
       content: Column(
         children: [
+          Panel(
+            title: 'Seu próximo passo',
+            subtitle: nextStep.title,
+            child: Row(children: [
+              Expanded(child: Text(nextStep.description)),
+              if (nextStep.kind == OrganizationStepKind.distribution)
+                TextButton(
+                    onPressed: _openSalaryDialog,
+                    child: const Text('Distribuir')),
+            ]),
+          ),
+          const SizedBox(height: 14),
           MonthlyPlanningPage(store: store, hideValues: widget.hideValues),
           const SizedBox(height: 20),
           FinancialCommitmentsPage(store: store, hideValues: widget.hideValues),

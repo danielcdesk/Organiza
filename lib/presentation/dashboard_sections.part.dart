@@ -2,6 +2,7 @@ part of 'dashboard_page.dart';
 
 class _EssentialsSection extends StatelessWidget {
   const _EssentialsSection({
+    required this.steps,
     required this.invoice,
     required this.subscription,
     required this.budget,
@@ -10,8 +11,12 @@ class _EssentialsSection extends StatelessWidget {
     required this.onOpenCards,
     required this.onOpenSubscriptions,
     required this.onOpenBudgets,
+    required this.onOpenOrganization,
+    required this.onOpenTransactions,
+    required this.onOpenReports,
   });
 
+  final List<OrganizationStep> steps;
   final _NextInvoice? invoice;
   final _NextSubscription? subscription;
   final _BudgetSummary? budget;
@@ -20,10 +25,30 @@ class _EssentialsSection extends StatelessWidget {
   final VoidCallback onOpenCards;
   final VoidCallback onOpenSubscriptions;
   final VoidCallback onOpenBudgets;
+  final VoidCallback onOpenOrganization;
+  final VoidCallback onOpenTransactions;
+  final VoidCallback onOpenReports;
 
   @override
   Widget build(BuildContext context) {
     final tokens = OrganizaDesignTokens.of(context);
+    final first = steps.first;
+    final onFirst = switch (first.kind) {
+      OrganizationStepKind.overdue ||
+      OrganizationStepKind.pending =>
+        onOpenTransactions,
+      OrganizationStepKind.budget => onOpenBudgets,
+      OrganizationStepKind.complete => onOpenReports,
+      _ => onOpenOrganization,
+    };
+    final primary = Card(
+      child: ListTile(
+        title: Text(first.title),
+        subtitle: Text(first.description),
+        trailing: const Icon(Icons.arrow_forward_rounded),
+        onTap: onFirst,
+      ),
+    );
     final rows = Column(
       children: [
         _EssentialRow(
@@ -69,13 +94,22 @@ class _EssentialsSection extends StatelessWidget {
       ],
     );
     if (!cardStyle) {
-      return HairlineSection(title: 'Próximos passos', child: rows);
+      return Column(children: [
+        HairlineSection(title: 'Próximo passo', child: primary),
+        SizedBox(height: tokens.spaceMd),
+        HairlineSection(title: 'Acompanhe também', child: rows),
+      ]);
     }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Próximos passos', style: Theme.of(context).textTheme.titleLarge),
+        Text('Próximo passo', style: Theme.of(context).textTheme.titleLarge),
         SizedBox(height: tokens.spaceMd),
+        primary,
+        SizedBox(height: tokens.spaceMd),
+        Text('Acompanhe também',
+            style: Theme.of(context).textTheme.titleMedium),
+        SizedBox(height: tokens.spaceSm),
         rows,
       ],
     );
