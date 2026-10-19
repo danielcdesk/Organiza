@@ -44,7 +44,7 @@
 | Parcelas distribuídas entre faturas | Sim | Sim | Sim | Sim | 2026-09-11 |
 | Mapa anual de gastos | Sim | Sim | Sim | Sim | 2026-09-11 |
 | Metas financeiras e aportes | Sim | Sim | Sim | Sim | 2026-09-11 |
-| Migração schema 1 → 22 | Sim | Sim | Sim | Sim | 2026-10-18 |
+| Migração schema 1 → 23 | Sim | Sim | Sim | Sim | 2026-10-18 |
 | Salário apenas por categoria e recorrência sob demanda | Sim | Sim | Parcial | Sim | 2026-09-16 |
 | Ajuste de saldo atual sem apagar movimentações | Sim | Sim | Sim | Sim | 2026-09-16 |
 | Dia de crédito de rendimento informado | Sim | Sim | Sim | Sim | 2026-09-16 |
@@ -55,6 +55,7 @@
 | Pizza interativa de despesas por categoria | Sim | Sim | Sim | Sim | 2026-09-16 |
 | Compras no cartão com data, categoria/subcategoria e CRUD | Sim | Sim | Sim | Sim | 2026-10-11 |
 | Edição e exclusão protegida de cartões | Sim | Sim | Sim | Sim | 2026-10-11 |
+| Emissor, cor personalizada e data de pagamento da fatura | Sim | Sim | Widget | Sim | 2026-10-18 |
 | Faturas por ciclo com histórico aberto/fechado/pago | Sim | Sim | Sim | Sim | 2026-10-11 |
 | Pagamento integral de fatura e estorno atômico | Sim | Sim | Sim | Sim | 2026-10-11 |
 | Compras de cartão em orçamento/relatórios sem duplicação | Sim | Sim | Sim | Sim | 2026-10-11 |

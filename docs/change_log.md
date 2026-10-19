@@ -25,6 +25,9 @@
 - Assinaturas agora permitem escolher ícone manualmente ou identificar a marca
   pelo nome. O catálogo local inclui 21 logotipos vetoriais e fallback
   genérico, visíveis também na lista mobile, sem carregamento pela rede.
+- Cartões aceitam emissor/banco opcional e cor personalizada; texto e ícones
+  se adaptam a cartões claros. O pagamento de fatura permite escolher data
+  passada ou atual e continua a debitar a conta uma única vez.
 
 ## 2026-10-18 — Planejamento mensal familiar
 

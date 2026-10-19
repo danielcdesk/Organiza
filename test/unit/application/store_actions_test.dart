@@ -276,13 +276,36 @@ void main() {
     expect(invoice.status, CardInvoiceStatus.closed);
     expect(store.reportTransactions.single.category, 'Alimentação');
     final before = store.balance;
-    store.payCardInvoice(invoice.id, store.accounts.single.id);
+    store.payCardInvoice(invoice.id, store.accounts.single.id,
+        paidOn: DateTime(2026, 2, 18));
+    expect(store.balance, before - 12000);
+    expect(() => store.payCardInvoice(invoice.id, store.accounts.single.id,
+        paidOn: DateTime(2026, 2, 21)), throwsArgumentError);
+    expect(store.cardInvoices.single.paidOn, DateTime.utc(2026, 2, 18));
+    expect(() => store.payCardInvoice(invoice.id, store.accounts.single.id),
+        throwsStateError);
     expect(store.balance, before - 12000);
     expect(store.reportTransactions, hasLength(1));
     expect(store.cardInvoices.single.status, CardInvoiceStatus.paid);
     store.reverseCardInvoicePayment(invoice.id);
     expect(store.balance, before);
     expect(store.cardInvoices.single.status, CardInvoiceStatus.closed);
+  });
+
+  test('emissor do cartão persiste sem número completo', () {
+    final store = OrganizaStore.inMemory();
+    addTearDown(store.dispose);
+    store.addCreditCard(
+        name: 'Principal',
+        brand: CardBrand.visa,
+        issuer: 'Nubank',
+        lastFour: '4242',
+        limitInCents: 100000,
+        closingDay: 10,
+        dueDay: 17,
+        colorValue: 0xFFFFFFFF);
+    expect(store.creditCards.single.issuer, 'Nubank');
+    expect(store.creditCards.single.lastFour, '4242');
   });
 
   test('não aceita excluir cartão com compra/fatura e aceita dias até 31', () {

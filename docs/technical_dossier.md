@@ -1,5 +1,13 @@
 # Dossiê técnico do Organiza
 
+## Emissor de cartão (schema 23)
+
+O schema 23 acrescenta `credit_cards.issuer` opcional por migração
+transacional. Cartões legados permanecem sem emissor. O campo participa da
+cópia de segurança por já integrar `credit_cards`; cartão não armazena número
+completo nem CVV. O pagamento usa data civil escolhida, registra uma única
+transação vinculada à fatura e rejeita pagamento duplicado.
+
 ## Histórico de distribuição (schema 22)
 
 O schema 22 acrescenta `salary_allocation_history`, com uma versão por mês de

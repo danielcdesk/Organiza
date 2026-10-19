@@ -748,6 +748,7 @@ class OrganizaStore extends ChangeNotifier with WidgetsBindingObserver {
     required int closingDay,
     required int dueDay,
     required int colorValue,
+    String? issuer,
   }) {
     final cleanName = name.trim();
     if (cleanName.isEmpty) throw ArgumentError('Informe o nome do cartão.');
@@ -770,6 +771,7 @@ class OrganizaStore extends ChangeNotifier with WidgetsBindingObserver {
       closingDay: closingDay,
       dueDay: dueDay,
       colorValue: colorValue,
+      issuer: issuer?.trim().isEmpty == true ? null : issuer?.trim(),
       createdAt: _now,
     ));
     reload();
@@ -868,7 +870,11 @@ class OrganizaStore extends ChangeNotifier with WidgetsBindingObserver {
     reload();
   }
 
-  void payCardInvoice(String invoiceId, String accountId) {
+  void payCardInvoice(String invoiceId, String accountId, {DateTime? paidOn}) {
+    final paymentDate = _dateOnly(paidOn ?? _now);
+    if (paymentDate.isAfter(_dateOnly(_now))) {
+      throw ArgumentError('A data do pagamento não pode ser futura.');
+    }
     final invoice =
         cardInvoices.where((item) => item.id == invoiceId).firstOrNull;
     if (invoice == null) throw ArgumentError('Fatura não encontrada.');
@@ -891,7 +897,7 @@ class OrganizaStore extends ChangeNotifier with WidgetsBindingObserver {
       description: 'Pagamento fatura ${card.name}',
       category: 'Pagamento de fatura',
       subcategory: card.name,
-      occurredOn: _dateOnly(_now),
+      occurredOn: paymentDate,
       createdAt: _now,
       cardInvoiceId: invoice.id,
     );
@@ -901,7 +907,7 @@ class OrganizaStore extends ChangeNotifier with WidgetsBindingObserver {
           id: _id(),
           invoiceId: invoice.id,
           transactionId: transactionId,
-          paidOn: _now,
+          paidOn: paymentDate,
           amountInCents: invoice.totalInCents);
     });
     reload();

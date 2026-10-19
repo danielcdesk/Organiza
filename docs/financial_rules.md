@@ -77,3 +77,10 @@ versão até uma nova alteração. A migração registra a distribuição legada
 no mês em que ocorre, sem atribuí-la retroativamente a meses sem evidência.
 Planejamento e Visão Geral usam sempre o mês corrente; Relatórios consulta o
 histórico e indica quando ele não está disponível.
+
+# Cartão e pagamento
+
+O emissor é apenas um nome opcional, sem número completo nem CVV. A cor é
+visual e não altera cálculos. O pagamento de fatura usa a conta e a data civil
+escolhidas; datas futuras não são aceitas como pagamento realizado. A saída é
+criada uma vez por fatura fechada, e segunda tentativa falha sem novo débito.

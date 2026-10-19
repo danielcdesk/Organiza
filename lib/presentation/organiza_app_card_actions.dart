@@ -27,6 +27,7 @@ extension _OrganizaShellPart3 on _OrganizaShellState {
           closingDay: value.closingDay,
           dueDay: value.dueDay,
           colorValue: value.colorValue,
+          issuer: value.issuer,
         );
       } else {
         widget.store.editCreditCard(CreditCard(
@@ -38,6 +39,7 @@ extension _OrganizaShellPart3 on _OrganizaShellState {
           closingDay: value.closingDay,
           dueDay: value.dueDay,
           colorValue: value.colorValue,
+          issuer: value.issuer,
           createdAt: card.createdAt,
         ));
       }
@@ -130,31 +132,49 @@ extension _OrganizaShellPart3 on _OrganizaShellState {
       _showError('Cadastre uma conta antes de pagar a fatura.');
       return;
     }
-    final accountId = await showDialog<String>(
+    var paidOn = widget.store.clock.now();
+    final selection = await showDialog<({String accountId, DateTime paidOn})>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Pagar fatura'),
-        content: SizedBox(
-          width: 420,
-          child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: widget.store.accounts
-                  .map((account) => ListTile(
-                        title: Text(account.name),
-                        onTap: () => Navigator.pop(context, account.id),
-                      ))
-                  .toList()),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancelar'))
-        ],
-      ),
+      builder: (context) => StatefulBuilder(
+          builder: (context, setDialogState) => AlertDialog(
+                title: const Text('Pagar fatura'),
+                content: SizedBox(
+                  width: 420,
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    TextButton.icon(
+                      icon: const Icon(Icons.event_outlined),
+                      label: Text(
+                          'Data: ${paidOn.day}/${paidOn.month}/${paidOn.year}'),
+                      onPressed: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: paidOn,
+                          firstDate: DateTime(2000),
+                          lastDate: widget.store.clock.now(),
+                        );
+                        if (picked != null) {
+                          setDialogState(() => paidOn = picked);
+                        }
+                      },
+                    ),
+                    ...widget.store.accounts.map((account) => ListTile(
+                          title: Text(account.name),
+                          onTap: () => Navigator.pop(
+                              context, (accountId: account.id, paidOn: paidOn)),
+                        )),
+                  ]),
+                ),
+                actions: [
+                  TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Cancelar'))
+                ],
+              )),
     );
-    if (accountId == null) return;
+    if (selection == null) return;
     try {
-      widget.store.payCardInvoice(invoiceId, accountId);
+      widget.store.payCardInvoice(invoiceId, selection.accountId,
+          paidOn: selection.paidOn);
     } on Object catch (error) {
       _showError(error.toString());
     }

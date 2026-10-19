@@ -9,6 +9,7 @@ class CardInput {
     required this.closingDay,
     required this.dueDay,
     required this.colorValue,
+    this.issuer,
   });
   final String name;
   final CardBrand brand;
@@ -17,6 +18,7 @@ class CardInput {
   final int closingDay;
   final int dueDay;
   final int colorValue;
+  final String? issuer;
 }
 
 class CardDialog extends StatefulWidget {
@@ -36,6 +38,8 @@ class _CardDialogState extends State<CardDialog> {
   ];
 
   final _name = TextEditingController();
+  final _issuer = TextEditingController();
+  final _hexColor = TextEditingController();
   final _lastFour = TextEditingController();
   final _limit = TextEditingController();
   final _closingDay = TextEditingController(text: '10');
@@ -50,6 +54,7 @@ class _CardDialogState extends State<CardDialog> {
     final card = widget.card;
     if (card == null) return;
     _name.text = card.name;
+    _issuer.text = card.issuer ?? '';
     _lastFour.text = card.lastFour;
     _limit.text =
         (card.limitInCents / 100).toStringAsFixed(2).replaceAll('.', ',');
@@ -62,6 +67,8 @@ class _CardDialogState extends State<CardDialog> {
   @override
   void dispose() {
     _name.dispose();
+    _issuer.dispose();
+    _hexColor.dispose();
     _lastFour.dispose();
     _limit.dispose();
     _closingDay.dispose();
@@ -71,7 +78,7 @@ class _CardDialogState extends State<CardDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-        title: const Text('Novo cartão'),
+        title: Text(widget.card == null ? 'Novo cartão' : 'Editar cartão'),
         content: SizedBox(
           width: 500,
           child: SingleChildScrollView(
@@ -84,11 +91,18 @@ class _CardDialogState extends State<CardDialog> {
                     decoration:
                         const InputDecoration(labelText: 'Nome do cartão')),
                 const SizedBox(height: 12),
+                TextField(
+                    controller: _issuer,
+                    decoration: const InputDecoration(
+                        labelText: 'Emissor ou banco (opcional)',
+                        hintText: 'Nubank, Inter, Itaú ou outro')),
+                const SizedBox(height: 12),
                 Row(
                   children: [
                     Expanded(
                       child: DropdownButtonFormField<CardBrand>(
                         initialValue: _brand,
+                        isExpanded: true,
                         decoration:
                             const InputDecoration(labelText: 'Bandeira'),
                         items: CardBrand.values
@@ -168,6 +182,16 @@ class _CardDialogState extends State<CardDialog> {
                     }).toList(),
                   ),
                 ),
+                const SizedBox(height: 9),
+                TextField(
+                  controller: _hexColor,
+                  keyboardType: TextInputType.text,
+                  maxLength: 7,
+                  decoration: const InputDecoration(
+                      labelText: 'Cor personalizada (hex)',
+                      hintText: '#245943',
+                      counterText: ''),
+                ),
                 _DialogError(_error),
               ],
             ),
@@ -201,6 +225,11 @@ class _CardDialogState extends State<CardDialog> {
         closing <= 31 &&
         due >= 1 &&
         due <= 31;
+    final hex = _hexColor.text.trim().replaceFirst('#', '');
+    if (hex.isNotEmpty && !RegExp(r'^[0-9a-fA-F]{6}$').hasMatch(hex)) {
+      setState(() => _error = 'Informe uma cor hexadecimal com seis dígitos.');
+      return;
+    }
     if (_name.text.trim().isEmpty ||
         _lastFour.text.length != 4 ||
         cents == null ||
@@ -219,7 +248,10 @@ class _CardDialogState extends State<CardDialog> {
         limitInCents: cents,
         closingDay: closing,
         dueDay: due,
-        colorValue: _color.toARGB32(),
+        colorValue: hex.isEmpty
+            ? _color.toARGB32()
+            : 0xFF000000 | int.parse(hex, radix: 16),
+        issuer: _issuer.text.trim().isEmpty ? null : _issuer.text.trim(),
       ),
     );
   }

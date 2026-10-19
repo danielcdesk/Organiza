@@ -10,6 +10,7 @@ class _CreditCardVisual extends StatelessWidget {
   Widget build(BuildContext context) {
     final base = Color(card.colorValue);
     final dark = Color.lerp(base, Colors.black, .4)!;
+    final contentColor = cardContentColor(base);
     return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(22),
@@ -69,7 +70,7 @@ class _CreditCardVisual extends StatelessWidget {
                   Row(children: [
                     Text('ORGANIZA',
                         style: TextStyle(
-                          color: Colors.white.withValues(alpha: .92),
+                          color: contentColor.withValues(alpha: .92),
                           fontSize: 12,
                           letterSpacing: 1.3,
                           fontWeight: FontWeight.w800,
@@ -77,26 +78,26 @@ class _CreditCardVisual extends StatelessWidget {
                     const Spacer(),
                     Text('CRÉDITO',
                         style: TextStyle(
-                          color: Colors.white.withValues(alpha: .58),
+                          color: contentColor.withValues(alpha: .7),
                           fontSize: 10,
                           letterSpacing: 1.1,
                           fontWeight: FontWeight.w700,
                         )),
                   ]),
                   const SizedBox(height: 27),
-                  const Row(children: [
-                    _ChipVisual(),
-                    SizedBox(width: 12),
+                  Row(children: [
+                    const _ChipVisual(),
+                    const SizedBox(width: 12),
                     Icon(Icons.contactless_rounded,
-                        color: Color(0xD9FFFFFF), size: 25),
+                        color: contentColor.withValues(alpha: .85), size: 25),
                   ]),
                   const Spacer(),
                   Text(
                     hideValues
                         ? '••••  ••••  ••••  ••••'
                         : '••••  ••••  ••••  ${card.lastFour}',
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: contentColor,
                       fontSize: 20,
                       fontWeight: FontWeight.w600,
                       letterSpacing: 2,
@@ -108,9 +109,9 @@ class _CreditCardVisual extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('CARTÃO',
+                          Text(card.issuer?.toUpperCase() ?? 'CARTÃO',
                               style: TextStyle(
-                                color: Colors.white.withValues(alpha: .5),
+                                color: contentColor.withValues(alpha: .65),
                                 fontSize: 9,
                                 letterSpacing: 1.2,
                               )),
@@ -118,14 +119,14 @@ class _CreditCardVisual extends StatelessWidget {
                           Text(card.name,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                  color: Colors.white,
+                              style: TextStyle(
+                                  color: contentColor,
                                   fontWeight: FontWeight.w700,
                                   fontSize: 15)),
                         ],
                       ),
                     ),
-                    _CardBrandMark(brand: card.brand),
+                    _CardBrandMark(brand: card.brand, color: contentColor),
                   ]),
                 ],
               ),
@@ -177,9 +178,10 @@ class _ChipPainter extends CustomPainter {
 }
 
 class _CardBrandMark extends StatelessWidget {
-  const _CardBrandMark({required this.brand});
+  const _CardBrandMark({required this.brand, required this.color});
 
   final CardBrand brand;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
@@ -203,8 +205,8 @@ class _CardBrandMark extends StatelessWidget {
     }
     return Text(
       brandName(brand),
-      style: const TextStyle(
-        color: Colors.white,
+      style: TextStyle(
+        color: color,
         fontSize: 13,
         fontWeight: FontWeight.w800,
         fontStyle: FontStyle.italic,

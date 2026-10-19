@@ -151,6 +151,7 @@ class CreditCard {
     required this.dueDay,
     required this.colorValue,
     required this.createdAt,
+    this.issuer,
   });
 
   final String id;
@@ -162,6 +163,7 @@ class CreditCard {
   final int dueDay;
   final int colorValue;
   final DateTime createdAt;
+  final String? issuer;
 }
 
 class CardPurchase {

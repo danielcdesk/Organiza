@@ -4,10 +4,10 @@ import 'package:organiza/domain/models.dart';
 import 'package:organiza/domain/app_route.dart';
 
 void main() {
-  test('schema 22 guarda histórico de distribuição no snapshot', () {
+  test('schema 23 guarda histórico de distribuição no snapshot', () {
     final source = AppDatabase.openInMemoryFromVersion1ForTest();
     addTearDown(source.close);
-    expect(source.schemaVersion, 22);
+    expect(source.schemaVersion, 23);
     source.transaction(() {
       source.saveSalaryAllocationForMonth(
           const SalaryAllocation(
@@ -29,7 +29,7 @@ void main() {
             .essentialsPercent,
         60);
   });
-  test('snapshot do schema 22 inclui dívidas e contas recorrentes', () {
+  test('snapshot do schema 23 inclui dívidas e contas recorrentes', () {
     final source = AppDatabase.openInMemoryFromVersion1ForTest();
     addTearDown(source.close);
     final now = DateTime.utc(2026, 9, 10);
@@ -92,10 +92,10 @@ void main() {
     expect(destination.loadDebtPayments().single.interestInCents, 1000);
     expect(destination.loadTransactions(), hasLength(2));
   });
-  test('schema 22 preserva dados e persiste classificação e fonte', () {
+  test('schema 23 preserva dados e persiste classificação e fonte', () {
     final database = AppDatabase.openInMemoryFromVersion1ForTest();
     addTearDown(database.close);
-    expect(database.schemaVersion, 22);
+    expect(database.schemaVersion, 23);
     expect(database.loadDebts(), isEmpty);
     final category = database.loadFinanceCategories().firstWhere((item) =>
         item.name == 'Alimentação' && item.type == TransactionType.expense);
@@ -131,11 +131,12 @@ void main() {
     restored.restoreSnapshot(snapshot);
     expect(restored.loadTransactions().single.incomeSource, 'Trabalho');
   });
-  test('migração 15 para 22 preserva cartão e compra existentes', () {
+  test('migração 15 para 23 preserva cartão e compra existentes', () {
     final database = AppDatabase.openInMemoryFromVersion15WithCardForTest();
     addTearDown(database.close);
-    expect(database.schemaVersion, 22);
+    expect(database.schemaVersion, 23);
     expect(database.loadCreditCards().single.name, 'Cartão antigo');
+    expect(database.loadCreditCards().single.issuer, isNull);
     expect(database.loadCreditCards().single.lastFour, '4242');
     expect(database.loadCardPurchases().single.description, 'Compra antiga');
     expect(database.loadTransactions().single.occurredOn,
@@ -150,9 +151,11 @@ void main() {
       closingDay: 31,
       dueDay: 31,
       colorValue: 0xFF245943,
+      issuer: 'Nubank',
       createdAt: DateTime(2026),
     ));
     expect(database.loadCreditCards().last.closingDay, 31);
+    expect(database.loadCreditCards().last.issuer, 'Nubank');
   });
 
   test('migração local preserva dados e habilita novos módulos', () {
@@ -221,7 +224,7 @@ void main() {
       createdAt: now,
     ));
 
-    expect(database.schemaVersion, 22);
+    expect(database.schemaVersion, 23);
     expect(database.loadAccounts().single.name, 'Principal');
     expect(
         database.loadAccounts().single.institution, AccountInstitution.generic);

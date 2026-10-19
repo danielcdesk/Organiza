@@ -18,7 +18,7 @@ class AppDatabase {
       isPreviewBuild ? 'OrganizaPreview' : 'Organiza';
 
   final Database _database;
-  static const _schemaVersion = 22;
+  static const _schemaVersion = 23;
   static const _backupTables = <String>[
     'accounts',
     'transactions',
@@ -753,6 +753,14 @@ class AppDatabase {
         _database.execute('PRAGMA user_version = 22');
       });
     }
+    if (current < 23) {
+      transaction(() {
+        if (!_tableColumns('credit_cards').contains('issuer')) {
+          _database.execute('ALTER TABLE credit_cards ADD COLUMN issuer TEXT');
+        }
+        _database.execute('PRAGMA user_version = 23');
+      });
+    }
   }
 
   static Future<Directory> _applicationDataDirectory() async {
@@ -1016,6 +1024,7 @@ class AppDatabase {
             closingDay: row['closing_day'] as int,
             dueDay: row['due_day'] as int,
             colorValue: row['color_value'] as int,
+            issuer: row['issuer'] as String?,
             createdAt: DateTime.parse(row['created_at'] as String).toUtc(),
           ))
       .toList();
@@ -1441,8 +1450,8 @@ class AppDatabase {
 
   void insertCreditCard(CreditCard card) => _database.execute(
         '''INSERT INTO credit_cards(
-          id, name, brand, last_four, limit_cents, closing_day, due_day, color_value, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+          id, name, brand, last_four, limit_cents, closing_day, due_day, color_value, created_at, issuer
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
         [
           card.id,
           card.name,
@@ -1453,12 +1462,13 @@ class AppDatabase {
           card.dueDay,
           card.colorValue,
           card.createdAt.toUtc().toIso8601String(),
+          card.issuer,
         ],
       );
 
   void updateCreditCard(CreditCard card) => _database.execute('''
     UPDATE credit_cards SET name = ?, brand = ?, last_four = ?, limit_cents = ?,
-      closing_day = ?, due_day = ?, color_value = ? WHERE id = ?
+      closing_day = ?, due_day = ?, color_value = ?, issuer = ? WHERE id = ?
   ''', [
         card.name,
         card.brand.name,
@@ -1467,6 +1477,7 @@ class AppDatabase {
         card.closingDay,
         card.dueDay,
         card.colorValue,
+        card.issuer,
         card.id
       ]);
 
