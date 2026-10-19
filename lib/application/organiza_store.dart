@@ -124,6 +124,11 @@ class OrganizaStore extends ChangeNotifier with WidgetsBindingObserver {
   int get profileIncomeInCents =>
       int.tryParse(_repository.loadPreference('profile_income_cents') ?? '') ??
       0;
+
+  /// Budgeting base, not a cash-flow entry. A profile amount must not be
+  /// added to the same salary's scheduled or recorded transactions.
+  int get planningIncomeInCents =>
+      profileIncomeInCents > 0 ? profileIncomeInCents : salaryThisMonth;
   int get emergencyReserveTargetMonths =>
       int.tryParse(_repository.loadPreference('reserve_target_months') ?? '') ??
       6;

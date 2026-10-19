@@ -7,6 +7,30 @@ import 'package:organiza/domain/app_route.dart';
 import 'package:organiza/domain/financial_rules.dart';
 
 void main() {
+  test('renda do perfil é base única do planejamento, sem duplicar salário',
+      () {
+    final store =
+        OrganizaStore.inMemory(clock: Clock.fixed(DateTime(2026, 10, 18)));
+    addTearDown(store.dispose);
+    store.addAccount('Principal', 0);
+    final accountId = store.accounts.single.id;
+    store.saveProfile(name: 'Pessoa', incomeInCents: 200000);
+    store.addTransaction(
+      accountId: accountId,
+      type: TransactionType.income,
+      amountInCents: 100000,
+      description: 'Salário recebido',
+      category: 'Salário',
+      occurredOn: DateTime(2026, 10, 5),
+    );
+    expect(store.planningIncomeInCents, 200000);
+    expect(store.salaryThisMonth, 100000);
+    store.saveProfile(name: 'Pessoa', incomeInCents: 250000);
+    expect(store.planningIncomeInCents, 250000);
+    store.saveProfile(name: 'Pessoa', incomeInCents: 0);
+    expect(store.planningIncomeInCents, 100000);
+  });
+
   test('estorno de dívida exige a última parcela, mesmo no mesmo dia', () {
     final today = DateTime(2026, 9, 10);
     final store = OrganizaStore.inMemory(clock: Clock.fixed(today));

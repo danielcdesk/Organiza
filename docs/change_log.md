@@ -12,6 +12,9 @@
   Organização fica em “Mais ações”, preservando quatro ações principais.
 - O formulário de nova transação ficou mais baixo e rolável; o seletor de
   instituição da conta deixou de ultrapassar a largura do celular.
+- Organização usa a renda mensal informada no perfil como base da distribuição
+  sem somá-la novamente a salário recebido/programado; o painel distingue
+  renda prevista de receitas registradas e não altera o saldo ao planejar.
 
 ## 2026-10-18 — Planejamento mensal familiar
 

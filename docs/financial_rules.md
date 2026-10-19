@@ -67,4 +67,4 @@ Cada orçamento é mensal e vinculado a uma categoria. O consumo soma somente de
 
 Transações também guardam subcategoria para análises mais detalhadas. Assinaturas são compromissos recorrentes manuais e não criam lançamentos automaticamente nesta etapa.
 
-A distribuição salarial é uma preferência local em três blocos — essenciais, objetivos e livre — e precisa totalizar exatamente 100%. O valor-base considera apenas entradas na categoria **Salário**, registradas ou previstas por uma série salarial ativa para o mês; outras receitas não entram nesse cálculo.
+A distribuição salarial é uma preferência local em três blocos — essenciais, objetivos e livre — e precisa totalizar exatamente 100%. O valor-base planejado usa a renda mensal informada no perfil quando ela é maior que zero. Sem esse valor, usa o salário registrado ou previsto por série salarial no mês. Essas fontes nunca são somadas entre si para formar a mesma base. A renda do perfil é previsão de orçamento, não lançamento recebido: não altera saldo nem receitas registradas. Outras categorias de receita não entram nessa distribuição.

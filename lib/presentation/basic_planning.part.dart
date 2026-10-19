@@ -44,7 +44,7 @@ class _PlanningPageState extends State<PlanningPage> {
   Widget build(BuildContext context) {
     final store = widget.store;
     final pending = store.tasks.where((task) => !task.isDone).length;
-    final salary = store.salaryThisMonth;
+    final salary = store.planningIncomeInCents;
     return _Page(
       heading: PageHeading(
         eyebrow: 'ORGANIZAÇÃO',
@@ -79,7 +79,7 @@ class _PlanningPageState extends State<PlanningPage> {
                 final details = Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Salário identificado no mês',
+                    Text('Renda planejada do mês',
                         style: TextStyle(
                             fontSize: 12,
                             color: Theme.of(context)
@@ -89,7 +89,10 @@ class _PlanningPageState extends State<PlanningPage> {
                     Text(FinancialRules.formatBrl(salary),
                         style: Theme.of(context).textTheme.headlineSmall),
                     const SizedBox(height: 6),
-                    Text('Somente receitas na categoria Salário',
+                    Text(
+                        store.profileIncomeInCents > 0
+                            ? 'Valor informado no perfil · não altera o saldo recebido'
+                            : 'Previsão de salário · informe sua renda no perfil',
                         style: TextStyle(
                             fontSize: 12,
                             color: Theme.of(context)
@@ -227,8 +230,11 @@ class _PlanningPageState extends State<PlanningPage> {
   Future<void> _openSalaryDialog() async {
     final values = await showDialog<List<int>>(
         context: context,
-        builder: (_) => _SalaryDialog(salary: widget.store.salaryThisMonth));
-    if (values == null || !mounted || widget.store.salaryThisMonth == 0) return;
+        builder: (_) =>
+            _SalaryDialog(salary: widget.store.planningIncomeInCents));
+    if (values == null || !mounted || widget.store.planningIncomeInCents == 0) {
+      return;
+    }
     final total = values.fold(0, (a, b) => a + b);
     if (total == 0) return;
     setState(() {

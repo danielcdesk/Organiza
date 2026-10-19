@@ -103,7 +103,8 @@ class _MonthlyPlanningPageState extends State<MonthlyPlanningPage> {
                 icon: const Icon(Icons.chevron_right_rounded),
               ),
             ]),
-            _line('Receitas', summary.incomeInCents),
+            _line('Renda prevista', widget.store.planningIncomeInCents),
+            _line('Receitas registradas', summary.incomeInCents),
             _line('Despesas essenciais', summary.essentialExpensesInCents),
             _line(
                 'Despesas não essenciais', summary.nonEssentialExpensesInCents),
