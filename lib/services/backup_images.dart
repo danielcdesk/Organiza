@@ -7,6 +7,19 @@ import 'package:uuid/uuid.dart';
 
 import 'local_image_service.dart';
 
+class RestoredBackupImages {
+  const RestoredBackupImages(this.snapshot, this.createdFiles);
+
+  final Map<String, dynamic> snapshot;
+  final List<File> createdFiles;
+
+  Future<void> deleteCreatedFiles() async {
+    for (final file in createdFiles) {
+      if (await file.exists()) await file.delete();
+    }
+  }
+}
+
 /// Embeds private images inside the encrypted snapshot payload, never outside it.
 class BackupImages {
   const BackupImages._();
@@ -52,18 +65,26 @@ class BackupImages {
   }
 
   static Future<Map<String, dynamic>> restore(Map<String, dynamic> source,
+          {Directory? targetDirectory}) async =>
+      (await restorePrepared(source, targetDirectory: targetDirectory))
+          .snapshot;
+
+  static Future<RestoredBackupImages> restorePrepared(
+      Map<String, dynamic> source,
       {Directory? targetDirectory}) async {
     final snapshot = jsonDecode(jsonEncode(source)) as Map<String, dynamic>;
     final rawImages = snapshot['images'];
-    if (rawImages == null) return snapshot; // Legacy encrypted backup v1.
+    if (rawImages == null) {
+      return RestoredBackupImages(snapshot, const []); // Legacy backup v1.
+    }
     if (rawImages is! List) {
       throw const FormatException('Imagens inválidas no backup.');
     }
     final target = targetDirectory ??
         Directory(path.join((await getApplicationSupportDirectory()).path,
             'Organiza', 'images'));
-    await target.create(recursive: true);
     final paths = <String, String>{};
+    final prepared = <(File, List<int>)>[];
     for (final raw in rawImages) {
       if (raw is! Map) {
         throw const FormatException('Imagem inválida no backup.');
@@ -85,10 +106,14 @@ class BackupImages {
       }
       final file =
           File(path.join(target.path, '${const Uuid().v4()}$extension'));
-      await file.writeAsBytes(bytes, flush: true);
+      prepared.add((file, bytes));
       paths[token] = file.path;
     }
-    final tables = snapshot['tables'] as Map<String, dynamic>;
+    final rawTables = snapshot['tables'];
+    if (rawTables is! Map<String, dynamic>) {
+      throw const FormatException('Tabelas inválidas no backup.');
+    }
+    final tables = rawTables;
     void rewrite(Map<String, dynamic> row, String column) {
       final value = row[column];
       if (value is String && value.startsWith('backup-image:')) {
@@ -100,16 +125,29 @@ class BackupImages {
       }
     }
 
-    for (final raw in tables['app_settings'] as List) {
+    for (final raw in (tables['app_settings'] as List?) ?? const []) {
       final row = raw as Map<String, dynamic>;
       if (row['key'] == 'profile_photo_path') rewrite(row, 'value');
     }
     for (final table in ['shopping_items', 'financial_goals']) {
-      for (final raw in tables[table] as List) {
+      for (final raw in (tables[table] as List?) ?? const []) {
         rewrite(raw as Map<String, dynamic>, 'image_path');
       }
     }
+    final created = <File>[];
+    try {
+      await target.create(recursive: true);
+      for (final (file, bytes) in prepared) {
+        created.add(file);
+        await file.writeAsBytes(bytes, flush: true);
+      }
+    } catch (_) {
+      for (final file in created) {
+        if (await file.exists()) await file.delete();
+      }
+      rethrow;
+    }
     snapshot.remove('images');
-    return snapshot;
+    return RestoredBackupImages(snapshot, created);
   }
 }

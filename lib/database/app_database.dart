@@ -68,6 +68,18 @@ class AppDatabase {
     return instance;
   }
 
+  /// Creates a historical schema solely for validating and migrating backups.
+  static AppDatabase openInMemoryAtVersion(int version) {
+    if (version < 1 || version > _schemaVersion) {
+      throw RangeError.range(version, 1, _schemaVersion);
+    }
+    final database = sqlite3.openInMemory();
+    _configure(database, persistent: false);
+    final instance = AppDatabase._(database);
+    instance._migrate(targetVersion: version);
+    return instance;
+  }
+
   static AppDatabase openInMemoryFromVersion1ForTest() {
     final database = sqlite3.openInMemory();
     _configure(database, persistent: false);
@@ -192,17 +204,15 @@ class AppDatabase {
 
   /// Exports every user table as a versioned, JSON-compatible snapshot.
   ///
-  /// The snapshot is intentionally separate from the SQLite file so it can be
-  /// encrypted and validated before a restore. It is only accepted for the
-  /// current schema version; older database files must first pass the normal
-  /// SQLite migration path.
+  /// The snapshot is separate from the SQLite file so it can be encrypted and
+  /// validated before a restore. Older snapshots use the normal migrations.
   Map<String, Object?> exportSnapshot() {
     _database.execute('BEGIN IMMEDIATE');
     try {
       final snapshot = <String, Object?>{
         'schemaVersion': schemaVersion,
         'tables': <String, Object?>{
-          for (final table in _backupTables) table: _rows(table),
+          for (final table in _existingBackupTables) table: _rows(table),
         },
       };
       _database.execute('COMMIT');
@@ -216,16 +226,31 @@ class AppDatabase {
   /// Replaces all user tables atomically after validating the snapshot.
   void restoreSnapshot(Map<String, dynamic> snapshot) {
     final version = snapshot['schemaVersion'];
-    if (version != schemaVersion) {
+    if (version is! int || version < 1) {
+      throw const FormatException('Versão de schema inválida no backup.');
+    }
+    if (version > schemaVersion) {
       throw FormatException(
-          'Backup usa o schema $version; esta instalação usa $schemaVersion.');
+          'Backup usa schema $version, mais recente que o schema $schemaVersion deste aplicativo.');
+    }
+    if (version != schemaVersion) {
+      final temporary = AppDatabase.openInMemoryAtVersion(version);
+      try {
+        temporary.restoreSnapshot(snapshot);
+        temporary._migrate();
+        restoreSnapshot(temporary.exportSnapshot());
+      } finally {
+        temporary.close();
+      }
+      return;
     }
     final rawTables = snapshot['tables'];
     if (rawTables is! Map) {
       throw const FormatException('Backup sem a seção de tabelas.');
     }
     final tables = <String, List<Map<String, dynamic>>>{};
-    for (final table in _backupTables) {
+    final backupTables = _existingBackupTables;
+    for (final table in backupTables) {
       final rawRows = rawTables[table];
       if (rawRows is! List) {
         throw FormatException('Backup sem a tabela $table.');
@@ -240,10 +265,10 @@ class AppDatabase {
 
     _database.execute('BEGIN IMMEDIATE');
     try {
-      for (final table in _backupTables.reversed) {
+      for (final table in backupTables.reversed) {
         _database.execute('DELETE FROM "$table"');
       }
-      for (final table in _backupTables) {
+      for (final table in backupTables) {
         final columns = _tableColumns(table);
         for (final row in tables[table]!) {
           if (row.keys.any((key) => !columns.contains(key))) {
@@ -286,14 +311,20 @@ class AppDatabase {
       .map((row) => row['name'] as String)
       .toSet();
 
-  void _migrate() {
+  List<String> get _existingBackupTables => _backupTables
+      .where((table) => _database.select(
+          "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
+          [table]).isNotEmpty)
+      .toList();
+
+  void _migrate({int targetVersion = _schemaVersion}) {
     final current =
         _database.select('PRAGMA user_version').first['user_version'] as int;
     if (current > _schemaVersion) {
       throw StateError(
           'O banco foi criado por uma versão mais recente do Organiza.');
     }
-    if (current < 1) {
+    if (current < 1 && targetVersion >= 1) {
       _database.execute('''
         CREATE TABLE accounts (
           id TEXT PRIMARY KEY NOT NULL,
@@ -323,7 +354,7 @@ class AppDatabase {
       ''');
       _database.execute('PRAGMA user_version = 1');
     }
-    if (current < 2) {
+    if (current < 2 && targetVersion >= 2) {
       _database.execute('''
         CREATE TABLE credit_cards (
           id TEXT PRIMARY KEY NOT NULL,
@@ -350,7 +381,7 @@ class AppDatabase {
       ''');
       _database.execute('PRAGMA user_version = 2');
     }
-    if (current < 3) {
+    if (current < 3 && targetVersion >= 3) {
       _database.execute('''
         ALTER TABLE accounts
           ADD COLUMN institution TEXT NOT NULL DEFAULT 'generic';
@@ -367,7 +398,7 @@ class AppDatabase {
       ''');
       _database.execute('PRAGMA user_version = 3');
     }
-    if (current < 4) {
+    if (current < 4 && targetVersion >= 4) {
       _database.execute('''
         ALTER TABLE transactions
           ADD COLUMN category TEXT NOT NULL DEFAULT 'Outros';
@@ -384,7 +415,7 @@ class AppDatabase {
       ''');
       _database.execute('PRAGMA user_version = 4');
     }
-    if (current < 5) {
+    if (current < 5 && targetVersion >= 5) {
       _database.execute('''
         ALTER TABLE transactions
           ADD COLUMN subcategory TEXT NOT NULL DEFAULT 'Geral';
@@ -401,7 +432,7 @@ class AppDatabase {
       ''');
       _database.execute('PRAGMA user_version = 5');
     }
-    if (current < 6) {
+    if (current < 6 && targetVersion >= 6) {
       _database.execute('''
         CREATE TABLE salary_allocation (
           id INTEGER PRIMARY KEY NOT NULL CHECK(id = 1),
@@ -415,7 +446,7 @@ class AppDatabase {
       ''');
       _database.execute('PRAGMA user_version = 6');
     }
-    if (current < 7) {
+    if (current < 7 && targetVersion >= 7) {
       _database.execute('''
         CREATE TABLE financial_goals (
           id TEXT PRIMARY KEY NOT NULL,
@@ -431,7 +462,7 @@ class AppDatabase {
       ''');
       _database.execute('PRAGMA user_version = 7');
     }
-    if (current < 8) {
+    if (current < 8 && targetVersion >= 8) {
       _database.execute('''
         ALTER TABLE transactions
           ADD COLUMN schedule_type TEXT NOT NULL DEFAULT 'single';
@@ -467,7 +498,7 @@ class AppDatabase {
       _seedDefaultCategories();
       _database.execute('PRAGMA user_version = 8');
     }
-    if (current < 9) {
+    if (current < 9 && targetVersion >= 9) {
       _database.execute('''
         CREATE TABLE shopping_items (
           id TEXT PRIMARY KEY NOT NULL,
@@ -483,7 +514,7 @@ class AppDatabase {
       ''');
       _database.execute('PRAGMA user_version = 9');
     }
-    if (current < 10) {
+    if (current < 10 && targetVersion >= 10) {
       _database.execute('''
         ALTER TABLE investments ADD COLUMN quoted_rate_bps INTEGER
           CHECK(quoted_rate_bps BETWEEN -10000 AND 100000);
@@ -492,7 +523,7 @@ class AppDatabase {
       ''');
       _database.execute('PRAGMA user_version = 10');
     }
-    if (current < 11) {
+    if (current < 11 && targetVersion >= 11) {
       _database.execute('''
         ALTER TABLE investments ADD COLUMN yield_payment_day INTEGER
           CHECK(yield_payment_day BETWEEN 1 AND 31);
@@ -516,24 +547,24 @@ class AppDatabase {
       _seedDefaultCategories();
       _database.execute('PRAGMA user_version = 11');
     }
-    if (current < 12) {
+    if (current < 12 && targetVersion >= 12) {
       _database
           .execute('ALTER TABLE shopping_items ADD COLUMN image_path TEXT');
       _database.execute('PRAGMA user_version = 12');
     }
-    if (current < 13) {
+    if (current < 13 && targetVersion >= 13) {
       _database.execute('''
         ALTER TABLE accounts ADD COLUMN custom_institution_name TEXT;
         ALTER TABLE accounts ADD COLUMN custom_icon_key TEXT;
       ''');
       _database.execute('PRAGMA user_version = 13');
     }
-    if (current < 14) {
+    if (current < 14 && targetVersion >= 14) {
       _database.execute(
           "ALTER TABLE shopping_items ADD COLUMN description TEXT NOT NULL DEFAULT ''");
       _database.execute('PRAGMA user_version = 14');
     }
-    if (current < 15) {
+    if (current < 15 && targetVersion >= 15) {
       _database.execute('''
         DELETE FROM transactions
         WHERE series_id IS NOT NULL
@@ -549,11 +580,11 @@ class AppDatabase {
       ''');
       _database.execute('PRAGMA user_version = 15');
     }
-    if (current < 16) {
+    if (current < 16 && targetVersion >= 16) {
       _database.execute('ALTER TABLE subscriptions ADD COLUMN icon_key TEXT');
       _database.execute('PRAGMA user_version = 16');
     }
-    if (current < 17) {
+    if (current < 17 && targetVersion >= 17) {
       transaction(() {
         _database.execute(
             'ALTER TABLE transactions ADD COLUMN card_invoice_id TEXT');
@@ -618,7 +649,7 @@ class AppDatabase {
         _database.execute('PRAGMA user_version = 17');
       });
     }
-    if (current < 18) {
+    if (current < 18 && targetVersion >= 18) {
       transaction(() {
         for (final (table, column) in const <(String, String)>[
           ('transactions', 'occurred_on'),
@@ -641,7 +672,7 @@ class AppDatabase {
         _database.execute('PRAGMA user_version = 18');
       });
     }
-    if (current < 19) {
+    if (current < 19 && targetVersion >= 19) {
       transaction(() {
         _database.execute('''
           CREATE TABLE salary_schedule_exceptions (
@@ -655,7 +686,7 @@ class AppDatabase {
         _database.execute('PRAGMA user_version = 19');
       });
     }
-    if (current < 20) {
+    if (current < 20 && targetVersion >= 20) {
       transaction(() {
         if (!_tableColumns('finance_categories').contains('essentiality')) {
           _database.execute('''ALTER TABLE finance_categories
@@ -674,7 +705,7 @@ class AppDatabase {
         _database.execute('PRAGMA user_version = 20');
       });
     }
-    if (current < 21) {
+    if (current < 21 && targetVersion >= 21) {
       transaction(() {
         if (!_tableColumns('salary_schedules').contains('income_source')) {
           _database.execute(
@@ -737,7 +768,7 @@ class AppDatabase {
         _database.execute('PRAGMA user_version = 21');
       });
     }
-    if (current < 22) {
+    if (current < 22 && targetVersion >= 22) {
       transaction(() {
         _database.execute('''
           CREATE TABLE IF NOT EXISTS salary_allocation_history (
@@ -760,7 +791,7 @@ class AppDatabase {
         _database.execute('PRAGMA user_version = 22');
       });
     }
-    if (current < 23) {
+    if (current < 23 && targetVersion >= 23) {
       transaction(() {
         if (!_tableColumns('credit_cards').contains('issuer')) {
           _database.execute('ALTER TABLE credit_cards ADD COLUMN issuer TEXT');
@@ -768,7 +799,7 @@ class AppDatabase {
         _database.execute('PRAGMA user_version = 23');
       });
     }
-    if (current < 24) {
+    if (current < 24 && targetVersion >= 24) {
       transaction(() {
         final columns = _tableColumns('financial_goals');
         if (!columns.contains('color_value')) {

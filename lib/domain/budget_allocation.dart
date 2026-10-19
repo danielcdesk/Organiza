@@ -12,8 +12,7 @@ class BudgetAllocationBase {
   final int goalsInCents;
   final int freeInCents;
 
-  int get totalInCents =>
-      essentialsInCents + goalsInCents + freeInCents;
+  int get totalInCents => essentialsInCents + goalsInCents + freeInCents;
 
   factory BudgetAllocationBase.fromIncome({
     required int incomeInCents,

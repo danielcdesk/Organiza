@@ -11,8 +11,8 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
-    final store = OrganizaStore.inMemory(
-        clock: Clock.fixed(DateTime(2026, 10, 19)));
+    final store =
+        OrganizaStore.inMemory(clock: Clock.fixed(DateTime(2026, 10, 19)));
     addTearDown(store.dispose);
     store.saveProfile(name: 'Pessoa', incomeInCents: 200000);
     store.updateSalaryAllocation(

@@ -7,6 +7,34 @@ import 'package:organiza/services/backup_service.dart';
 import 'package:organiza/services/backup_images.dart';
 
 void main() {
+  test('referência adulterada não deixa imagem restaurada', () async {
+    final temporary =
+        Directory.systemTemp.createTempSync('organiza-image-invalid-');
+    addTearDown(() => temporary.deleteSync(recursive: true));
+    final snapshot = <String, dynamic>{
+      'images': [
+        {
+          'token': 'backup-image:0',
+          'extension': '.png',
+          'bytes': 'AQID',
+        }
+      ],
+      'tables': {
+        'app_settings': [
+          {'key': 'profile_photo_path', 'value': 'backup-image:missing'}
+        ],
+        'shopping_items': <Map<String, Object?>>[],
+        'financial_goals': <Map<String, Object?>>[],
+      },
+    };
+    final target = Directory('${temporary.path}${Platform.pathSeparator}out');
+    await expectLater(
+      BackupImages.restore(snapshot, targetDirectory: target),
+      throwsFormatException,
+    );
+    expect(target.existsSync() ? target.listSync() : <FileSystemEntity>[],
+        isEmpty);
+  });
   test('imagens de perfil, compra e meta ficam no envelope criptografado',
       () async {
     final temporary =
@@ -61,6 +89,13 @@ void main() {
     expect(restored['schemaVersion'], 15);
     expect(
       () => service.decryptContent(envelope, 'senha-incorreta'),
+      throwsA(anything),
+    );
+    final tampered = Map<String, dynamic>.from(envelope);
+    final encoded = tampered['box'] as String;
+    tampered['box'] = '${encoded[0] == 'A' ? 'B' : 'A'}${encoded.substring(1)}';
+    await expectLater(
+      service.decryptContent(tampered, 'senha-segura'),
       throwsA(anything),
     );
   });

@@ -40,6 +40,10 @@
 - Orçamento passa a mostrar automaticamente a base Essenciais/Livre/Objetivos
   da renda distribuída, sem criar outro lançamento nem exigir redigitação;
   limites por categoria continuam opcionais.
+- Restauração de backup criptografado anterior (schemas 1–23) passa por banco
+  temporário e migra até o schema atual antes de substituir os dados. Schema
+  futuro é recusado com mensagem clara. Imagens copiadas são removidas se a
+  restauração falhar; a cópia de segurança pré-restauração permanece.
 
 ## 2026-10-18 — Planejamento mensal familiar
 

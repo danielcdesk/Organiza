@@ -4,6 +4,42 @@ import 'package:organiza/domain/models.dart';
 import 'package:organiza/domain/app_route.dart';
 
 void main() {
+  for (var version = 1; version < 24; version++) {
+    test('snapshot do schema $version migra para 24', () {
+      final old = AppDatabase.openInMemoryAtVersion(version);
+      addTearDown(old.close);
+      final current = AppDatabase.openInMemory();
+      addTearDown(current.close);
+      current.restoreSnapshot(old.exportSnapshot());
+      expect(current.schemaVersion, 24);
+    });
+  }
+  test('backup de schema anterior migra antes de substituir dados', () {
+    final old = AppDatabase.openInMemoryAtVersion(21);
+    addTearDown(old.close);
+    old.insertAccount(Account(
+      id: 'old-account',
+      name: 'Conta anterior',
+      openingBalanceInCents: 12345,
+      createdAt: DateTime.utc(2026, 9, 1),
+    ));
+    final snapshot = old.exportSnapshot();
+    final current = AppDatabase.openInMemory();
+    addTearDown(current.close);
+    current.restoreSnapshot(snapshot);
+    expect(current.schemaVersion, 24);
+    expect(current.loadAccounts().single.name, 'Conta anterior');
+  });
+
+  test('backup de schema maior é recusado sem alterar dados', () {
+    final current = AppDatabase.openInMemory();
+    addTearDown(current.close);
+    final snapshot = current.exportSnapshot();
+    snapshot['schemaVersion'] = 99;
+    expect(() => current.restoreSnapshot(snapshot),
+        throwsA(isA<FormatException>()));
+    expect(current.schemaVersion, 24);
+  });
   test('schema 24 preserva meta personalizada desde schema 1 e no backup', () {
     final database = AppDatabase.openInMemoryFromVersion1ForTest();
     addTearDown(database.close);

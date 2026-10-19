@@ -69,6 +69,14 @@ Transações também guardam subcategoria para análises mais detalhadas. Assina
 
 A distribuição salarial é uma preferência local em três blocos — essenciais, objetivos e livre — e precisa totalizar exatamente 100%. O valor-base planejado usa a renda mensal informada no perfil quando ela é maior que zero. Sem esse valor, usa o salário registrado ou previsto por série salarial no mês. Essas fontes nunca são somadas entre si para formar a mesma base. A renda do perfil é previsão de orçamento, não lançamento recebido: não altera saldo nem receitas registradas. Outras categorias de receita não entram nessa distribuição.
 
+A tela Orçamento deriva automaticamente dessa base os blocos Essenciais,
+Objetivos (valor a reservar) e Livre; os dois limites de consumo são comparados
+com as despesas classificadas do mês civil atual. Centavos remanescentes ficam
+no bloco Livre para preservar exatamente a renda de origem. Despesas sem
+classificação são exibidas separadamente e não são silenciosamente atribuídas
+a um bloco. Essa base não cria lançamento nem substitui os limites opcionais
+por categoria; o usuário não precisa redigitar a distribuição salarial.
+
 # Distribuição mensal vigente
 
 A distribuição planejada é registrada por mês de vigência. Alterações no mês

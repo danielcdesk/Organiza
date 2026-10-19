@@ -339,7 +339,13 @@ class OrganizaStore extends ChangeNotifier with WidgetsBindingObserver {
     final snapshot =
         await const BackupService().decryptEncrypted(file, password);
     final safetyCopy = await exportEncryptedBackup(password);
-    _repository.restoreSnapshot(await BackupImages.restore(snapshot));
+    final images = await BackupImages.restorePrepared(snapshot);
+    try {
+      _repository.restoreSnapshot(images.snapshot);
+    } catch (_) {
+      await images.deleteCreatedFiles();
+      rethrow;
+    }
     reload();
     return safetyCopy;
   }

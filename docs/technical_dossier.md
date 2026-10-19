@@ -1,5 +1,19 @@
 # Dossiê técnico do Organiza
 
+## Atualização global de experiência (schemas 22–24)
+
+O Desktop e o Mobile compartilham componentes Flutter, formatação monetária
+em centavos, ações rápidas tipadas, ícones locais e os mesmos dados. A renda
+mensal do perfil alimenta a distribuição; a tela Orçamento deriva seus três
+blocos dessa distribuição sem persistir orçamento duplicado. Limites opcionais
+por categoria continuam linhas próprias. A comparação mensal de despesas usa
+classificação essencial/não essencial; itens não classificados ficam visíveis
+à parte. Relatórios consultam o histórico de distribuição, orçamentos e
+faturas por competência, enquanto Visão Geral e Organização usam o mês atual.
+O catálogo de assinaturas contém 21 SVGs locais; marcas sem ativo validado
+usam fallback genérico. Consulte `docs/global_ux_audit.md` para a paridade
+verificada e os itens ainda parciais.
+
 ## Personalização de metas e imagens (schema 24)
 
 O schema 24 adiciona `financial_goals.color_value`, `note` e `image_path`,
@@ -9,7 +23,12 @@ privada por `LocalImageService` (até 10 MiB, tipos permitidos) e mostradas com
 fallback quando indisponíveis. `BackupImages` incorpora as imagens de perfil,
 compras e metas no payload criptografado, reescrevendo caminhos ao restaurar.
 O envelope versão 1 continua legível; backups antigos sem seção `images`
-continuam aceitos pelo transportador.
+continuam aceitos pelo transportador. Ao restaurar snapshot de schema anterior,
+o aplicativo monta um banco temporário na versão declarada, valida as tabelas,
+executa as migrações existentes e só então substitui o banco ativo numa
+transação. Schema maior que o instalado é recusado. Imagens são validadas
+antes da escrita e removidas em falha posterior de restauração; a cópia
+pré-restauração não é dispensada.
 
 ## Emissor de cartão (schema 23)
 
