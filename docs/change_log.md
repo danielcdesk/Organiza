@@ -31,6 +31,12 @@
 - Metas agora permitem edição sem perder aportes, nota, tipo, cor e imagem
   privada opcional. Imagem ausente usa ícone local. Fotos de perfil, compras e
   metas passam a ser incluídas no conteúdo criptografado do backup.
+- Ícones de categorias e subcategorias passaram a acompanhar listas, seleção
+  de lançamentos e orçamentos. Controles de seleção têm estados de foco,
+  marcação e toque mais consistentes.
+- Relatórios exibem orçamento e faturas do mês consultado junto ao histórico
+  de distribuição. Cartões de indicadores ficaram mais compactos; o seletor
+  mensal não extrapola telas estreitas.
 
 ## 2026-10-18 — Planejamento mensal familiar
 

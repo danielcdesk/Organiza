@@ -261,6 +261,7 @@ abstract final class OrganizaTheme {
       focusColor: primary.withValues(alpha: .22),
       fontFamily: 'Segoe UI Variable',
       visualDensity: VisualDensity.standard,
+      materialTapTargetSize: MaterialTapTargetSize.padded,
     );
 
     return base.copyWith(
@@ -369,6 +370,56 @@ abstract final class OrganizaTheme {
         labelStyle:
             TextStyle(fontWeight: FontWeight.w600, color: scheme.onSurface),
         checkmarkColor: scheme.onSurface,
+      ),
+      checkboxTheme: CheckboxThemeData(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+        side: BorderSide(color: border, width: 1.5),
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.disabled)) {
+            return scheme.onSurface.withValues(alpha: .2);
+          }
+          return states.contains(WidgetState.selected)
+              ? primary
+              : Colors.transparent;
+        }),
+        checkColor: WidgetStatePropertyAll(scheme.onPrimary),
+        overlayColor:
+            WidgetStateProperty.resolveWith((states) => primary.withValues(
+                alpha: states.contains(WidgetState.focused)
+                    ? .18
+                    : states.contains(WidgetState.hovered)
+                        ? .12
+                        : .08)),
+      ),
+      radioTheme: RadioThemeData(
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.disabled)) {
+            return scheme.onSurface.withValues(alpha: .3);
+          }
+          return states.contains(WidgetState.selected)
+              ? primary
+              : scheme.onSurfaceVariant;
+        }),
+        overlayColor: WidgetStatePropertyAll(primary.withValues(alpha: .12)),
+      ),
+      dropdownMenuTheme: DropdownMenuThemeData(
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: scheme.surfaceContainerLow,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(color: border)),
+          focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(color: primary, width: 1.5)),
+        ),
+        menuStyle: MenuStyle(
+          shape: WidgetStatePropertyAll(
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+          backgroundColor: WidgetStatePropertyAll(scheme.surfaceContainerLow),
+        ),
       ),
       segmentedButtonTheme: SegmentedButtonThemeData(
         style: ButtonStyle(

@@ -74,6 +74,16 @@ class _ReportsPageState extends State<ReportsPage> {
     );
     final balance = incomes - expenses;
     final previousBalance = previousIncomes - previousExpenses;
+    final periodBudgets = widget.store.budgets
+        .where((item) =>
+            item.year == _selectedMonth.year &&
+            item.month == _selectedMonth.month)
+        .toList();
+    final periodInvoices = widget.store.cardInvoices
+        .where((item) =>
+            item.dueDate.year == _selectedMonth.year &&
+            item.dueDate.month == _selectedMonth.month)
+        .toList();
     final hide = widget.hideValues;
     String money(int value) =>
         hide ? '••••••' : FinancialRules.formatBrl(value);
@@ -158,6 +168,42 @@ class _ReportsPageState extends State<ReportsPage> {
           ),
         ),
         const SizedBox(height: 14),
+        if (periodBudgets.isNotEmpty || periodInvoices.isNotEmpty) ...[
+          Panel(
+            title: 'Orçamentos e faturas do período',
+            subtitle: _longMonth(_selectedMonth),
+            child: Column(children: [
+              for (final budget in periodBudgets)
+                ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.donut_small_outlined),
+                  title: Text(budget.category),
+                  subtitle: Text('Limite ${money(budget.limitInCents)}'),
+                  trailing: Text(money(visibleMonthTransactions
+                      .where((item) =>
+                          item.type == TransactionType.expense &&
+                          item.category == budget.category)
+                      .fold<int>(0, (sum, item) => sum + item.amountInCents))),
+                ),
+              for (final invoice in periodInvoices)
+                ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.credit_card_outlined),
+                  title: Text(widget.store.creditCards
+                          .where((card) => card.id == invoice.cardId)
+                          .map((card) => card.name)
+                          .firstOrNull ??
+                      'Cartão'),
+                  subtitle: Text(
+                      'Fatura ${_invoiceStatusLabel(invoice, widget.store.clock.now())} · vence ${shortDate(invoice.dueDate)}'),
+                  trailing: Text(money(invoice.totalInCents)),
+                ),
+            ]),
+          ),
+          const SizedBox(height: 14),
+        ],
         Panel(
           title: 'Distribuição planejada',
           subtitle: 'Vigente em ${_longMonth(_selectedMonth)}',
@@ -215,7 +261,7 @@ class _ReportsPageState extends State<ReportsPage> {
               );
             }
             return SizedBox(
-              height: 294,
+              height: 310,
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -269,6 +315,16 @@ class _ReportsPageState extends State<ReportsPage> {
       ],
     );
   }
+
+  String _invoiceStatusLabel(CardInvoice invoice, DateTime now) =>
+      switch (invoice.status) {
+        CardInvoiceStatus.paid => 'paga',
+        CardInvoiceStatus.open => 'aberta',
+        CardInvoiceStatus.closed =>
+          invoice.dueDate.isBefore(DateTime(now.year, now.month, now.day))
+              ? 'vencida'
+              : 'fechada',
+      };
 
   bool get _canGoNext {
     return _selectedMonth.isBefore(DateTime(2100, 12));

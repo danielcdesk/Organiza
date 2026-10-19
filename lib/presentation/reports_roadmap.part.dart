@@ -261,31 +261,47 @@ class _ReportMetric extends StatelessWidget {
             : width;
     return SizedBox(
       width: itemWidth,
-      height: 136,
+      height: 104,
       child: Card(
+        color: Theme.of(context).colorScheme.surfaceContainerLow,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide.none,
+        ),
         child: Padding(
-          padding: const EdgeInsets.all(18),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
             children: [
-              Icon(icon, color: color, size: 19),
-              const Spacer(),
-              Text(label,
-                  style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      fontSize: 12.5)),
-              const SizedBox(height: 4),
-              Text(value,
-                  style: TextStyle(fontWeight: FontWeight.w700, color: color)),
-              const SizedBox(height: 5),
-              Text(
-                detail,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: detailColor,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
+              Icon(icon, color: color, size: 22),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(label,
+                        style: TextStyle(
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                            fontSize: 12.5)),
+                    const SizedBox(height: 2),
+                    Text(value,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: color,
+                            fontSize: 17)),
+                    const SizedBox(height: 2),
+                    Text(detail,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            color: detailColor,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600)),
+                  ],
                 ),
               ),
             ],

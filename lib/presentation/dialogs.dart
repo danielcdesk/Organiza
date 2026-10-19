@@ -7,6 +7,7 @@ import '../domain/models.dart';
 import 'input_formatters.dart';
 import 'shared_widgets.dart';
 import 'subscription_brand.dart';
+import 'finance_icons.dart';
 import '../services/local_image_service.dart';
 
 part 'dialogs_accounts.dart';

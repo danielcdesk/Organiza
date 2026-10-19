@@ -230,7 +230,13 @@ class _TransactionDialogState extends State<TransactionDialog> {
                       items: _categoriesForType(_type)
                           .map((value) => DropdownMenuItem(
                                 value: value,
-                                child: Text(value),
+                                child: Row(children: [
+                                  Icon(financeCategoryIcon(value), size: 18),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                      child: Text(value,
+                                          overflow: TextOverflow.ellipsis)),
+                                ]),
                               ))
                           .toList(),
                       onChanged: (value) => setState(() {
@@ -266,7 +272,15 @@ class _TransactionDialogState extends State<TransactionDialog> {
                           const InputDecoration(labelText: 'Subcategoria'),
                       items: _subcategoriesFor(_category)
                           .map((value) => DropdownMenuItem(
-                              value: value, child: Text(value)))
+                              value: value,
+                              child: Row(children: [
+                                Icon(financeCategoryIcon(_category, value),
+                                    size: 18),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                    child: Text(value,
+                                        overflow: TextOverflow.ellipsis)),
+                              ])))
                           .toList(),
                       onChanged: (value) =>
                           setState(() => _subcategory = value!),

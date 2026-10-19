@@ -129,16 +129,14 @@ class TransactionListRow extends StatelessWidget {
         'Parcela ${item.installmentNumber}/${item.installmentCount}',
     };
     return DataListRow(
-      leading: account == null
-          ? null
-          : InstitutionMark(
+      leading: transfer && account != null
+          ? InstitutionMark(
               institution: account!.institution,
-              customIconKey: account?.customIconKey),
-      icon: income
-          ? Icons.south_west_rounded
-          : transfer
-              ? Icons.swap_horiz_rounded
-              : Icons.north_east_rounded,
+              customIconKey: account!.customIconKey)
+          : null,
+      icon: transfer
+          ? Icons.swap_horiz_rounded
+          : financeCategoryIcon(item.category, item.subcategory),
       iconColor: color,
       title: item.description.isEmpty ? item.category : item.description,
       subtitle:

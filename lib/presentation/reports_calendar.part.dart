@@ -16,7 +16,12 @@ class _MonthNavigator extends StatelessWidget {
   final VoidCallback onSelect;
 
   @override
-  Widget build(BuildContext context) => Container(
+  Widget build(BuildContext context) {
+    final compact = MediaQuery.sizeOf(context).width < 600;
+    return SizedBox(
+      width:
+          compact ? math.min(MediaQuery.sizeOf(context).width - 28, 300) : null,
+      child: Container(
         height: 40,
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surfaceContainerHigh,
@@ -31,12 +36,13 @@ class _MonthNavigator extends StatelessWidget {
               tooltip: 'Mês anterior',
               icon: const Icon(Icons.chevron_left_rounded, size: 20),
             ),
-            MediaQuery.sizeOf(context).width < 600
-                ? TextButton(
+            compact
+                ? Expanded(
+                    child: TextButton(
                     onPressed: onSelect,
                     child: Text(_longMonth(month),
                         maxLines: 1, overflow: TextOverflow.ellipsis),
-                  )
+                  ))
                 : TextButton.icon(
                     onPressed: onSelect,
                     icon: const Icon(Icons.calendar_month_outlined, size: 17),
@@ -49,7 +55,9 @@ class _MonthNavigator extends StatelessWidget {
             ),
           ],
         ),
-      );
+      ),
+    );
+  }
 }
 
 class _MonthPickerDialog extends StatefulWidget {

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../domain/financial_rules.dart';
 import '../domain/models.dart';
 import 'organiza_theme.dart';
+import 'finance_icons.dart';
 
 part 'shared_surface_widgets.part.dart';
 part 'shared_finance_widgets.part.dart';

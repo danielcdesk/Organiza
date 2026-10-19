@@ -4,6 +4,7 @@ import '../application/organiza_store.dart';
 import '../domain/financial_rules.dart';
 import '../domain/models.dart';
 import 'shared_widgets.dart';
+import 'finance_icons.dart';
 
 class BudgetsPage extends StatelessWidget {
   const BudgetsPage(
@@ -192,7 +193,8 @@ class _BudgetRow extends StatelessWidget {
         children: [
           Row(
             children: [
-              IconTile(icon: _categoryIcon(budget.category), color: color),
+              IconTile(
+                  icon: financeCategoryIcon(budget.category), color: color),
               const SizedBox(width: 11),
               Expanded(
                   child: Text(budget.category,
@@ -233,16 +235,6 @@ class _BudgetRow extends StatelessWidget {
     );
   }
 }
-
-IconData _categoryIcon(String category) => switch (category) {
-      'Alimentação' => Icons.restaurant_outlined,
-      'Moradia' => Icons.home_outlined,
-      'Transporte' => Icons.directions_car_outlined,
-      'Lazer' => Icons.local_activity_outlined,
-      'Saúde' => Icons.favorite_border_rounded,
-      'Educação' => Icons.menu_book_outlined,
-      _ => Icons.category_outlined,
-    };
 
 String _monthName(int month) => const [
       '',
