@@ -34,6 +34,7 @@
 | Ícones locais de marcas em assinaturas | Sim | Sim | Widget | Sim | 2026-10-18 |
 | Ícones de categorias e subcategorias nas listas e seletores | Sim | Sim | Widget | Sim | 2026-10-18 |
 | Histórico mensal de distribuição, orçamento e faturas nos relatórios | Sim | Sim | Widget | Sim | 2026-10-18 |
+| Base do orçamento derivada da distribuição da renda | Sim | Sim | Widget | Sim | 2026-10-19 |
 | Categorias e subcategorias personalizadas | Sim | Sim | Sim | Sim | 2026-09-14 |
 | Lançamento único, recorrente e parcelado | Sim | Sim | Sim | Sim | 2026-09-14 |
 | Estado pago/pendente | Sim | Sim | Sim | Sim | 2026-09-14 |

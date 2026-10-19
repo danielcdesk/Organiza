@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../application/organiza_store.dart';
 import '../domain/financial_rules.dart';
+import '../domain/financial_planning.dart';
+import '../domain/budget_allocation.dart';
 import '../domain/models.dart';
 import 'shared_widgets.dart';
 import 'finance_icons.dart';
@@ -38,7 +40,18 @@ class BudgetSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final now = DateTime.now();
+    final now = store.clock.now();
+    final plannedIncome = store.planningIncomeInCents;
+    final allocationBase = BudgetAllocationBase.fromIncome(
+      incomeInCents: plannedIncome,
+      allocation: store.salaryAllocation,
+    );
+    final monthlySpending = summarize(
+      transactions: store.reportTransactions,
+      categories: store.financeCategories,
+      month: now,
+      excludedEssentialCategoryIds: const {},
+    );
     final monthBudgets = store.budgets
         .where((item) => item.year == now.year && item.month == now.month)
         .toList();
@@ -65,7 +78,43 @@ class BudgetSection extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 26),
+        const SizedBox(height: 16),
+        if (plannedIncome > 0) ...[
+          Panel(
+            title: 'Base do orçamento',
+            subtitle: store.distributionConfigured
+                ? 'Preenchida pela distribuição do salário; não é preciso digitar novamente'
+                : 'Sugestão inicial; ajuste a distribuição em Organização',
+            child: Column(
+              children: [
+                _AllocationBudgetRow(
+                  label: 'Essenciais',
+                  limit: allocationBase.essentialsInCents,
+                  spent: monthlySpending.essentialExpensesInCents,
+                ),
+                _AllocationBudgetRow(
+                  label: 'Livre',
+                  limit: allocationBase.freeInCents,
+                  spent: monthlySpending.nonEssentialExpensesInCents,
+                ),
+                _AllocationBudgetRow(
+                  label: 'Objetivos · reservar',
+                  limit: allocationBase.goalsInCents,
+                ),
+                if (monthlySpending.unclassifiedExpensesInCents > 0)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      '${FinancialRules.formatBrl(monthlySpending.unclassifiedExpensesInCents)} em despesas não classificadas; classifique-as para incluí-las na base.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+        ],
+        const SizedBox(height: 10),
         _BudgetSummary(limit: totalLimit, spent: totalSpent),
         const SizedBox(height: 14),
         if (monthBudgets.isEmpty)
@@ -100,6 +149,40 @@ class BudgetSection extends StatelessWidget {
       ],
     );
   }
+}
+
+class _AllocationBudgetRow extends StatelessWidget {
+  const _AllocationBudgetRow({
+    required this.label,
+    required this.limit,
+    this.spent,
+  });
+
+  final String label;
+  final int limit;
+  final int? spent;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Row(children: [
+          Expanded(child: Text(label)),
+          Flexible(
+            child: Text(
+              spent == null
+                  ? FinancialRules.formatBrl(limit)
+                  : '${FinancialRules.formatBrl(spent!)} de ${FinancialRules.formatBrl(limit)}',
+              textAlign: TextAlign.end,
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: spent != null && spent! > limit
+                    ? Theme.of(context).colorScheme.error
+                    : null,
+              ),
+            ),
+          ),
+        ]),
+      );
 }
 
 class _BudgetSummary extends StatelessWidget {

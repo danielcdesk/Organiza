@@ -37,6 +37,9 @@
 - Relatórios exibem orçamento e faturas do mês consultado junto ao histórico
   de distribuição. Cartões de indicadores ficaram mais compactos; o seletor
   mensal não extrapola telas estreitas.
+- Orçamento passa a mostrar automaticamente a base Essenciais/Livre/Objetivos
+  da renda distribuída, sem criar outro lançamento nem exigir redigitação;
+  limites por categoria continuam opcionais.
 
 ## 2026-10-18 — Planejamento mensal familiar
 
