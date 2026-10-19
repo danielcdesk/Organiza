@@ -37,11 +37,12 @@
 | Filtros e busca de movimentações | Sim | Sim | Sim | Sim | 2026-09-11 |
 | Exclusão protegida de contas e lançamentos | Sim | Sim | Sim | Sim | 2026-09-11 |
 | Distribuição salarial persistida | Sim | Sim | Sim | Sim | 2026-09-11 |
+| Distribuição salarial histórica por vigência mensal | Sim | Sim | Widget | Sim | 2026-10-18 |
 | Data escolhida e subcategoria persistida no lançamento | Sim | Sim | Sim | Sim | 2026-09-11 |
 | Parcelas distribuídas entre faturas | Sim | Sim | Sim | Sim | 2026-09-11 |
 | Mapa anual de gastos | Sim | Sim | Sim | Sim | 2026-09-11 |
 | Metas financeiras e aportes | Sim | Sim | Sim | Sim | 2026-09-11 |
-| Migração schema 1 → 21 | Sim | Sim | Sim | Sim | 2026-10-18 |
+| Migração schema 1 → 22 | Sim | Sim | Sim | Sim | 2026-10-18 |
 | Salário apenas por categoria e recorrência sob demanda | Sim | Sim | Parcial | Sim | 2026-09-16 |
 | Ajuste de saldo atual sem apagar movimentações | Sim | Sim | Sim | Sim | 2026-09-16 |
 | Dia de crédito de rendimento informado | Sim | Sim | Sim | Sim | 2026-09-16 |

@@ -41,7 +41,7 @@ class DashboardPage extends StatefulWidget {
 }
 
 class _DashboardPageState extends State<DashboardPage> {
-  late DateTime _month = _monthStart(widget.store.clock.now());
+  DateTime get _month => _monthStart(widget.store.clock.now());
   var _tipDismissed = false;
 
   @override
@@ -145,9 +145,6 @@ class _DashboardPageState extends State<DashboardPage> {
                   month: _month,
                   compact: compact,
                   hideValues: widget.hideValues,
-                  onPrevious: () =>
-                      setState(() => _month = _shiftMonth(_month, -1)),
-                  onNext: () => setState(() => _month = _shiftMonth(_month, 1)),
                   onToggleValues: widget.onToggleValues,
                   onNewTransaction: compact ? null : widget.onNewTransaction,
                 ),

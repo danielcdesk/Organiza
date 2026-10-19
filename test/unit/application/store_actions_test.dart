@@ -445,6 +445,22 @@ void main() {
     expect(store.salaryAllocation.freePercent, 20);
   });
 
+  test('mudança da distribuição não altera mês anterior', () {
+    var now = DateTime(2026, 10, 18);
+    final store = OrganizaStore.inMemory(clock: Clock(() => now));
+    addTearDown(store.dispose);
+    expect(store.allocationForMonth(DateTime(2026, 9)), isNull);
+    store.updateSalaryAllocation(
+        essentialsPercent: 60, goalsPercent: 25, freePercent: 15);
+    expect(store.allocationForMonth(DateTime(2026, 10))!.essentialsPercent, 60);
+    now = DateTime(2026, 11, 1);
+    store.updateSalaryAllocation(
+        essentialsPercent: 50, goalsPercent: 30, freePercent: 20);
+    expect(store.allocationForMonth(DateTime(2026, 10))!.essentialsPercent, 60);
+    expect(store.allocationForMonth(DateTime(2026, 11))!.essentialsPercent, 50);
+    expect(store.allocationForMonth(DateTime(2026, 9)), isNull);
+  });
+
   test('preserva data e subcategoria de um lançamento', () {
     final store = OrganizaStore.inMemory();
     addTearDown(store.dispose);

@@ -25,7 +25,7 @@ class MonthlyPlanningPage extends StatefulWidget {
 }
 
 class _MonthlyPlanningPageState extends State<MonthlyPlanningPage> {
-  late DateTime _month = DateTime.utc(
+  DateTime get _month => DateTime.utc(
       widget.store.clock.now().year, widget.store.clock.now().month);
 
   static const _months = [
@@ -85,24 +85,11 @@ class _MonthlyPlanningPageState extends State<MonthlyPlanningPage> {
           title: 'Planejamento mensal',
           subtitle: 'Entradas e saídas pela competência do mês',
           child: Column(children: [
-            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              IconButton(
-                tooltip: 'Mês anterior',
-                onPressed: () => setState(
-                    () => _month = DateTime.utc(_month.year, _month.month - 1)),
-                icon: const Icon(Icons.chevron_left_rounded),
-              ),
-              Flexible(
-                  child: Text('${_months[_month.month - 1]} ${_month.year}',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.titleMedium)),
-              IconButton(
-                tooltip: 'Próximo mês',
-                onPressed: () => setState(
-                    () => _month = DateTime.utc(_month.year, _month.month + 1)),
-                icon: const Icon(Icons.chevron_right_rounded),
-              ),
-            ]),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text('${_months[_month.month - 1]} ${_month.year}',
+                  style: Theme.of(context).textTheme.titleMedium),
+            ),
             _line('Renda prevista', widget.store.planningIncomeInCents),
             _line('Receitas registradas', summary.incomeInCents),
             _line('Despesas essenciais', summary.essentialExpensesInCents),

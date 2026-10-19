@@ -67,6 +67,8 @@ class LocalRepository {
   void setSubscriptionActive(String id, bool active) =>
       _database.setSubscriptionActive(id, active);
   SalaryAllocation loadSalaryAllocation() => _database.loadSalaryAllocation();
+  SalaryAllocation? loadSalaryAllocationForMonth(DateTime month) =>
+      _database.loadSalaryAllocationForMonth(month);
   Map<String, Object?> exportSnapshot() => _database.exportSnapshot();
   void restoreSnapshot(Map<String, dynamic> snapshot) =>
       _database.restoreSnapshot(snapshot);
@@ -207,6 +209,8 @@ class LocalRepository {
   void deleteInvestment(String id) => _database.deleteInvestment(id);
   void saveSalaryAllocation(SalaryAllocation item) =>
       _database.saveSalaryAllocation(item);
+  void saveSalaryAllocationForMonth(SalaryAllocation item, DateTime month) =>
+      _database.saveSalaryAllocationForMonth(item, month);
   void transaction(void Function() operation) =>
       _database.transaction(operation);
   void close() => _database.close();

@@ -6,6 +6,19 @@ import 'package:organiza/domain/models.dart';
 import 'package:organiza/presentation/monthly_planning_page.dart';
 
 void main() {
+  testWidgets('planejamento não oferece navegação para outros meses',
+      (tester) async {
+    final store =
+        OrganizaStore.inMemory(clock: Clock.fixed(DateTime(2026, 10, 18)));
+    addTearDown(store.dispose);
+    await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+            body: SingleChildScrollView(
+                child: MonthlyPlanningPage(store: store, hideValues: false)))));
+    expect(find.byTooltip('Mês anterior'), findsNothing);
+    expect(find.byTooltip('Próximo mês'), findsNothing);
+  });
+
   testWidgets('ocultar valores também protege indicadores percentuais',
       (tester) async {
     final store = OrganizaStore.inMemory();
@@ -56,7 +69,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Excluir categorias do cálculo'), findsOneWidget);
   });
-  testWidgets('mostra totais do mês e permite navegar sem alterar lançamentos',
+  testWidgets('mostra totais do mês atual sem alterar lançamentos',
       (tester) async {
     final store =
         OrganizaStore.inMemory(clock: Clock.fixed(DateTime(2026, 9, 20)));
@@ -84,9 +97,8 @@ void main() {
     expect(find.text('R\$ 1.000,00'), findsWidgets);
     expect(find.text('R\$ 250,00'), findsWidgets);
     expect(find.text('R\$ 750,00'), findsWidgets);
-    await tester.tap(find.byTooltip('Mês anterior'));
-    await tester.pumpAndSettle();
-    expect(find.text('R\$ 0,00'), findsWidgets);
+    expect(find.byTooltip('Mês anterior'), findsNothing);
+    expect(find.byTooltip('Próximo mês'), findsNothing);
     expect(store.transactions, hasLength(2));
   });
 }

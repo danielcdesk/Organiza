@@ -15,6 +15,10 @@
 - Organização usa a renda mensal informada no perfil como base da distribuição
   sem somá-la novamente a salário recebido/programado; o painel distingue
   renda prevista de receitas registradas e não altera o saldo ao planejar.
+- Visão Geral e Planejamento mostram sempre o mês atual, sem seletor de meses.
+  Relatórios mantém a navegação histórica e exibe a distribuição salarial
+  vigente em cada mês quando ela foi registrada; meses sem histórico são
+  identificados, sem reconstrução presumida.
 
 ## 2026-10-18 — Planejamento mensal familiar
 

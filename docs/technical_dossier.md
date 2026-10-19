@@ -1,5 +1,15 @@
 # Dossiê técnico do Organiza
 
+## Histórico de distribuição (schema 22)
+
+O schema 22 acrescenta `salary_allocation_history`, com uma versão por mês de
+vigência (`yyyy-MM-01`). A migração copia a configuração anterior apenas para
+o mês corrente da migração; não inventa histórico. O salvamento atualiza o
+registro legado e a versão do mês na mesma transação. A tabela integra o
+snapshot de backup. A consulta em Relatórios recupera a versão mais recente
+até o mês escolhido; antes da primeira versão, mostra histórico indisponível.
+Visão Geral e Planejamento leem o mês atual pelo `Clock` do store.
+
 ## Atualização de planejamento (schemas 20 e 21)
 
 O schema 20 acrescenta `finance_categories.essentiality` (padrão

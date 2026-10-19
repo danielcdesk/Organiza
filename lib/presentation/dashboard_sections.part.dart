@@ -490,7 +490,5 @@ DateTime _safeDate(int year, int month, int day) {
 }
 
 DateTime _monthStart(DateTime value) => DateTime(value.year, value.month);
-DateTime _shiftMonth(DateTime value, int amount) =>
-    DateTime(value.year, value.month + amount);
 DateTime _dateOnly(DateTime value) =>
     DateTime(value.year, value.month, value.day);

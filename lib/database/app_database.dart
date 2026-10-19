@@ -18,7 +18,7 @@ class AppDatabase {
       isPreviewBuild ? 'OrganizaPreview' : 'Organiza';
 
   final Database _database;
-  static const _schemaVersion = 21;
+  static const _schemaVersion = 22;
   static const _backupTables = <String>[
     'accounts',
     'transactions',
@@ -32,6 +32,7 @@ class AppDatabase {
     'budgets',
     'subscriptions',
     'salary_allocation',
+    'salary_allocation_history',
     'financial_goals',
     'finance_categories',
     'finance_subcategories',
@@ -124,6 +125,13 @@ class AppDatabase {
         is_settled INTEGER NOT NULL DEFAULT 1
       );
       CREATE TABLE subscriptions (id TEXT PRIMARY KEY NOT NULL);
+      CREATE TABLE salary_allocation (
+        id INTEGER PRIMARY KEY NOT NULL,
+        essentials_percent INTEGER NOT NULL,
+        goals_percent INTEGER NOT NULL,
+        free_percent INTEGER NOT NULL
+      );
+      INSERT INTO salary_allocation VALUES (1, 50, 30, 20);
       CREATE TABLE finance_categories (
         id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL,
         type TEXT NOT NULL, is_system INTEGER NOT NULL DEFAULT 0,
@@ -722,6 +730,29 @@ class AppDatabase {
         _database.execute('PRAGMA user_version = 21');
       });
     }
+    if (current < 22) {
+      transaction(() {
+        _database.execute('''
+          CREATE TABLE IF NOT EXISTS salary_allocation_history (
+            effective_month TEXT PRIMARY KEY NOT NULL,
+            essentials_percent INTEGER NOT NULL CHECK(essentials_percent BETWEEN 0 AND 100),
+            goals_percent INTEGER NOT NULL CHECK(goals_percent BETWEEN 0 AND 100),
+            free_percent INTEGER NOT NULL CHECK(free_percent BETWEEN 0 AND 100),
+            CHECK(essentials_percent + goals_percent + free_percent = 100)
+          )
+        ''');
+        final now = DateTime.now();
+        final month =
+            '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-01';
+        _database.execute('''
+          INSERT OR IGNORE INTO salary_allocation_history
+            (effective_month, essentials_percent, goals_percent, free_percent)
+          SELECT ?, essentials_percent, goals_percent, free_percent
+          FROM salary_allocation WHERE id = 1
+        ''', [month]);
+        _database.execute('PRAGMA user_version = 22');
+      });
+    }
   }
 
   static Future<Directory> _applicationDataDirectory() async {
@@ -1107,6 +1138,23 @@ class AppDatabase {
   SalaryAllocation loadSalaryAllocation() {
     final row =
         _database.select('SELECT * FROM salary_allocation WHERE id = 1').single;
+    return SalaryAllocation(
+      essentialsPercent: row['essentials_percent'] as int,
+      goalsPercent: row['goals_percent'] as int,
+      freePercent: row['free_percent'] as int,
+    );
+  }
+
+  SalaryAllocation? loadSalaryAllocationForMonth(DateTime month) {
+    final key =
+        '${month.year.toString().padLeft(4, '0')}-${month.month.toString().padLeft(2, '0')}-01';
+    final rows = _database.select('''
+      SELECT essentials_percent, goals_percent, free_percent
+      FROM salary_allocation_history WHERE effective_month <= ?
+      ORDER BY effective_month DESC LIMIT 1
+    ''', [key]);
+    if (rows.isEmpty) return null;
+    final row = rows.single;
     return SalaryAllocation(
       essentialsPercent: row['essentials_percent'] as int,
       goalsPercent: row['goals_percent'] as int,
@@ -1946,6 +1994,26 @@ class AppDatabase {
           allocation.freePercent
         ],
       );
+
+  void saveSalaryAllocationForMonth(
+      SalaryAllocation allocation, DateTime month) {
+    final key =
+        '${month.year.toString().padLeft(4, '0')}-${month.month.toString().padLeft(2, '0')}-01';
+    _database.execute('''
+      INSERT INTO salary_allocation_history
+        (effective_month, essentials_percent, goals_percent, free_percent)
+      VALUES (?, ?, ?, ?)
+      ON CONFLICT(effective_month) DO UPDATE SET
+        essentials_percent = excluded.essentials_percent,
+        goals_percent = excluded.goals_percent,
+        free_percent = excluded.free_percent
+    ''', [
+      key,
+      allocation.essentialsPercent,
+      allocation.goalsPercent,
+      allocation.freePercent
+    ]);
+  }
 
   void transaction(void Function() operation) {
     _database.execute('BEGIN IMMEDIATE');

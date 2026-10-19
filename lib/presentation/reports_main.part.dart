@@ -24,7 +24,7 @@ class _ReportsPageState extends State<ReportsPage> {
   @override
   void initState() {
     super.initState();
-    final now = DateTime.now();
+    final now = widget.store.clock.now();
     _selectedMonth = DateTime(now.year, now.month);
   }
 
@@ -156,6 +156,28 @@ class _ReportsPageState extends State<ReportsPage> {
               ),
             ],
           ),
+        ),
+        const SizedBox(height: 14),
+        Panel(
+          title: 'Distribuição planejada',
+          subtitle: 'Vigente em ${_longMonth(_selectedMonth)}',
+          child: Builder(builder: (context) {
+            final allocation = widget.store.allocationForMonth(_selectedMonth);
+            if (allocation == null) {
+              return const Text(
+                  'Histórico de distribuição indisponível para este mês.');
+            }
+            if (hide) return const Text('Percentuais ocultos');
+            return Wrap(
+              spacing: 20,
+              runSpacing: 8,
+              children: [
+                Text('Essenciais ${allocation.essentialsPercent}%'),
+                Text('Metas ${allocation.goalsPercent}%'),
+                Text('Livre ${allocation.freePercent}%'),
+              ],
+            );
+          }),
         ),
         const SizedBox(height: 14),
         Panel(

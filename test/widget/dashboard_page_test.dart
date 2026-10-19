@@ -7,6 +7,16 @@ import 'package:organiza/presentation/dashboard_page.dart';
 import 'package:organiza/presentation/organiza_theme.dart';
 
 void main() {
+  testWidgets('visão geral não oferece navegação para outros meses',
+      (tester) async {
+    final store = _store();
+    addTearDown(store.dispose);
+    store.addAccount('Principal', 0);
+    await _pumpDashboard(tester, store);
+    expect(find.byTooltip('Mês anterior'), findsNothing);
+    expect(find.byTooltip('Próximo mês'), findsNothing);
+  });
+
   testWidgets('dashboard vazio convida a criar conta e lançamento',
       (tester) async {
     final store = _store();
@@ -92,7 +102,7 @@ void main() {
     await _pumpDashboard(tester, store);
 
     expect(find.text('Disponível no mês'), findsOneWidget);
-    expect(find.byIcon(Icons.calendar_month_outlined), findsOneWidget);
+    expect(find.byIcon(Icons.calendar_month_outlined), findsNothing);
     expect(find.textContaining('1 conta atrasada'), findsOneWidget);
     for (final label in [
       'Próxima fatura',

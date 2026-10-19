@@ -4,7 +4,32 @@ import 'package:organiza/domain/models.dart';
 import 'package:organiza/domain/app_route.dart';
 
 void main() {
-  test('snapshot do schema 21 inclui dívidas e contas recorrentes', () {
+  test('schema 22 guarda histórico de distribuição no snapshot', () {
+    final source = AppDatabase.openInMemoryFromVersion1ForTest();
+    addTearDown(source.close);
+    expect(source.schemaVersion, 22);
+    source.transaction(() {
+      source.saveSalaryAllocationForMonth(
+          const SalaryAllocation(
+              essentialsPercent: 60, goalsPercent: 25, freePercent: 15),
+          DateTime(2026, 9));
+    });
+    expect(source.loadSalaryAllocationForMonth(DateTime(2026, 8)), isNull);
+    expect(
+        source
+            .loadSalaryAllocationForMonth(DateTime(2026, 9))!
+            .essentialsPercent,
+        60);
+    final restored = AppDatabase.openInMemory();
+    addTearDown(restored.close);
+    restored.restoreSnapshot(source.exportSnapshot());
+    expect(
+        restored
+            .loadSalaryAllocationForMonth(DateTime(2026, 9))!
+            .essentialsPercent,
+        60);
+  });
+  test('snapshot do schema 22 inclui dívidas e contas recorrentes', () {
     final source = AppDatabase.openInMemoryFromVersion1ForTest();
     addTearDown(source.close);
     final now = DateTime.utc(2026, 9, 10);
@@ -67,10 +92,10 @@ void main() {
     expect(destination.loadDebtPayments().single.interestInCents, 1000);
     expect(destination.loadTransactions(), hasLength(2));
   });
-  test('schema 21 preserva dados e persiste classificação e fonte', () {
+  test('schema 22 preserva dados e persiste classificação e fonte', () {
     final database = AppDatabase.openInMemoryFromVersion1ForTest();
     addTearDown(database.close);
-    expect(database.schemaVersion, 21);
+    expect(database.schemaVersion, 22);
     expect(database.loadDebts(), isEmpty);
     final category = database.loadFinanceCategories().firstWhere((item) =>
         item.name == 'Alimentação' && item.type == TransactionType.expense);
@@ -106,10 +131,10 @@ void main() {
     restored.restoreSnapshot(snapshot);
     expect(restored.loadTransactions().single.incomeSource, 'Trabalho');
   });
-  test('migração 15 para 21 preserva cartão e compra existentes', () {
+  test('migração 15 para 22 preserva cartão e compra existentes', () {
     final database = AppDatabase.openInMemoryFromVersion15WithCardForTest();
     addTearDown(database.close);
-    expect(database.schemaVersion, 21);
+    expect(database.schemaVersion, 22);
     expect(database.loadCreditCards().single.name, 'Cartão antigo');
     expect(database.loadCreditCards().single.lastFour, '4242');
     expect(database.loadCardPurchases().single.description, 'Compra antiga');
@@ -196,7 +221,7 @@ void main() {
       createdAt: now,
     ));
 
-    expect(database.schemaVersion, 21);
+    expect(database.schemaVersion, 22);
     expect(database.loadAccounts().single.name, 'Principal');
     expect(
         database.loadAccounts().single.institution, AccountInstitution.generic);
