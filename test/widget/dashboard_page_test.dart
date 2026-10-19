@@ -203,7 +203,7 @@ void main() {
       'Nova despesa',
       'Nova receita',
       'Transferir',
-      'Cartões',
+      'Mais ações',
     ]) {
       final labelRect = tester.getRect(find.text(label));
       final actionRect = tester.getRect(

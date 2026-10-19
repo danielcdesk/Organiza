@@ -84,6 +84,7 @@ const categorySubcategories = <String, List<String>>{
 class TransactionDialog extends StatefulWidget {
   const TransactionDialog({
     super.key,
+    this.initialType = TransactionType.expense,
     required this.accounts,
     required this.categories,
     required this.subcategories,
@@ -91,6 +92,7 @@ class TransactionDialog extends StatefulWidget {
     required this.onCreateSubcategory,
   });
 
+  final TransactionType initialType;
   final List<Account> accounts;
   final List<FinanceCategory> categories;
   final List<FinanceSubcategory> subcategories;
@@ -107,7 +109,7 @@ class TransactionDialog extends StatefulWidget {
 class _TransactionDialogState extends State<TransactionDialog> {
   late String _accountId;
   String? _destinationId;
-  var _type = TransactionType.expense;
+  late TransactionType _type;
   final _amount = TextEditingController();
   final _description = TextEditingController();
   final _repeatCount = TextEditingController(text: '12');
@@ -124,6 +126,7 @@ class _TransactionDialogState extends State<TransactionDialog> {
   @override
   void initState() {
     super.initState();
+    _type = widget.initialType;
     _accountId = widget.accounts.first.id;
     _categories = List.of(widget.categories);
     _subcategories = List.of(widget.subcategories);
@@ -141,10 +144,14 @@ class _TransactionDialogState extends State<TransactionDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-        title: const Text('Nova transação'),
+        title: Text(switch (_type) {
+          TransactionType.expense => 'Nova despesa',
+          TransactionType.income => 'Nova receita',
+          TransactionType.transfer => 'Nova transferência',
+        }),
         content: SizedBox(
           width: 500,
-          height: 590,
+          height: 510,
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,

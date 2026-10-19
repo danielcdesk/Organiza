@@ -12,6 +12,7 @@ class DashboardPage extends StatefulWidget {
     required this.onOpenReports,
     required this.onNewAccount,
     this.onOpenAccounts,
+    this.onOpenOrganization,
     this.onOpenBudgets,
     this.onOpenSubscriptions,
     this.onToggleValues,
@@ -28,6 +29,7 @@ class DashboardPage extends StatefulWidget {
   final VoidCallback onOpenReports;
   final VoidCallback onNewAccount;
   final VoidCallback? onOpenAccounts;
+  final VoidCallback? onOpenOrganization;
   final VoidCallback? onOpenBudgets;
   final VoidCallback? onOpenSubscriptions;
   final VoidCallback? onToggleValues;
@@ -411,12 +413,62 @@ class _DashboardPageState extends State<DashboardPage> {
           onPressed: widget.onTransfer ?? widget.onNewTransaction,
         ),
         QuickActionItem(
-          icon: Icons.credit_card_outlined,
-          label: 'Cartões',
-          tone: QuickActionTone.brand,
-          onPressed: widget.onOpenCards,
+          icon: Icons.more_horiz_rounded,
+          label: 'Mais ações',
+          tone: QuickActionTone.neutral,
+          onPressed: _showMoreActions,
         ),
       ];
+
+  Future<void> _showMoreActions() async {
+    Widget actionTile(BuildContext menuContext, IconData icon, String label,
+            VoidCallback action) =>
+        ListTile(
+          leading: Icon(icon),
+          title: Text(label),
+          onTap: () {
+            Navigator.of(menuContext).pop();
+            action();
+          },
+        );
+
+    final actions = <(IconData, String, VoidCallback)>[
+      (Icons.add_home_work_outlined, 'Adicionar conta', widget.onNewAccount),
+      (Icons.credit_card_outlined, 'Cartões', widget.onOpenCards),
+      if (widget.onOpenOrganization != null)
+        (
+          Icons.account_tree_outlined,
+          'Organização',
+          widget.onOpenOrganization!
+        ),
+    ];
+    if (MediaQuery.sizeOf(context).width < 600) {
+      await showModalBottomSheet<void>(
+        context: context,
+        showDragHandle: true,
+        builder: (menuContext) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final (icon, label, action) in actions)
+                actionTile(menuContext, icon, label, action),
+            ],
+          ),
+        ),
+      );
+    } else {
+      await showDialog<void>(
+        context: context,
+        builder: (menuContext) => SimpleDialog(
+          title: const Text('Mais ações'),
+          children: [
+            for (final (icon, label, action) in actions)
+              actionTile(menuContext, icon, label, action),
+          ],
+        ),
+      );
+    }
+  }
 
   String _money(int cents) =>
       widget.hideValues ? '••••••' : FinancialRules.formatBrl(cents);

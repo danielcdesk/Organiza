@@ -7,6 +7,11 @@
   A máscara cobre também colagem, remoção, seleção e saldos negativos.
 - Percentuais usam máscara separada, com vírgula decimal e limites adequados
   à taxa de juros ou à rentabilidade informada.
+- Ações rápidas de despesa, receita e transferência agora abrem o formulário
+  no tipo correto em Desktop e Mobile. Acesso a cartões, conta nova e
+  Organização fica em “Mais ações”, preservando quatro ações principais.
+- O formulário de nova transação ficou mais baixo e rolável; o seletor de
+  instituição da conta deixou de ultrapassar a largura do celular.
 
 ## 2026-10-18 — Planejamento mensal familiar
 

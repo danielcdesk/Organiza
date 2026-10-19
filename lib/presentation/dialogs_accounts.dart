@@ -296,6 +296,7 @@ class _AccountDialogState extends State<AccountDialog> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 DropdownButtonFormField<AccountInstitution>(
+                  isExpanded: true,
                   initialValue: _institution,
                   decoration: const InputDecoration(labelText: 'Instituição'),
                   items: AccountInstitution.values

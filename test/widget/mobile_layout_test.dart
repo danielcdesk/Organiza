@@ -134,7 +134,7 @@ void main() {
     await tester.tap(find.descendant(
         of: find.byType(AppBottomNav), matching: find.text('Nova')));
     await tester.pumpAndSettle();
-    expect(find.text('Nova transação'), findsWidgets);
+    expect(find.text('Nova despesa'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
 }

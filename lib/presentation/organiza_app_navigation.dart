@@ -214,10 +214,14 @@ extension _OrganizaShellPart0 on _OrganizaShellState {
                 _setShellState(() => _page = AppRoute.subscriptions),
             onOpenAccounts: () =>
                 _setShellState(() => _page = AppRoute.accounts),
+            onOpenOrganization: () =>
+                _setShellState(() => _page = AppRoute.organization),
             onNewAccount: _openAccountDialog,
             onToggleValues: _toggleValues,
-            onNewIncome: _openTransactionDialog,
-            onTransfer: _openTransactionDialog,
+            onNewIncome: () =>
+                _openTransactionDialog(initialType: TransactionType.income),
+            onTransfer: () =>
+                _openTransactionDialog(initialType: TransactionType.transfer),
           ),
         AppRoute.finances => TransactionsPage(
             store: widget.store,

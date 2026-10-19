@@ -1,7 +1,8 @@
 part of 'organiza_app.dart';
 
 extension _OrganizaShellPart2 on _OrganizaShellState {
-  Future<void> _openTransactionDialog() async {
+  Future<void> _openTransactionDialog(
+      {TransactionType initialType = TransactionType.expense}) async {
     if (widget.store.accounts.isEmpty) {
       _showError('Crie uma conta antes de registrar uma transação.');
       return;
@@ -9,6 +10,7 @@ extension _OrganizaShellPart2 on _OrganizaShellState {
     final value = await showDialog<TransactionInput>(
       context: context,
       builder: (_) => TransactionDialog(
+        initialType: initialType,
         accounts: widget.store.accounts,
         categories: widget.store.financeCategories,
         subcategories: widget.store.financeSubcategories,
