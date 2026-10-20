@@ -2,7 +2,7 @@ name: Windows preview (test only)
 
 on:
   push:
-    branches: [codex/card-invoice-support]
+    branches: [codex/card-invoice-support, codex/global-ux]
   workflow_dispatch:
 
 jobs:
