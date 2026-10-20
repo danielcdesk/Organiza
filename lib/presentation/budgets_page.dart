@@ -62,91 +62,113 @@ class BudgetSection extends StatelessWidget {
         (sum, item) =>
             sum + FinancialRules.budgetSpent(item, store.reportTransactions));
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        PageHeading(
-          eyebrow: 'Planejamento mensal',
-          title: 'Orçamento',
-          description:
-              'Defina limites simples por categoria e acompanhe o ritmo dos seus gastos.',
-          actions: [
-            FilledButton.icon(
-              onPressed: onAdd,
-              icon: const Icon(Icons.add_rounded, size: 18),
-              label: const Text('Novo orçamento'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        if (plannedIncome > 0) ...[
-          Panel(
-            title: 'Base do orçamento',
-            subtitle: store.distributionConfigured
-                ? 'Preenchida pela distribuição do salário; não é preciso digitar novamente'
-                : 'Sugestão inicial; ajuste a distribuição em Organização',
-            child: Column(
-              children: [
-                _AllocationBudgetRow(
-                  label: 'Essenciais',
-                  limit: allocationBase.essentialsInCents,
-                  spent: monthlySpending.essentialExpensesInCents,
+    return Align(
+      alignment: Alignment.topLeft,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1040),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            PageHeading(
+              eyebrow: 'Planejamento mensal',
+              title: 'Orçamento',
+              description:
+                  'Defina limites simples por categoria e acompanhe o ritmo dos seus gastos.',
+              actions: [
+                FilledButton.icon(
+                  onPressed: onAdd,
+                  icon: const Icon(Icons.add_rounded, size: 18),
+                  label: const Text('Novo orçamento'),
                 ),
-                _AllocationBudgetRow(
-                  label: 'Livre',
-                  limit: allocationBase.freeInCents,
-                  spent: monthlySpending.nonEssentialExpensesInCents,
-                ),
-                _AllocationBudgetRow(
-                  label: 'Objetivos · reservar',
-                  limit: allocationBase.goalsInCents,
-                ),
-                if (monthlySpending.unclassifiedExpensesInCents > 0)
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      '${FinancialRules.formatBrl(monthlySpending.unclassifiedExpensesInCents)} em despesas não classificadas; classifique-as para incluí-las na base.',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ),
               ],
             ),
-          ),
-          const SizedBox(height: 14),
-        ],
-        const SizedBox(height: 10),
-        _BudgetSummary(limit: totalLimit, spent: totalSpent),
-        const SizedBox(height: 14),
-        if (monthBudgets.isEmpty)
-          Panel(
-            title: 'Seu mês, no controle',
-            subtitle: 'Acompanhamento por categoria',
-            child: EmptyState(
-              icon: Icons.track_changes_rounded,
-              title: 'Nenhum orçamento neste mês',
-              description:
-                  'Crie um limite para Alimentação, Moradia ou qualquer categoria que queira acompanhar.',
-              actionLabel: 'Criar orçamento',
-              onAction: onAdd,
-            ),
-          )
-        else
-          Panel(
-            title: 'Limites de ${_monthName(now.month)}',
-            subtitle:
-                '${monthBudgets.length} categoria${monthBudgets.length == 1 ? '' : 's'} acompanhada${monthBudgets.length == 1 ? '' : 's'}',
-            child: Column(
-              children: monthBudgets
-                  .map((budget) => _BudgetRow(
-                        budget: budget,
-                        spent: FinancialRules.budgetSpent(
-                            budget, store.reportTransactions),
-                        onDelete: () => onDelete(budget.id),
-                      ))
-                  .toList(),
-            ),
-          ),
-      ],
+            const SizedBox(height: 16),
+            if (plannedIncome > 0) ...[
+              Panel(
+                title: 'Base do orçamento',
+                subtitle: store.distributionConfigured
+                    ? 'Preenchida pela distribuição do salário; não é preciso digitar novamente'
+                    : 'Sugestão inicial; ajuste a distribuição em Organização',
+                child: LayoutBuilder(builder: (context, constraints) {
+                  const gap = 14.0;
+                  final columns = constraints.maxWidth >= 700 ? 3 : 1;
+                  final width =
+                      (constraints.maxWidth - gap * (columns - 1)) / columns;
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Wrap(spacing: gap, runSpacing: gap, children: [
+                        SizedBox(
+                            width: width,
+                            child: _AllocationBudgetRow(
+                              label: 'Essenciais',
+                              limit: allocationBase.essentialsInCents,
+                              spent: monthlySpending.essentialExpensesInCents,
+                            )),
+                        SizedBox(
+                            width: width,
+                            child: _AllocationBudgetRow(
+                              label: 'Livre',
+                              limit: allocationBase.freeInCents,
+                              spent:
+                                  monthlySpending.nonEssentialExpensesInCents,
+                            )),
+                        SizedBox(
+                            width: width,
+                            child: _AllocationBudgetRow(
+                              label: 'Objetivos · reservar',
+                              limit: allocationBase.goalsInCents,
+                            )),
+                      ]),
+                      if (monthlySpending.unclassifiedExpensesInCents > 0)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 12),
+                          child: Text(
+                            '${FinancialRules.formatBrl(monthlySpending.unclassifiedExpensesInCents)} em despesas não classificadas; classifique-as para incluí-las na base.',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ),
+                    ],
+                  );
+                }),
+              ),
+              const SizedBox(height: 14),
+            ],
+            const SizedBox(height: 10),
+            _BudgetSummary(limit: totalLimit, spent: totalSpent),
+            const SizedBox(height: 14),
+            if (monthBudgets.isEmpty)
+              Panel(
+                title: 'Seu mês, no controle',
+                subtitle: 'Acompanhamento por categoria',
+                child: EmptyState(
+                  icon: Icons.track_changes_rounded,
+                  title: 'Nenhum orçamento neste mês',
+                  description:
+                      'Crie um limite para Alimentação, Moradia ou qualquer categoria que queira acompanhar.',
+                  actionLabel: 'Criar orçamento',
+                  onAction: onAdd,
+                ),
+              )
+            else
+              Panel(
+                title: 'Limites de ${_monthName(now.month)}',
+                subtitle:
+                    '${monthBudgets.length} categoria${monthBudgets.length == 1 ? '' : 's'} acompanhada${monthBudgets.length == 1 ? '' : 's'}',
+                child: Column(
+                  children: monthBudgets
+                      .map((budget) => _BudgetRow(
+                            budget: budget,
+                            spent: FinancialRules.budgetSpent(
+                                budget, store.reportTransactions),
+                            onDelete: () => onDelete(budget.id),
+                          ))
+                      .toList(),
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -163,25 +185,27 @@ class _AllocationBudgetRow extends StatelessWidget {
   final int? spent;
 
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 10),
-        child: Row(children: [
-          Expanded(child: Text(label)),
-          Flexible(
-            child: Text(
-              spent == null
-                  ? FinancialRules.formatBrl(limit)
-                  : '${FinancialRules.formatBrl(spent!)} de ${FinancialRules.formatBrl(limit)}',
-              textAlign: TextAlign.end,
+  Widget build(BuildContext context) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label,
               style: TextStyle(
-                fontWeight: FontWeight.w700,
-                color: spent != null && spent! > limit
-                    ? Theme.of(context).colorScheme.error
-                    : null,
-              ),
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              )),
+          const SizedBox(height: 5),
+          Text(
+            spent == null
+                ? FinancialRules.formatBrl(limit)
+                : '${FinancialRules.formatBrl(spent!)} de ${FinancialRules.formatBrl(limit)}',
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              color: spent != null && spent! > limit
+                  ? Theme.of(context).colorScheme.error
+                  : null,
             ),
           ),
-        ]),
+        ],
       );
 }
 

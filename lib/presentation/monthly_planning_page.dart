@@ -138,44 +138,92 @@ class _MonthlyPlanningPageState extends State<MonthlyPlanningPage> {
               'Classifique uma vez; lançamentos antigos continuam no total',
           child: categories.isEmpty
               ? const Text('Nenhuma categoria de despesa')
-              : Column(children: [
-                  for (final category in categories)
-                    Row(children: [
-                      Expanded(child: Text(category.name)),
-                      SizedBox(
-                        width: 156,
-                        child: DropdownButtonFormField<ExpenseEssentiality>(
-                          isExpanded: true,
-                          key: ValueKey(
-                              'essentiality-${category.id}-${category.essentiality.name}'),
-                          initialValue: category.essentiality,
-                          decoration:
-                              const InputDecoration(labelText: 'Classificação'),
-                          items: const [
-                            DropdownMenuItem(
-                                value: ExpenseEssentiality.unclassified,
-                                child: Text('Não classificada')),
-                            DropdownMenuItem(
-                                value: ExpenseEssentiality.essential,
-                                child: Text('Essencial')),
-                            DropdownMenuItem(
-                                value: ExpenseEssentiality.nonEssential,
-                                child: Text('Não essencial')),
-                          ],
-                          onChanged: (value) {
-                            if (value == null) return;
-                            widget.store.setFinanceCategoryEssentiality(
-                                category.id, value);
-                            setState(() {});
-                          },
+              : LayoutBuilder(builder: (context, constraints) {
+                  const gap = 10.0;
+                  final columns = constraints.maxWidth >= 1100
+                      ? 3
+                      : constraints.maxWidth >= 680
+                          ? 2
+                          : 1;
+                  final width =
+                      (constraints.maxWidth - gap * (columns - 1)) / columns;
+                  return Wrap(
+                    spacing: gap,
+                    runSpacing: gap,
+                    children: [
+                      for (final category in categories)
+                        SizedBox(
+                          width: width,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                  color: Theme.of(context).dividerColor),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(10),
+                              child: LayoutBuilder(builder: (context, cell) {
+                                final compact = cell.maxWidth < 330;
+                                final name = Text(category.name,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis);
+                                final selector = SizedBox(
+                                  width: compact ? double.infinity : 164,
+                                  child: _essentialitySelector(category),
+                                );
+                                return compact
+                                    ? Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          name,
+                                          const SizedBox(height: 8),
+                                          selector,
+                                        ],
+                                      )
+                                    : Row(children: [
+                                        Expanded(child: name),
+                                        const SizedBox(width: 10),
+                                        selector,
+                                      ]);
+                              }),
+                            ),
+                          ),
                         ),
-                      ),
-                    ]),
-                ]),
+                    ],
+                  );
+                }),
         ),
       ],
     );
   }
+
+  Widget _essentialitySelector(FinanceCategory category) =>
+      DropdownButtonFormField<ExpenseEssentiality>(
+        isExpanded: true,
+        key: ValueKey(
+            'essentiality-${category.id}-${category.essentiality.name}'),
+        initialValue: category.essentiality,
+        decoration: const InputDecoration(
+          isDense: true,
+          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        ),
+        items: const [
+          DropdownMenuItem(
+              value: ExpenseEssentiality.unclassified,
+              child: Text('Não classificada')),
+          DropdownMenuItem(
+              value: ExpenseEssentiality.essential, child: Text('Essencial')),
+          DropdownMenuItem(
+              value: ExpenseEssentiality.nonEssential,
+              child: Text('Não essencial')),
+        ],
+        onChanged: (value) {
+          if (value == null) return;
+          widget.store.setFinanceCategoryEssentiality(category.id, value);
+          setState(() {});
+        },
+      );
 
   Widget _line(String label, int value, {bool percentage = false}) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 6),

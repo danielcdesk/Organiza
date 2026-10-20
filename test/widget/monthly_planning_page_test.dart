@@ -4,8 +4,80 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:organiza/application/organiza_store.dart';
 import 'package:organiza/domain/models.dart';
 import 'package:organiza/presentation/monthly_planning_page.dart';
+import 'package:organiza/presentation/organiza_theme.dart';
 
 void main() {
+  testWidgets('golden das categorias essenciais no desktop', (tester) async {
+    tester.view.physicalSize = const Size(1200, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final store =
+        OrganizaStore.inMemory(clock: Clock.fixed(DateTime(2026, 10, 18)));
+    addTearDown(store.dispose);
+    await tester.pumpWidget(MaterialApp(
+        theme: OrganizaTheme.dark(),
+        home: Scaffold(
+          body: SingleChildScrollView(
+              child: MonthlyPlanningPage(store: store, hideValues: false)),
+        )));
+    await Scrollable.ensureVisible(
+        tester.element(find.text('Categorias essenciais')),
+        alignment: 0);
+    await tester.pumpAndSettle();
+    await expectLater(find.byType(Scaffold),
+        matchesGoldenFile('goldens/essential_categories_desktop.png'));
+  });
+
+  testWidgets('classificação continua acessível na largura de celular',
+      (tester) async {
+    tester.view.physicalSize = const Size(320, 760);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final store =
+        OrganizaStore.inMemory(clock: Clock.fixed(DateTime(2026, 10, 18)));
+    addTearDown(store.dispose);
+    await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+            body: SingleChildScrollView(
+                child: MonthlyPlanningPage(store: store, hideValues: false)))));
+    await tester.ensureVisible(find.text('Categorias essenciais'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    final first =
+        find.byType(DropdownButtonFormField<ExpenseEssentiality>).first;
+    expect(tester.getSize(first).width, greaterThan(200));
+    await tester.tap(first);
+    await tester.pumpAndSettle();
+    expect(find.text('Não essencial').last, findsOneWidget);
+  });
+
+  testWidgets('categorias essenciais ficam em grade compacta no desktop',
+      (tester) async {
+    tester.view.physicalSize = const Size(1600, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final store =
+        OrganizaStore.inMemory(clock: Clock.fixed(DateTime(2026, 10, 18)));
+    addTearDown(store.dispose);
+    await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+            body: SingleChildScrollView(
+      child: MonthlyPlanningPage(store: store, hideValues: false),
+    ))));
+    await tester.ensureVisible(find.text('Categorias essenciais'));
+    await tester.pumpAndSettle();
+    final fields = find.byType(DropdownButtonFormField<ExpenseEssentiality>);
+    expect(fields, findsWidgets);
+    final first = tester.getTopLeft(fields.at(0));
+    final second = tester.getTopLeft(fields.at(1));
+    expect(second.dy, closeTo(first.dy, 1));
+    expect(second.dx, greaterThan(first.dx + 100));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('planejamento não oferece navegação para outros meses',
       (tester) async {
     final store =

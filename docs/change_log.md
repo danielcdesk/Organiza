@@ -1,5 +1,12 @@
 # Registro de mudanças
 
+## 2026-10-19 — Organização do orçamento
+
+- Categorias essenciais em grade responsiva, com seleção legível e sem rótulos
+  sobrepostos; no celular, cada controle ocupa a largura disponível.
+- Orçamento com largura confortável no desktop e base de distribuição agrupada
+  em três indicadores, preservando limites, valores e ações existentes.
+
 ## 2026-10-18 — Atualização global de UX (em andamento)
 
 - Campos monetários de cadastro e edição agora compartilham máscara brasileira
