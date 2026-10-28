@@ -383,7 +383,7 @@ O fluxo integrado está em `integration_test/first_use_flow_test.dart` e cobre p
 - Não há golden tests para proteger o visual desktop/mobile.
 - Não há benchmark com o volume-alvo de 10.000 transações e 1.000 tarefas.
 - A cobertura de acessibilidade está baseada em semântica pontual e testes de presença; não há auditoria automatizada de contraste, leitor de tela ou navegação por teclado em todas as telas.
-- A documentação histórica de releases ainda pode citar contagens antigas; o código atual está no schema 15 e a suíte atual tem 45 testes.
+- A documentação histórica de releases ainda pode citar contagens antigas; o código atual está no schema 16 e a suíte atual contém 100 testes.
 
 ## 12. Build, distribuição e organização de artefatos
 
@@ -440,7 +440,7 @@ Também gera instaladores auxiliares para emulador Android, um `LEIA-ME.txt`, co
 
 ### Prioridade alta
 
-**P0 — Alinhar documentação e fonte.** Atualizar `README`, `docs/architecture.md`, `docs/known_good_state.md`, matriz e release notes para refletirem schema 15, a política de privacidade, o modelo de ameaças e as funcionalidades mais recentes. Incluir um comando de auditoria que confira versão do `pubspec.yaml`, schema e documentação.
+**P0 — Alinhar documentação e fonte.** Atualizar `README`, `docs/architecture.md`, `docs/known_good_state.md`, matriz e release notes para refletirem schema 16, a política de privacidade, o modelo de ameaças e as funcionalidades mais recentes. Incluir um comando de auditoria que confira versão do `pubspec.yaml`, schema e documentação.
 
 **P0 — Definir uma política de backup real.** O fluxo local agora tem snapshot versionado, restauração transacional e backup criptografado. Ainda é necessário conectar a UI de confirmação e decidir se haverá merge ou apenas substituição integral.
 

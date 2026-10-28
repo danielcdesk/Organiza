@@ -159,6 +159,7 @@ class CardPurchase {
     required this.purchasedOn,
     required this.installments,
     required this.createdAt,
+    this.paidInstallments = const {},
   });
 
   final String id;
@@ -168,6 +169,12 @@ class CardPurchase {
   final DateTime purchasedOn;
   final int installments;
   final DateTime createdAt;
+  final Set<int> paidInstallments;
+
+  int get paidInstallmentCount => paidInstallments.length;
+  int get remainingInstallmentCount => installments - paidInstallments.length;
+  double get installmentPaymentProgress =>
+      installments == 0 ? 0 : paidInstallments.length / installments;
 }
 
 enum InvestmentType { fixedIncome, stock, fund, etf, crypto, other }

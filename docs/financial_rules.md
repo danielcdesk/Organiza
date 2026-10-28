@@ -21,7 +21,7 @@
 - Cartões guardam apenas nome, bandeira, quatro últimos dígitos, limite, fechamento e vencimento. Nunca armazenar número completo ou CVV.
 - O ciclo atual começa no dia posterior ao fechamento anterior e termina no fechamento seguinte, inclusive.
 - Fatura em aberto é a soma das compras manuais do ciclo atual. Limite disponível é `limite total − fatura em aberto`.
-- O valor informado numa compra parcelada representa o total da compra; cada parcela entra em sua fatura mensal. Pagamento e histórico definitivo de faturas ainda não foram implementados.
+- O valor informado numa compra parcelada representa o total da compra; cada parcela entra em sua fatura mensal. O usuário marca manualmente quais parcelas já pagou, e o cartão mostra a quantidade paga, a quantidade restante e a barra de progresso. Essa marcação fica vinculada à compra do cartão: não cria despesa, não altera saldo de conta e não confirma uma transação financeira. O histórico definitivo de faturas ainda não foi implementado.
 - Investimentos são posições manuais: total aplicado e saldo atual são informados pelo usuário. Rentabilidade é `saldo atual − total aplicado`, e o percentual é calculado sobre o total aplicado. Renda fixa pode guardar tipo, emissor e vencimento. Não há cotação em tempo real, conexão com corretoras ou execução de ordens.
 - Taxa de rentabilidade e dia mensal de crédito são informações manuais separadas do resultado realizado: não fazem projeção automática, não alteram saldo e não implicam crédito de rendimento.
 # Orçamentos
@@ -30,4 +30,4 @@ Cada orçamento é mensal e vinculado a uma categoria. O consumo soma somente de
 
 Transações também guardam subcategoria para análises mais detalhadas. Assinaturas são compromissos recorrentes manuais e não criam lançamentos automaticamente nesta etapa.
 
-A distribuição salarial é uma preferência local em três blocos — essenciais, objetivos e livre — e precisa totalizar exatamente 100%. O valor-base considera apenas entradas na categoria **Salário**, registradas ou previstas por uma série salarial ativa para o mês; outras receitas não entram nesse cálculo.
+A distribuição salarial é uma preferência local em três blocos — essenciais, objetivos e livre — e precisa totalizar exatamente 100%. Quando há renda mensal positiva informada no perfil, ela é a base do planejamento. Se o perfil não informa renda, a base soma os lançamentos avulsos de **Salário** no mês e as séries salariais ativas para o mês. Ocorrências materializadas dessas séries não são somadas novamente; outras categorias de receita não entram no cálculo.

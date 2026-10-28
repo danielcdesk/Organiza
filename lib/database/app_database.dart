@@ -11,13 +11,14 @@ class AppDatabase {
   AppDatabase._(this._database);
 
   final Database _database;
-  static const _schemaVersion = 15;
+  static const _schemaVersion = 16;
   static const _backupTables = <String>[
     'accounts',
     'transactions',
     'tasks',
     'credit_cards',
     'card_purchases',
+    'card_installment_payments',
     'investments',
     'budgets',
     'subscriptions',
@@ -81,6 +82,41 @@ class AppDatabase {
         created_at TEXT NOT NULL
       );
       PRAGMA user_version = 1;
+    ''');
+    final instance = AppDatabase._(database);
+    instance._migrate();
+    return instance;
+  }
+
+  static AppDatabase openInMemoryFromVersion15ForTest() {
+    final database = sqlite3.openInMemory();
+    _configure(database, persistent: false);
+    database.execute('''
+      CREATE TABLE credit_cards (
+        id TEXT PRIMARY KEY NOT NULL,
+        name TEXT NOT NULL,
+        brand TEXT NOT NULL,
+        last_four TEXT NOT NULL CHECK(length(last_four) = 4),
+        limit_cents INTEGER NOT NULL CHECK(limit_cents > 0),
+        closing_day INTEGER NOT NULL CHECK(closing_day BETWEEN 1 AND 28),
+        due_day INTEGER NOT NULL CHECK(due_day BETWEEN 1 AND 28),
+        color_value INTEGER NOT NULL,
+        created_at TEXT NOT NULL
+      );
+      CREATE TABLE card_purchases (
+        id TEXT PRIMARY KEY NOT NULL,
+        card_id TEXT NOT NULL REFERENCES credit_cards(id) ON DELETE RESTRICT,
+        description TEXT NOT NULL,
+        amount_cents INTEGER NOT NULL CHECK(amount_cents > 0),
+        purchased_on TEXT NOT NULL,
+        installments INTEGER NOT NULL DEFAULT 1 CHECK(installments BETWEEN 1 AND 48),
+        created_at TEXT NOT NULL
+      );
+      INSERT INTO credit_cards VALUES
+        ('card-v15', 'Principal', 'visa', '4242', 500000, 10, 17, 4285658943, '2026-09-10T00:00:00.000');
+      INSERT INTO card_purchases VALUES
+        ('purchase-v15', 'card-v15', 'Notebook', 120000, '2026-09-10T00:00:00.000', 3, '2026-09-10T00:00:00.000');
+      PRAGMA user_version = 15;
     ''');
     final instance = AppDatabase._(database);
     instance._migrate();
@@ -449,6 +485,18 @@ class AppDatabase {
       ''');
       _database.execute('PRAGMA user_version = 15');
     }
+    if (current < 16) {
+      _database.execute('''
+        CREATE TABLE card_installment_payments (
+          purchase_id TEXT NOT NULL
+            REFERENCES card_purchases(id) ON DELETE CASCADE,
+          installment_number INTEGER NOT NULL CHECK(installment_number BETWEEN 1 AND 48),
+          paid_on TEXT NOT NULL,
+          PRIMARY KEY (purchase_id, installment_number)
+        );
+      ''');
+      _database.execute('PRAGMA user_version = 16');
+    }
   }
 
   static Future<Directory> _applicationDataDirectory() async {
@@ -708,19 +756,31 @@ class AppDatabase {
           ))
       .toList();
 
-  List<CardPurchase> loadCardPurchases() => _database
-      .select(
-          'SELECT * FROM card_purchases ORDER BY purchased_on DESC, created_at DESC')
-      .map((row) => CardPurchase(
-            id: row['id'] as String,
-            cardId: row['card_id'] as String,
-            description: row['description'] as String,
-            amountInCents: row['amount_cents'] as int,
-            purchasedOn: DateTime.parse(row['purchased_on'] as String),
-            installments: row['installments'] as int,
-            createdAt: DateTime.parse(row['created_at'] as String),
-          ))
-      .toList();
+  List<CardPurchase> loadCardPurchases() {
+    final paidInstallments = <String, Set<int>>{};
+    for (final row in _database.select(
+      'SELECT purchase_id, installment_number FROM card_installment_payments',
+    )) {
+      paidInstallments
+          .putIfAbsent(row['purchase_id'] as String, () => <int>{})
+          .add(row['installment_number'] as int);
+    }
+    return _database
+        .select(
+            'SELECT * FROM card_purchases ORDER BY purchased_on DESC, created_at DESC')
+        .map((row) => CardPurchase(
+              id: row['id'] as String,
+              cardId: row['card_id'] as String,
+              description: row['description'] as String,
+              amountInCents: row['amount_cents'] as int,
+              purchasedOn: DateTime.parse(row['purchased_on'] as String),
+              installments: row['installments'] as int,
+              createdAt: DateTime.parse(row['created_at'] as String),
+              paidInstallments:
+                  paidInstallments[row['id'] as String] ?? const <int>{},
+            ))
+        .toList();
+  }
 
   List<InvestmentPosition> loadInvestments() => _database
       .select('SELECT * FROM investments ORDER BY created_at DESC')
@@ -1057,6 +1117,46 @@ class AppDatabase {
           purchase.createdAt.toIso8601String(),
         ],
       );
+
+  void setCardPurchaseInstallmentsPaid(
+    String purchaseId,
+    Set<int> paidInstallments,
+    DateTime paidOn,
+  ) {
+    final purchase = _database.select(
+      'SELECT installments FROM card_purchases WHERE id = ?',
+      [purchaseId],
+    );
+    if (purchase.isEmpty) throw ArgumentError('Compra não encontrada.');
+    final installmentCount = purchase.single['installments'] as int;
+    if (paidInstallments
+        .any((number) => number < 1 || number > installmentCount)) {
+      throw ArgumentError('Parcela inválida para esta compra.');
+    }
+    final current = _database
+        .select(
+          'SELECT installment_number FROM card_installment_payments WHERE purchase_id = ?',
+          [purchaseId],
+        )
+        .map((row) => row['installment_number'] as int)
+        .toSet();
+    final toAdd = paidInstallments.difference(current);
+    final toRemove = current.difference(paidInstallments);
+    transaction(() {
+      for (final installment in toRemove) {
+        _database.execute(
+          'DELETE FROM card_installment_payments WHERE purchase_id = ? AND installment_number = ?',
+          [purchaseId, installment],
+        );
+      }
+      for (final installment in toAdd) {
+        _database.execute(
+          'INSERT INTO card_installment_payments(purchase_id, installment_number, paid_on) VALUES (?, ?, ?)',
+          [purchaseId, installment, paidOn.toIso8601String()],
+        );
+      }
+    });
+  }
 
   void insertInvestment(InvestmentPosition investment) => _database.execute(
         '''INSERT INTO investments(

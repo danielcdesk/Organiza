@@ -9,10 +9,12 @@ class BudgetsPage extends StatelessWidget {
   const BudgetsPage(
       {super.key,
       required this.store,
+      this.hideValues = false,
       required this.onAdd,
       required this.onDelete});
 
   final OrganizaStore store;
+  final bool hideValues;
   final VoidCallback onAdd;
   final ValueChanged<String> onDelete;
 
@@ -20,7 +22,11 @@ class BudgetsPage extends StatelessWidget {
   Widget build(BuildContext context) => ListView(
         padding: pagePadding(context),
         children: [
-          BudgetSection(store: store, onAdd: onAdd, onDelete: onDelete)
+          BudgetSection(
+              store: store,
+              hideValues: hideValues,
+              onAdd: onAdd,
+              onDelete: onDelete)
         ],
       );
 }
@@ -29,10 +35,12 @@ class BudgetSection extends StatelessWidget {
   const BudgetSection(
       {super.key,
       required this.store,
+      this.hideValues = false,
       required this.onAdd,
       required this.onDelete,
       this.compact = false});
   final OrganizaStore store;
+  final bool hideValues;
   final VoidCallback onAdd;
   final ValueChanged<String> onDelete;
   final bool compact;
@@ -69,7 +77,8 @@ class BudgetSection extends StatelessWidget {
           ),
         if (!compact) const SizedBox(height: 26),
         if (monthBudgets.isNotEmpty) ...[
-          _BudgetSummary(limit: totalLimit, spent: totalSpent),
+          _BudgetSummary(
+              limit: totalLimit, spent: totalSpent, hideValues: hideValues),
           const SizedBox(height: 14),
         ],
         if (monthBudgets.isEmpty)
@@ -96,6 +105,7 @@ class BudgetSection extends StatelessWidget {
                         budget: budget,
                         spent: FinancialRules.budgetSpent(
                             budget, store.transactions),
+                        hideValues: hideValues,
                         onDelete: () => onDelete(budget.id),
                       ))
                   .toList(),
@@ -107,9 +117,11 @@ class BudgetSection extends StatelessWidget {
 }
 
 class _BudgetSummary extends StatelessWidget {
-  const _BudgetSummary({required this.limit, required this.spent});
+  const _BudgetSummary(
+      {required this.limit, required this.spent, required this.hideValues});
   final int limit;
   final int spent;
+  final bool hideValues;
 
   @override
   Widget build(BuildContext context) {
@@ -117,28 +129,43 @@ class _BudgetSummary extends StatelessWidget {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(22),
-        child: Row(
-          children: [
-            Expanded(
-                child: _Metric(
-                    label: 'Limite do mês',
-                    value: FinancialRules.formatBrl(limit))),
+        child: LayoutBuilder(builder: (context, constraints) {
+          final metrics = <Widget>[
+            _Metric(
+                label: 'Limite do mês',
+                value: hideValues ? '••••••' : FinancialRules.formatBrl(limit)),
+            _Metric(
+                label: 'Já utilizado',
+                value: hideValues ? '••••••' : FinancialRules.formatBrl(spent),
+                color: Theme.of(context).colorScheme.primary),
+            _Metric(
+                label: remaining >= 0 ? 'Disponível' : 'Acima do limite',
+                value:
+                    hideValues ? '••••••' : FinancialRules.formatBrl(remaining),
+                color: remaining >= 0
+                    ? Theme.of(context).colorScheme.secondary
+                    : Theme.of(context).colorScheme.error),
+          ];
+          if (constraints.maxWidth < 600) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                metrics[0],
+                const Divider(height: 25),
+                metrics[1],
+                const Divider(height: 25),
+                metrics[2],
+              ],
+            );
+          }
+          return Row(children: [
+            Expanded(child: metrics[0]),
             _Divider(),
-            Expanded(
-                child: _Metric(
-                    label: 'Já utilizado',
-                    value: FinancialRules.formatBrl(spent),
-                    color: Theme.of(context).colorScheme.primary)),
+            Expanded(child: metrics[1]),
             _Divider(),
-            Expanded(
-                child: _Metric(
-                    label: remaining >= 0 ? 'Disponível' : 'Acima do limite',
-                    value: FinancialRules.formatBrl(remaining),
-                    color: remaining >= 0
-                        ? Theme.of(context).colorScheme.secondary
-                        : Theme.of(context).colorScheme.error)),
-          ],
-        ),
+            Expanded(child: metrics[2]),
+          ]);
+        }),
       ),
     );
   }
@@ -175,9 +202,13 @@ class _Divider extends StatelessWidget {
 
 class _BudgetRow extends StatelessWidget {
   const _BudgetRow(
-      {required this.budget, required this.spent, required this.onDelete});
+      {required this.budget,
+      required this.spent,
+      required this.hideValues,
+      required this.onDelete});
   final Budget budget;
   final int spent;
+  final bool hideValues;
   final VoidCallback onDelete;
 
   @override
@@ -202,11 +233,6 @@ class _BudgetRow extends StatelessWidget {
               Expanded(
                   child: Text(budget.category,
                       style: const TextStyle(fontWeight: FontWeight.w700))),
-              Text(
-                  '${FinancialRules.formatBrl(spent)} de ${FinancialRules.formatBrl(budget.limitInCents)}',
-                  style: TextStyle(
-                      fontSize: 12,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant)),
               const SizedBox(width: 6),
               Semantics(
                 button: true,
@@ -217,6 +243,15 @@ class _BudgetRow extends StatelessWidget {
                     icon: const Icon(Icons.delete_outline_rounded, size: 18)),
               ),
             ],
+          ),
+          Text(
+            hideValues
+                ? '•••••• de ••••••'
+                : '${FinancialRules.formatBrl(spent)} de ${FinancialRules.formatBrl(budget.limitInCents)}',
+            style: TextStyle(
+              fontSize: 12,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 10),
           TweenAnimationBuilder<double>(
@@ -229,7 +264,9 @@ class _BudgetRow extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
               over
-                  ? 'Você passou ${FinancialRules.formatBrl(spent - budget.limitInCents)} do limite'
+                  ? hideValues
+                      ? 'Limite ultrapassado'
+                      : 'Você passou ${FinancialRules.formatBrl(spent - budget.limitInCents)} do limite'
                   : '${((progress * 100).round())}% utilizado',
               style: TextStyle(
                   fontSize: 12, color: color, fontWeight: FontWeight.w600)),

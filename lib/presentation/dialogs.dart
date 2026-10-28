@@ -609,6 +609,7 @@ const categorySubcategories = <String, List<String>>{
 class TransactionDialog extends StatefulWidget {
   const TransactionDialog({
     super.key,
+    this.initialType = TransactionType.expense,
     required this.accounts,
     required this.categories,
     required this.subcategories,
@@ -617,6 +618,7 @@ class TransactionDialog extends StatefulWidget {
   });
 
   final List<Account> accounts;
+  final TransactionType initialType;
   final List<FinanceCategory> categories;
   final List<FinanceSubcategory> subcategories;
   final FinanceCategory Function(String name, TransactionType type)
@@ -632,7 +634,7 @@ class TransactionDialog extends StatefulWidget {
 class _TransactionDialogState extends State<TransactionDialog> {
   late String _accountId;
   String? _destinationId;
-  var _type = TransactionType.expense;
+  late TransactionType _type;
   final _amount = TextEditingController();
   final _description = TextEditingController();
   final _repeatCount = TextEditingController(text: '12');
@@ -647,6 +649,7 @@ class _TransactionDialogState extends State<TransactionDialog> {
   @override
   void initState() {
     super.initState();
+    _type = widget.initialType;
     _accountId = widget.accounts.first.id;
     _categories = List.of(widget.categories);
     _subcategories = List.of(widget.subcategories);
@@ -1853,7 +1856,7 @@ class _SubscriptionDialogState extends State<SubscriptionDialog> {
                 autofocus: true,
                 decoration: const InputDecoration(
                     labelText: 'Nome',
-                    hintText: 'Ex.: streaming, academia...')),
+                    hintText: 'Ex.: Netflix, Spotify, academia...')),
             const SizedBox(height: 12),
             Row(children: [
               Expanded(

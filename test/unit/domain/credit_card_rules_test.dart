@@ -49,7 +49,10 @@ void main() {
 
     expect(
       CreditCardRules.currentInvoiceTotal(
-          card, purchases, DateTime(2026, 9, 10)),
+        card,
+        purchases,
+        DateTime(2026, 9, 10),
+      ),
       50000,
     );
     expect(
@@ -71,17 +74,71 @@ void main() {
 
     expect(
       CreditCardRules.currentInvoiceTotal(
-          card, [purchase], DateTime(2026, 10, 5)),
+          card,
+          [
+            purchase,
+          ],
+          DateTime(2026, 10, 5)),
       10000,
     );
     expect(
       CreditCardRules.outstandingBalance(
-          card, [purchase], DateTime(2026, 10, 5)),
+          card,
+          [
+            purchase,
+          ],
+          DateTime(2026, 10, 5)),
       110000,
     );
     expect(
       CreditCardRules.availableLimit(card, [purchase], DateTime(2026, 10, 5)),
       390000,
     );
+  });
+
+  test(
+    'progresso usa parcelas explicitamente marcadas no cartão',
+    () {
+      final purchase = CardPurchase(
+        id: 'purchase-progress',
+        cardId: card.id,
+        description: 'Notebook',
+        amountInCents: 120000,
+        purchasedOn: DateTime(2026, 8, 12),
+        installments: 3,
+        createdAt: DateTime(2026, 8, 12),
+      );
+      final result = CreditCardRules.installmentProgress(
+        CardPurchase(
+          id: purchase.id,
+          cardId: purchase.cardId,
+          description: purchase.description,
+          amountInCents: purchase.amountInCents,
+          purchasedOn: purchase.purchasedOn,
+          installments: purchase.installments,
+          createdAt: purchase.createdAt,
+          paidInstallments: {1},
+        ),
+      );
+      expect(result.paid, 1);
+      expect(result.remaining, 2);
+      expect(result.ratio, closeTo(1 / 3, 0.001));
+    },
+  );
+
+  test('progresso considera somente as parcelas marcadas no cartão', () {
+    final purchase = CardPurchase(
+      id: 'purchase-unlinked',
+      cardId: card.id,
+      description: 'Notebook',
+      amountInCents: 120000,
+      purchasedOn: DateTime(2026, 8, 12),
+      installments: 3,
+      createdAt: DateTime(2026, 8, 12),
+    );
+    final result = CreditCardRules.installmentProgress(purchase);
+    expect(result.ratio, 0);
+    expect(result.paid, 0);
+    expect(result.remaining, 3);
   });
 }

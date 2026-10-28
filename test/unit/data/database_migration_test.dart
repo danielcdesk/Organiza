@@ -69,7 +69,7 @@ void main() {
       createdAt: now,
     ));
 
-    expect(database.schemaVersion, 15);
+    expect(database.schemaVersion, 16);
     expect(database.loadAccounts().single.name, 'Principal');
     expect(
         database.loadAccounts().single.institution, AccountInstitution.generic);
@@ -114,5 +114,21 @@ void main() {
     expect(updated.quotedRateBasisPoints, 50);
     expect(updated.quotedRatePeriod, InvestmentRatePeriod.monthly);
     expect(updated.yieldPaymentDay, 10);
+  });
+
+  test('migração 16 preserva compras existentes e cria controle de parcelas',
+      () {
+    final database = AppDatabase.openInMemoryFromVersion15ForTest();
+    addTearDown(database.close);
+
+    expect(database.schemaVersion, 16);
+    expect(database.loadCardPurchases().single.description, 'Notebook');
+    expect(database.loadCardPurchases().single.paidInstallments, isEmpty);
+    database.setCardPurchaseInstallmentsPaid(
+      'purchase-v15',
+      {2},
+      DateTime(2026, 10, 28),
+    );
+    expect(database.loadCardPurchases().single.paidInstallments, {2});
   });
 }

@@ -30,7 +30,7 @@ void main() {
         amountInCents: 50000,
         description: '',
         category: 'Freelance');
-    expect(store.salaryThisMonth, 0);
+    expect(store.salaryThisMonth, 300000);
     expect(store.incomes, 50000);
   });
 
@@ -51,6 +51,50 @@ void main() {
     expect(store.transactions, isEmpty);
     expect(store.salaryThisMonth, 0);
     expect(store.salarySchedules.single.paymentDay, 5);
+  });
+
+  test('registra e desfaz parcelas pagas do cartão sem lançar despesa', () {
+    final store = OrganizaStore.inMemory();
+    addTearDown(store.dispose);
+    store.addAccount('Principal', 100000);
+    final accountId = store.accounts.single.id;
+    store.addCreditCard(
+      name: 'Principal',
+      brand: CardBrand.visa,
+      lastFour: '4242',
+      limitInCents: 500000,
+      closingDay: 10,
+      dueDay: 17,
+      colorValue: 0xFF245943,
+    );
+    store.addCardPurchase(
+      cardId: store.creditCards.single.id,
+      description: 'Notebook',
+      amountInCents: 120000,
+      installments: 3,
+    );
+    final purchase = store.cardPurchases.single;
+    final openingBalance = store.balance;
+
+    store.setCardPurchaseInstallmentsPaid(purchase.id, {1, 3});
+
+    expect(store.cardPurchases.single.paidInstallments, {1, 3});
+    expect(store.transactions, isEmpty);
+    expect(store.balance, openingBalance);
+    store.reload();
+    expect(store.cardPurchases.single.paidInstallments, {1, 3});
+
+    store.setCardPurchaseInstallmentsPaid(purchase.id, {3});
+    expect(store.cardPurchases.single.paidInstallments, {3});
+    expect(store.accounts.single.openingBalanceInCents, 100000);
+    expect(store.balance, openingBalance);
+    expect(() => store.setCardPurchaseInstallmentsPaid(purchase.id, {4}),
+        throwsArgumentError);
+    expect(() => store.setCardPurchaseInstallmentsPaid('missing', {1}),
+        throwsArgumentError);
+    expect(store.cardPurchases.single.paidInstallments, {3});
+    expect(store.transactions, isEmpty);
+    expect(store.accounts.single.id, accountId);
   });
 
   test('ajuste de saldo preserva movimentações e preferências móveis', () {
@@ -328,7 +372,7 @@ void main() {
         throwsArgumentError);
   });
 
-  test('renda do perfil é a fonte única do planejamento', () {
+  test('renda do perfil tem prioridade no planejamento', () {
     final store = OrganizaStore.inMemory();
     addTearDown(store.dispose);
     store.addAccount('Principal', 0);
@@ -343,6 +387,53 @@ void main() {
 
     expect(store.salaryThisMonth, 450000);
     expect(store.transactions, hasLength(1));
+  });
+
+  test('planejamento reconhece salário avulso e recorrente sem duplicar', () {
+    final store =
+        OrganizaStore.inMemory(clock: Clock.fixed(DateTime(2026, 10, 14, 12)));
+    addTearDown(store.dispose);
+    store.addAccount('Principal', 0);
+    final accountId = store.accounts.single.id;
+    store.addTransaction(
+      accountId: accountId,
+      type: TransactionType.income,
+      amountInCents: 300000,
+      description: 'Salário extra',
+      category: 'Salário',
+      occurredOn: DateTime(2026, 10, 5),
+    );
+    store.addTransaction(
+      accountId: accountId,
+      type: TransactionType.income,
+      amountInCents: 200000,
+      description: 'Salário mensal',
+      category: 'Salário',
+      occurredOn: DateTime(2026, 10, 1),
+      scheduleType: TransactionScheduleType.recurring,
+    );
+    store.addTransaction(
+      accountId: accountId,
+      type: TransactionType.income,
+      amountInCents: 900000,
+      description: 'Freelance',
+      category: 'Freelance',
+      occurredOn: DateTime(2026, 10, 8),
+    );
+    store.addTransaction(
+      accountId: accountId,
+      type: TransactionType.income,
+      amountInCents: 100000,
+      description: 'Salário anterior',
+      category: 'Salário',
+      occurredOn: DateTime(2026, 9, 5),
+    );
+    expect(store.salarySchedules, hasLength(1));
+    expect(store.salaryThisMonth, 500000);
+    store.saveProfile(name: 'Pessoa', incomeInCents: 450000);
+    expect(store.salaryThisMonth, 450000);
+    store.saveProfile(name: 'Pessoa', incomeInCents: 0);
+    expect(store.salaryThisMonth, 500000);
   });
 
   test('divisão salarial personalizada acompanha gasto e persiste', () {
