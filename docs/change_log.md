@@ -1,5 +1,11 @@
 # Registro de mudanças
 
+## 2026-10-28 — Ações rápidas e assinaturas
+
+- As ações rápidas “Nova despesa”, “Nova receita” e “Transferir” abrem o formulário no tipo escolhido; transferir pede duas contas cadastradas.
+- Assinaturas comuns recebem marcas visuais locais por nome, com ícone genérico para outros serviços. Nenhuma imagem remota ou dado adicional é gravado.
+- Verificação: `flutter analyze` sem problemas e 105 testes Flutter aprovados.
+
 ## 2026-10-14 — Código 0.9.0, atualização 2.1
 
 - Organização usa a renda do perfil como fonte única e transforma as divisões salariais em limites acompanhados por gastos reais.

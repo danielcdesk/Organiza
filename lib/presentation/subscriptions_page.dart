@@ -3,16 +3,19 @@ import 'package:flutter/material.dart';
 import '../application/organiza_store.dart';
 import '../domain/financial_rules.dart';
 import 'shared_widgets.dart';
+import 'subscription_platform_mark.dart';
 
 class SubscriptionsPage extends StatelessWidget {
   const SubscriptionsPage(
       {super.key,
       required this.store,
+      required this.hideValues,
       required this.onAdd,
       required this.onDelete,
       required this.onEdit,
       required this.onActiveChanged});
   final OrganizaStore store;
+  final bool hideValues;
   final VoidCallback onAdd;
   final ValueChanged<String> onDelete;
   final ValueChanged<String> onEdit;
@@ -57,27 +60,44 @@ class SubscriptionsPage extends StatelessWidget {
         ),
         const SizedBox(height: 26),
         Card(
-            child: Padding(
-                padding: const EdgeInsets.all(22),
-                child: Row(children: [
-                  Expanded(
-                      child: _Metric(
-                          label: 'Comprometido por mês',
-                          value: FinancialRules.formatBrl(total),
-                          color: Theme.of(context).colorScheme.primary)),
-                  _Divider(),
-                  Expanded(
-                      child: _Metric(
-                          label: 'Assinaturas ativas',
-                          value: '${active.length}')),
-                  _Divider(),
-                  Expanded(
-                      child: _Metric(
-                          label: 'Próxima cobrança',
-                          value: next == null
-                              ? '—'
-                              : '${next.day}/${next.month}')),
-                ]))),
+          child: Padding(
+            padding: const EdgeInsets.all(22),
+            child: LayoutBuilder(builder: (context, constraints) {
+              final metrics = <Widget>[
+                _Metric(
+                  label: 'Comprometido por mês',
+                  value:
+                      hideValues ? '••••••' : FinancialRules.formatBrl(total),
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                _Metric(label: 'Assinaturas ativas', value: '${active.length}'),
+                _Metric(
+                  label: 'Próxima cobrança',
+                  value: next == null ? '—' : '${next.day}/${next.month}',
+                ),
+              ];
+              if (constraints.maxWidth < 600) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    metrics[0],
+                    const Divider(height: 25),
+                    metrics[1],
+                    const Divider(height: 25),
+                    metrics[2],
+                  ],
+                );
+              }
+              return Row(children: [
+                Expanded(child: metrics[0]),
+                _Divider(),
+                Expanded(child: metrics[1]),
+                _Divider(),
+                Expanded(child: metrics[2]),
+              ]);
+            }),
+          ),
+        ),
         const SizedBox(height: 14),
         Panel(
             title: 'Cobranças recorrentes',
@@ -95,12 +115,21 @@ class SubscriptionsPage extends StatelessWidget {
                     children: store.subscriptions
                         .map((item) => DataListRow(
                             icon: Icons.autorenew_rounded,
+                            leading: Opacity(
+                              opacity: item.isActive ? 1 : .55,
+                              child: SubscriptionPlatformMark(
+                                name: item.name,
+                                category: item.category,
+                              ),
+                            ),
                             iconColor: Theme.of(context).colorScheme.primary,
                             title: item.name,
                             subtitle:
                                 '${item.category} · ${item.isActive ? 'próxima em ${nextDate(item.billingDay).day}/${nextDate(item.billingDay).month}' : 'pausada'}',
-                            value: FinancialRules.formatBrl(item.amountInCents,
-                                signed: true),
+                            value: hideValues
+                                ? '••••••'
+                                : FinancialRules.formatBrl(item.amountInCents,
+                                    signed: true),
                             valueColor: Theme.of(context).colorScheme.primary,
                             trailing: PopupMenuButton<String>(
                                 tooltip: 'Ações da assinatura',

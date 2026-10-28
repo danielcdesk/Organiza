@@ -82,11 +82,13 @@ class _TransactionsPageState extends State<TransactionsPage> {
           matchesAccount;
     }).toList()
       ..sort((a, b) {
+        if (_largestFirst) {
+          final amount = b.amountInCents.compareTo(a.amountInCents);
+          if (amount != 0) return amount;
+        }
         final date = b.occurredOn.compareTo(a.occurredOn);
         if (date != 0) return date;
-        return _largestFirst
-            ? b.amountInCents.compareTo(a.amountInCents)
-            : b.createdAt.compareTo(a.createdAt);
+        return b.createdAt.compareTo(a.createdAt);
       });
     return _Page(
       heading: PageHeading(
@@ -152,6 +154,17 @@ class _TransactionsPageState extends State<TransactionsPage> {
                     decoration: const InputDecoration(
                       hintText: 'Buscar descrição, categoria ou subcategoria',
                       prefixIcon: Icon(Icons.search_rounded),
+                    ).copyWith(
+                      suffixIcon: _query.isEmpty
+                          ? null
+                          : IconButton(
+                              tooltip: 'Limpar busca',
+                              onPressed: () => setState(() {
+                                _search.clear();
+                                _query = '';
+                              }),
+                              icon: const Icon(Icons.close_rounded),
+                            ),
                     ),
                   );
                   final sort = OutlinedButton.icon(
@@ -216,28 +229,30 @@ class _TransactionsPageState extends State<TransactionsPage> {
           previous.month != current.month;
       final newDay =
           previous == null || !DateUtils.isSameDay(previous, current);
-      if (newMonth) {
-        rows.add(Padding(
-          padding: const EdgeInsets.only(top: 10, bottom: 8),
-          child: Text(
-            '${sentenceCase(monthName(current.month))} ${current.year}',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
-          ),
-        ));
-      }
-      if (newDay) {
-        rows.add(Padding(
-          padding: const EdgeInsets.only(top: 5, bottom: 3),
-          child: Text(
-            shortDate(current),
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w700,
-                ),
-          ),
-        ));
+      if (!_largestFirst) {
+        if (newMonth) {
+          rows.add(Padding(
+            padding: const EdgeInsets.only(top: 10, bottom: 8),
+            child: Text(
+              '${sentenceCase(monthName(current.month))} ${current.year}',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+            ),
+          ));
+        }
+        if (newDay) {
+          rows.add(Padding(
+            padding: const EdgeInsets.only(top: 5, bottom: 3),
+            child: Text(
+              shortDate(current),
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w700,
+                  ),
+            ),
+          ));
+        }
       }
       rows.add(TransactionListRow(
         item: item,
@@ -880,6 +895,7 @@ class PlanningPage extends StatefulWidget {
   const PlanningPage({
     super.key,
     required this.store,
+    this.hideValues = false,
     required this.onAdd,
     required this.onDeleteTask,
     required this.onAddBudget,
@@ -888,6 +904,7 @@ class PlanningPage extends StatefulWidget {
   });
 
   final OrganizaStore store;
+  final bool hideValues;
   final VoidCallback onAdd;
   final Future<void> Function(String id) onDeleteTask;
   final VoidCallback onAddBudget;
@@ -930,19 +947,27 @@ class _PlanningPageState extends State<PlanningPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Renda mensal do perfil',
+                  Text(
+                      store.profileIncomeInCents > 0
+                          ? 'Renda mensal do perfil'
+                          : 'Salário cadastrado em Finanças',
                       style: TextStyle(
                           fontSize: 12,
                           color:
                               Theme.of(context).colorScheme.onSurfaceVariant)),
                   const SizedBox(height: 6),
-                  Text(FinancialRules.formatBrl(salary),
+                  Text(
+                      widget.hideValues
+                          ? '••••••'
+                          : FinancialRules.formatBrl(salary),
                       style: Theme.of(context).textTheme.headlineSmall),
                   const SizedBox(height: 6),
                   Text(
                       salary == 0
-                          ? 'Cadastre sua renda em Configurações para começar.'
-                          : 'Fonte única: cadastro inicial e Configurações.',
+                          ? 'Cadastre um salário em Finanças ou informe sua renda em Configurações.'
+                          : store.profileIncomeInCents > 0
+                              ? 'Valor informado no perfil, em Configurações.'
+                              : 'Soma dos salários deste mês cadastrados em Finanças.',
                       style: TextStyle(
                           fontSize: 12,
                           color:
@@ -979,6 +1004,7 @@ class _PlanningPageState extends State<PlanningPage> {
                   bucket: bucket,
                   limitInCents: store.allocationLimitInCents(bucket),
                   spentInCents: store.allocationSpentInCents(bucket),
+                  hideValues: widget.hideValues,
                   onEdit: () => _openBucketDialog(bucket),
                   onDelete:
                       bucket.isSystem ? null : () => _deleteBucket(bucket.id),
@@ -1010,6 +1036,7 @@ class _PlanningPageState extends State<PlanningPage> {
                 const SizedBox(height: 12),
                 BudgetSection(
                     store: store,
+                    hideValues: widget.hideValues,
                     onAdd: widget.onAddBudget,
                     onDelete: widget.onDeleteBudget,
                     compact: true),
@@ -1028,8 +1055,10 @@ class _PlanningPageState extends State<PlanningPage> {
                           title: schedule.description,
                           subtitle:
                               'Todo dia ${schedule.paymentDay} · confirme o recebimento em Finanças',
-                          value:
-                              FinancialRules.formatBrl(schedule.amountInCents),
+                          value: widget.hideValues
+                              ? '••••••'
+                              : FinancialRules.formatBrl(
+                                  schedule.amountInCents),
                           trailing: Semantics(
                               button: true,
                               label: 'Cancelar salário recorrente',
@@ -1163,6 +1192,7 @@ class _AllocationBucketCard extends StatelessWidget {
     required this.bucket,
     required this.limitInCents,
     required this.spentInCents,
+    required this.hideValues,
     required this.onEdit,
     required this.onDelete,
     required this.dragHandle,
@@ -1171,6 +1201,7 @@ class _AllocationBucketCard extends StatelessWidget {
   final SalaryAllocationBucket bucket;
   final int limitInCents;
   final int spentInCents;
+  final bool hideValues;
   final VoidCallback onEdit;
   final VoidCallback? onDelete;
   final Widget dragHandle;
@@ -1216,7 +1247,7 @@ class _AllocationBucketCard extends StatelessWidget {
                                 const TextStyle(fontWeight: FontWeight.w700)),
                         const SizedBox(height: 2),
                         Text(
-                            '${bucket.percent}% · limite ${FinancialRules.formatBrl(limitInCents)}',
+                            '${bucket.percent}% · limite ${hideValues ? '••••••' : FinancialRules.formatBrl(limitInCents)}',
                             style: TextStyle(
                                 fontSize: 12,
                                 color: Theme.of(context)
@@ -1261,8 +1292,8 @@ class _AllocationBucketCard extends StatelessWidget {
                 children: [
                   Text(
                     available >= 0
-                        ? '${FinancialRules.formatBrl(available)} livres'
-                        : '${FinancialRules.formatBrl(-available)} acima',
+                        ? '${hideValues ? '••••••' : FinancialRules.formatBrl(available)} livres'
+                        : '${hideValues ? '••••••' : FinancialRules.formatBrl(-available)} acima',
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
@@ -1271,7 +1302,8 @@ class _AllocationBucketCard extends StatelessWidget {
                           : Theme.of(context).colorScheme.error,
                     ),
                   ),
-                  Text('Gasto ${FinancialRules.formatBrl(spentInCents)}',
+                  Text(
+                      'Gasto ${hideValues ? '••••••' : FinancialRules.formatBrl(spentInCents)}',
                       style: const TextStyle(
                           fontSize: 11, fontWeight: FontWeight.w600)),
                 ],
@@ -1479,6 +1511,7 @@ IconData _allocationIcon(String key) => switch (key) {
 class SettingsPage extends StatelessWidget {
   const SettingsPage(
       {super.key,
+      this.hideValues = false,
       required this.onThemeChanged,
       this.themePreference = 'dark',
       required this.onAccentChanged,
@@ -1493,6 +1526,7 @@ class SettingsPage extends StatelessWidget {
       required this.onRestoreBackup});
 
   final ValueChanged<ThemeMode> onThemeChanged;
+  final bool hideValues;
   final String themePreference;
   final ValueChanged<String> onAccentChanged;
   final String accentPreference;
@@ -1563,7 +1597,7 @@ class SettingsPage extends StatelessWidget {
                           Text(
                             profileIncomeInCents == 0
                                 ? 'Adicione seu nome, renda e foto.'
-                                : 'Renda mensal: ${FinancialRules.formatBrl(profileIncomeInCents)}',
+                                : 'Renda mensal: ${hideValues ? '••••••' : FinancialRules.formatBrl(profileIncomeInCents)}',
                             style: TextStyle(
                               color: Theme.of(context)
                                   .colorScheme

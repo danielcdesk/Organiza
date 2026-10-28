@@ -8,14 +8,14 @@ void main() {
     const service = BackupService();
     final envelope = await service.encryptContent(
       const {
-        'schemaVersion': 15,
+        'schemaVersion': 16,
         'tables': {'accounts': <Map<String, Object?>>[]},
       },
       'senha-segura',
     );
 
     final restored = await service.decryptContent(envelope, 'senha-segura');
-    expect(restored['schemaVersion'], 15);
+    expect(restored['schemaVersion'], 16);
     expect(
       () => service.decryptContent(envelope, 'senha-incorreta'),
       throwsA(anything),
@@ -32,6 +32,31 @@ void main() {
       openingBalanceInCents: 1000,
       createdAt: now,
     ));
+    database.insertCreditCard(CreditCard(
+      id: 'card-1',
+      name: 'Principal',
+      brand: CardBrand.visa,
+      lastFour: '4242',
+      limitInCents: 500000,
+      closingDay: 10,
+      dueDay: 17,
+      colorValue: 0xFF245943,
+      createdAt: now,
+    ));
+    database.insertCardPurchase(CardPurchase(
+      id: 'purchase-1',
+      cardId: 'card-1',
+      description: 'Notebook',
+      amountInCents: 120000,
+      purchasedOn: now,
+      installments: 3,
+      createdAt: now,
+    ));
+    database.setCardPurchaseInstallmentsPaid(
+      'purchase-1',
+      {1, 3},
+      now,
+    );
     final snapshot = database.exportSnapshot();
 
     database.insertAccount(Account(
@@ -45,6 +70,7 @@ void main() {
     database.restoreSnapshot(Map<String, dynamic>.from(snapshot));
     expect(database.loadAccounts(), hasLength(1));
     expect(database.loadAccounts().single.name, 'Principal');
+    expect(database.loadCardPurchases().single.paidInstallments, {1, 3});
   });
 
   test('transação local faz rollback quando uma operação falha', () {

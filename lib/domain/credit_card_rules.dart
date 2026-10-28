@@ -1,12 +1,27 @@
 import 'models.dart';
 
+class InstallmentProgress {
+  const InstallmentProgress({
+    required this.paid,
+    required this.remaining,
+  });
+
+  final int paid;
+  final int remaining;
+  int get total => paid + remaining;
+  double get ratio => total == 0 ? 0 : paid / total;
+}
+
 class CreditCardRules {
   const CreditCardRules._();
 
   static DateTime currentCycleClosingDate(CreditCard card, DateTime reference) {
     final monthOffset = reference.day <= card.closingDay ? 0 : 1;
     return _safeDate(
-        reference.year, reference.month + monthOffset, card.closingDay);
+      reference.year,
+      reference.month + monthOffset,
+      card.closingDay,
+    );
   }
 
   static Iterable<CardPurchase> currentCyclePurchases(
@@ -28,15 +43,23 @@ class CreditCardRules {
     Iterable<CardPurchase> purchases,
     DateTime reference,
   ) =>
-      currentCyclePurchases(card, purchases, reference).fold(0,
-          (total, purchase) {
+      currentCyclePurchases(card, purchases, reference).fold(0, (
+        total,
+        purchase,
+      ) {
         final index = installmentIndex(
-            card, purchase, currentCycleClosingDate(card, reference));
+          card,
+          purchase,
+          currentCycleClosingDate(card, reference),
+        );
         return total + installmentAmount(purchase, index);
       });
 
   static int installmentIndex(
-      CreditCard card, CardPurchase purchase, DateTime cycleClosing) {
+    CreditCard card,
+    CardPurchase purchase,
+    DateTime cycleClosing,
+  ) {
     final firstClosing = _firstClosingDate(card, purchase.purchasedOn);
     return _monthDifference(firstClosing, cycleClosing) + 1;
   }
@@ -48,6 +71,14 @@ class CreditCardRules {
     return base + (oneBasedIndex <= remainder ? 1 : 0);
   }
 
+  /// Progress is explicitly tracked on the card purchase and never inferred
+  /// from cash-account transactions.
+  static InstallmentProgress installmentProgress(CardPurchase purchase) =>
+      InstallmentProgress(
+        paid: purchase.paidInstallmentCount,
+        remaining: purchase.remainingInstallmentCount,
+      );
+
   static int outstandingBalance(
     CreditCard card,
     Iterable<CardPurchase> purchases,
@@ -56,10 +87,16 @@ class CreditCardRules {
     final closing = currentCycleClosingDate(card, reference);
     var total = 0;
     for (final purchase in purchases.where((item) => item.cardId == card.id)) {
-      final purchaseDate = DateTime(purchase.purchasedOn.year,
-          purchase.purchasedOn.month, purchase.purchasedOn.day);
-      final referenceDate =
-          DateTime(reference.year, reference.month, reference.day);
+      final purchaseDate = DateTime(
+        purchase.purchasedOn.year,
+        purchase.purchasedOn.month,
+        purchase.purchasedOn.day,
+      );
+      final referenceDate = DateTime(
+        reference.year,
+        reference.month,
+        reference.day,
+      );
       if (purchaseDate.isAfter(referenceDate)) continue;
       final currentIndex = installmentIndex(card, purchase, closing);
       final firstOutstanding = currentIndex < 1 ? 1 : currentIndex;
@@ -92,7 +129,10 @@ class CreditCardRules {
   static DateTime _firstClosingDate(CreditCard card, DateTime purchaseDate) {
     final monthOffset = purchaseDate.day <= card.closingDay ? 0 : 1;
     return _safeDate(
-        purchaseDate.year, purchaseDate.month + monthOffset, card.closingDay);
+      purchaseDate.year,
+      purchaseDate.month + monthOffset,
+      card.closingDay,
+    );
   }
 
   static int _monthDifference(DateTime from, DateTime to) =>

@@ -80,6 +80,16 @@ class LocalRepository {
   void insertCreditCard(CreditCard item) => _database.insertCreditCard(item);
   void insertCardPurchase(CardPurchase item) =>
       _database.insertCardPurchase(item);
+  void setCardPurchaseInstallmentsPaid(
+    String purchaseId,
+    Set<int> paidInstallments,
+    DateTime paidOn,
+  ) =>
+      _database.setCardPurchaseInstallmentsPaid(
+        purchaseId,
+        paidInstallments,
+        paidOn,
+      );
   void insertInvestment(InvestmentPosition item) =>
       _database.insertInvestment(item);
   void updateInvestment(InvestmentPosition item) =>

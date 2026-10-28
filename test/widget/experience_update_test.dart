@@ -123,6 +123,51 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('transaction sorting prioritizes amount across different dates',
+      (tester) async {
+    tester.view.physicalSize = const Size(1280, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final store = OrganizaStore.inMemory();
+    addTearDown(store.dispose);
+    store.addAccount('Banco A', 0);
+    final accountId = store.accounts.first.id;
+    final now = DateTime.now();
+    store.addTransaction(
+        accountId: accountId,
+        type: TransactionType.expense,
+        amountInCents: 1000,
+        description: 'Compra recente',
+        occurredOn: now);
+    store.addTransaction(
+        accountId: accountId,
+        type: TransactionType.expense,
+        amountInCents: 5000,
+        description: 'Compra mais cara',
+        occurredOn: now.subtract(const Duration(days: 3)));
+
+    await tester.pumpWidget(MaterialApp(
+        theme: OrganizaTheme.dark(),
+        home: Scaffold(
+            body: TransactionsPage(
+                store: store,
+                hideValues: false,
+                onAdd: () {},
+                onDelete: (_) {},
+                onSettledChanged: (_, __) {}))));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Mais recentes primeiro'));
+    await tester.pumpAndSettle();
+
+    final recentY = tester.getTopLeft(find.text('Compra recente')).dy;
+    final expensiveY = tester.getTopLeft(find.text('Compra mais cara')).dy;
+    expect(expensiveY, lessThan(recentY));
+    expect(find.text('Maior valor primeiro'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('desktop finance workspace groups summary filters and history',
       (tester) async {
     tester.view.physicalSize = const Size(1180, 820);

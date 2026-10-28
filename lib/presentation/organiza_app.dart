@@ -478,8 +478,10 @@ class _OrganizaShellState extends State<OrganizaShell> {
             onOpenAccounts: () => setState(() => _page = 2),
             onNewAccount: _openAccountDialog,
             onToggleValues: _toggleValues,
-            onNewIncome: _openTransactionDialog,
-            onTransfer: _openTransactionDialog,
+            onNewIncome: () =>
+                _openTransactionDialog(initialType: TransactionType.income),
+            onTransfer: () =>
+                _openTransactionDialog(initialType: TransactionType.transfer),
           ),
         1 => TransactionsPage(
             store: widget.store,
@@ -502,9 +504,11 @@ class _OrganizaShellState extends State<OrganizaShell> {
             hideValues: _hideValues,
             onAddCard: _openCardDialog,
             onAddPurchase: _openCardPurchaseDialog,
+            onManageInstallments: _manageCardPurchaseInstallments,
           ),
         4 => PlanningPage(
             store: widget.store,
+            hideValues: _hideValues,
             onAdd: _openTaskDialog,
             onDeleteTask: _deleteTask,
             onAddBudget: _openBudgetDialog,
@@ -519,6 +523,7 @@ class _OrganizaShellState extends State<OrganizaShell> {
           ),
         6 => PlanningPage(
             store: widget.store,
+            hideValues: _hideValues,
             onAdd: _openTaskDialog,
             onDeleteTask: _deleteTask,
             onAddBudget: _openBudgetDialog,
@@ -538,6 +543,7 @@ class _OrganizaShellState extends State<OrganizaShell> {
             onExport: _exportReport,
           ),
         9 => SettingsPage(
+            hideValues: _hideValues,
             onThemeChanged: widget.onThemeChanged,
             onAccentChanged: widget.onAccentChanged,
             accentPreference: widget.store.accentPreference,
@@ -552,6 +558,7 @@ class _OrganizaShellState extends State<OrganizaShell> {
             onRestoreBackup: _restoreEncryptedBackup),
         10 => SubscriptionsPage(
             store: widget.store,
+            hideValues: _hideValues,
             onAdd: _openSubscriptionDialog,
             onDelete: _deleteSubscription,
             onEdit: _editSubscription,
@@ -783,14 +790,22 @@ class _OrganizaShellState extends State<OrganizaShell> {
         false;
   }
 
-  Future<void> _openTransactionDialog() async {
+  Future<void> _openTransactionDialog({
+    TransactionType initialType = TransactionType.expense,
+  }) async {
     if (widget.store.accounts.isEmpty) {
       _showError('Crie uma conta antes de registrar uma transação.');
+      return;
+    }
+    if (initialType == TransactionType.transfer &&
+        widget.store.accounts.length < 2) {
+      _showError('Cadastre uma segunda conta para fazer transferências.');
       return;
     }
     final value = await showDialog<TransactionInput>(
       context: context,
       builder: (_) => TransactionDialog(
+        initialType: initialType,
         accounts: widget.store.accounts,
         categories: widget.store.financeCategories,
         subcategories: widget.store.financeSubcategories,
@@ -1011,6 +1026,25 @@ class _OrganizaShellState extends State<OrganizaShell> {
     } on ArgumentError catch (error) {
       _showError(
           error.message?.toString() ?? 'Não foi possível salvar a compra.');
+    }
+  }
+
+  Future<void> _manageCardPurchaseInstallments(CardPurchase purchase) async {
+    final paidInstallments = await showDialog<Set<int>>(
+      context: context,
+      builder: (_) => CardInstallmentPaymentsDialog(
+        purchase: purchase,
+        hideValues: _hideValues,
+      ),
+    );
+    if (paidInstallments == null || !mounted) return;
+    try {
+      widget.store.setCardPurchaseInstallmentsPaid(
+        purchase.id,
+        paidInstallments,
+      );
+    } on ArgumentError catch (error) {
+      _showError(error.message?.toString() ?? 'Não foi possível salvar.');
     }
   }
 

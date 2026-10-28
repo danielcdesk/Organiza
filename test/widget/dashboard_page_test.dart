@@ -19,6 +19,60 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('visão geral não avança além do mês atual', (tester) async {
+    tester.view.physicalSize = const Size(1280, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final store = _store();
+    addTearDown(store.dispose);
+    await _pumpDashboard(tester, store);
+
+    expect(find.text('Setembro de 2026'), findsOneWidget);
+    expect(find.byTooltip('Mês atual'), findsOneWidget);
+    expect(find.byTooltip('Próximo mês'), findsNothing);
+    expect(find.text('Setembro de 2026'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Mês anterior'));
+    await tester.pumpAndSettle();
+    expect(find.text('Agosto de 2026'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Próximo mês'));
+    await tester.pumpAndSettle();
+    expect(find.text('Setembro de 2026'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('valores de despesas recentes usam a cor de erro',
+      (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final store = _store();
+    addTearDown(store.dispose);
+    store.addAccount('Conta principal', 100000);
+    store.addTransaction(
+      accountId: store.accounts.single.id,
+      type: TransactionType.expense,
+      amountInCents: 2500,
+      description: 'Compra teste',
+      occurredOn: DateTime(2026, 9, 28),
+    );
+    await _pumpDashboard(tester, store);
+    await tester.scrollUntilVisible(
+      find.text(r'−R$ 25,00'),
+      180,
+      scrollable: find.byType(Scrollable).first,
+    );
+
+    final value = tester.widget<Text>(find.text(r'−R$ 25,00'));
+    expect(value.style?.color, OrganizaTheme.dark().colorScheme.error);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('dashboard cheio mostra apenas o resumo essencial do mês',
       (tester) async {
     tester.view.physicalSize = const Size(390, 844);

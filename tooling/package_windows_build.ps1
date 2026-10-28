@@ -1,6 +1,7 @@
 param(
     [Parameter(Mandatory = $true)]
-    [string]$BuildId
+    [string]$BuildId,
+    [switch]$WindowsOnly
 )
 
 $ErrorActionPreference = 'Stop'
@@ -31,6 +32,7 @@ foreach ($destination in $destinations) {
         -Destination (Join-Path $destination 'Organiza.exe') -Force
 }
 
+if (-not $WindowsOnly) {
 $apkOutputDirectory = Join-Path $projectRoot 'build\app\outputs\flutter-apk'
 $apk = Join-Path $apkOutputDirectory 'app-release.apk'
 $aab = Join-Path $projectRoot 'build\app\outputs\bundle\release\app-release.aab'
@@ -70,8 +72,10 @@ if (Test-Path -LiteralPath $aab) {
             -Destination (Join-Path $destination 'Organiza-Android.aab') -Force
     }
 }
+}
 
 $localBuildDirectory = Join-Path $projectRoot "builds\local\$BuildId"
+if (-not $WindowsOnly) {
 $installerScript = Join-Path $localBuildDirectory 'Instalar-no-emulador.ps1'
 @'
 $ErrorActionPreference = 'Stop'
@@ -128,7 +132,16 @@ Read-Host 'Pressione Enter para fechar'
 powershell.exe -ExecutionPolicy Bypass -File "%~dp0Instalar-no-emulador.ps1"
 if errorlevel 1 pause
 '@ | Set-Content -LiteralPath (Join-Path $localBuildDirectory 'Instalar-no-emulador.bat') -Encoding ASCII
+}
 
+if ($WindowsOnly) {
+@"
+ORGANIZA — BUILD WINDOWS $BuildId
+
+Execute Organiza.exe com dois cliques e mantenha todos os arquivos desta pasta juntos.
+Esta saída contém somente a build Windows compilada nesta execução.
+"@ | Set-Content -LiteralPath (Join-Path $localBuildDirectory 'LEIA-ME.txt') -Encoding UTF8
+} else {
 @"
 ORGANIZA — BUILD $BuildId
 
@@ -137,6 +150,7 @@ O APK universal fica em android\Organiza-Android.apk e o AAB de publicação em 
 Os artefatos Android desta pasta usam a chave de teste local quando nenhuma chave de produção foi configurada.
 Para instalar no emulador, execute Instalar-no-emulador.bat; ele escolhe a arquitetura correta.
 "@ | Set-Content -LiteralPath (Join-Path $projectRoot "builds\local\$BuildId\LEIA-ME.txt") -Encoding UTF8
+}
 
 Write-Host "Build copiada para:" -ForegroundColor Green
 $destinations | ForEach-Object { Write-Host " - $_" }

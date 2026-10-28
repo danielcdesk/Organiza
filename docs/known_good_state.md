@@ -4,7 +4,7 @@
 
 - Análise estática sem problemas; 95 testes Flutter e 2 fluxos de integração Windows aprovados.
 - Builds Windows release e Android debug concluídos. O APK de debug não é uma atualização instalável sobre o APK público assinado.
-- SQLite permanece no schema 15. As preferências novas usam `app_settings`, preservando os registros existentes.
+- SQLite permanece no schema 16. Preferências usam `app_settings`; parcelas pagas dos cartões ficam em `card_installment_payments`, preservando registros anteriores pela migração incremental.
 - A instalação em dispositivos físicos, a assinatura Android de release e a publicação de binários 0.9.0 ainda não foram verificadas.
 
 Detalhes: [notas 0.9.0](releases/v0.9.0.md).

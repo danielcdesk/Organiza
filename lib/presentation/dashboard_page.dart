@@ -153,7 +153,9 @@ class _DashboardPageState extends State<DashboardPage> {
                   hideValues: widget.hideValues,
                   onPrevious: () =>
                       setState(() => _month = _shiftMonth(_month, -1)),
-                  onNext: () => setState(() => _month = _shiftMonth(_month, 1)),
+                  onNext: _month.isBefore(_monthStart(widget.store.clock.now()))
+                      ? () => setState(() => _month = _shiftMonth(_month, 1))
+                      : null,
                   onToggleValues: widget.onToggleValues,
                   onNewTransaction: compact ? null : widget.onNewTransaction,
                 ),
@@ -585,7 +587,7 @@ class _MonthToolbar extends StatelessWidget {
   final bool compact;
   final bool hideValues;
   final VoidCallback onPrevious;
-  final VoidCallback onNext;
+  final VoidCallback? onNext;
   final VoidCallback? onToggleValues;
   final VoidCallback? onNewTransaction;
 
@@ -634,7 +636,7 @@ class _MonthToolbar extends StatelessWidget {
                   ),
                 ),
                 _monthButton(
-                  tooltip: 'Próximo mês',
+                  tooltip: onNext == null ? 'Mês atual' : 'Próximo mês',
                   onPressed: onNext,
                   icon: Icons.chevron_right_rounded,
                 ),
@@ -669,7 +671,7 @@ class _MonthToolbar extends StatelessWidget {
             outlined: true,
           ),
           _monthButton(
-            tooltip: 'Próximo mês',
+            tooltip: onNext == null ? 'Mês atual' : 'Próximo mês',
             onPressed: onNext,
             icon: Icons.chevron_right_rounded,
             outlined: true,
@@ -718,7 +720,7 @@ class _MonthToolbar extends StatelessWidget {
         ),
         SizedBox(width: tokens.spaceSm),
         _monthButton(
-          tooltip: 'Próximo mês',
+          tooltip: onNext == null ? 'Mês atual' : 'Próximo mês',
           onPressed: onNext,
           icon: Icons.chevron_right_rounded,
           outlined: true,
@@ -731,7 +733,7 @@ class _MonthToolbar extends StatelessWidget {
 
   Widget _monthButton({
     required String tooltip,
-    required VoidCallback onPressed,
+    required VoidCallback? onPressed,
     required IconData icon,
     bool outlined = false,
   }) =>
@@ -1743,7 +1745,7 @@ class _TransactionValue extends StatelessWidget {
         style: Theme.of(context).textTheme.labelLarge?.copyWith(
               color: income
                   ? OrganizaDesignTokens.of(context).positive
-                  : Theme.of(context).colorScheme.onSurface,
+                  : Theme.of(context).colorScheme.error,
               fontWeight: FontWeight.w800,
             ),
       );

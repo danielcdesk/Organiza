@@ -5,6 +5,40 @@ import 'package:organiza/domain/models.dart';
 import 'package:organiza/presentation/dialogs.dart';
 
 void main() {
+  testWidgets('formulário abre no tipo solicitado pela ação rápida',
+      (tester) async {
+    final store = OrganizaStore.inMemory();
+    addTearDown(store.dispose);
+    store.addAccount('Principal', 0);
+    store.addAccount('Reserva', 0);
+
+    Widget dialog(TransactionType type) => MaterialApp(
+          home: Scaffold(
+            body: TransactionDialog(
+              key: ValueKey(type),
+              initialType: type,
+              accounts: store.accounts,
+              categories: store.financeCategories,
+              subcategories: store.financeSubcategories,
+              onCreateCategory: store.addFinanceCategory,
+              onCreateSubcategory: store.addFinanceSubcategory,
+            ),
+          ),
+        );
+
+    await tester.pumpWidget(dialog(TransactionType.income));
+    expect(
+        find.widgetWithText(
+            DropdownButtonFormField<TransactionType>, 'Receita'),
+        findsOneWidget);
+    await tester.pumpWidget(dialog(TransactionType.transfer));
+    expect(
+        find.widgetWithText(
+            DropdownButtonFormField<TransactionType>, 'Transferência'),
+        findsOneWidget);
+    expect(find.text('Conta de destino'), findsOneWidget);
+  });
+
   testWidgets('salário mensal não pede parcelas nem descrição', (tester) async {
     final store = OrganizaStore.inMemory();
     addTearDown(store.dispose);

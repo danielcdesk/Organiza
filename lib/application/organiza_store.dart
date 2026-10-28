@@ -168,7 +168,27 @@ class OrganizaStore extends ChangeNotifier {
   int get expenses =>
       FinancialRules.monthTotal(transactions, _now, TransactionType.expense);
   int get availableToSpend => balance;
-  int get salaryThisMonth => profileIncomeInCents;
+  int get salaryThisMonth {
+    final profileIncome = profileIncomeInCents;
+    if (profileIncome > 0) return profileIncome;
+
+    final month = DateTime(_now.year, _now.month);
+    final currentSchedules = salarySchedules.where((schedule) =>
+        !DateTime(schedule.firstDueOn.year, schedule.firstDueOn.month)
+            .isAfter(month));
+    final scheduleIds = currentSchedules.map((schedule) => schedule.id).toSet();
+    final scheduledIncome = currentSchedules.fold<int>(
+        0, (sum, schedule) => sum + schedule.amountInCents);
+    final oneOffIncome = transactions.where((item) {
+      final category = item.category.trim().toLowerCase();
+      return item.type == TransactionType.income &&
+          (category == 'salário' || category == 'salario') &&
+          item.occurredOn.year == month.year &&
+          item.occurredOn.month == month.month &&
+          !scheduleIds.contains(item.seriesId);
+    }).fold<int>(0, (sum, item) => sum + item.amountInCents);
+    return scheduledIncome + oneOffIncome;
+  }
 
   int get allocatedSalaryPercent => salaryAllocationBuckets.fold(
       0, (total, bucket) => total + bucket.percent);
@@ -762,6 +782,25 @@ class OrganizaStore extends ChangeNotifier {
       installments: installments,
       createdAt: _now,
     ));
+    reload();
+  }
+
+  void setCardPurchaseInstallmentsPaid(
+    String purchaseId,
+    Set<int> paidInstallments,
+  ) {
+    final purchase = cardPurchases.where((item) => item.id == purchaseId);
+    if (purchase.isEmpty) throw ArgumentError('Compra não encontrada.');
+    final installmentCount = purchase.first.installments;
+    if (paidInstallments
+        .any((number) => number < 1 || number > installmentCount)) {
+      throw ArgumentError('Parcela inválida para esta compra.');
+    }
+    _repository.setCardPurchaseInstallmentsPaid(
+      purchaseId,
+      paidInstallments,
+      _now,
+    );
     reload();
   }
 

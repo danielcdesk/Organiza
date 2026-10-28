@@ -13,12 +13,14 @@ class CardsPage extends StatefulWidget {
     required this.hideValues,
     required this.onAddCard,
     required this.onAddPurchase,
+    required this.onManageInstallments,
   });
 
   final OrganizaStore store;
   final bool hideValues;
   final VoidCallback onAddCard;
   final ValueChanged<String?> onAddPurchase;
+  final ValueChanged<CardPurchase> onManageInstallments;
 
   @override
   State<CardsPage> createState() => _CardsPageState();
@@ -26,6 +28,7 @@ class CardsPage extends StatefulWidget {
 
 class _CardsPageState extends State<CardsPage> {
   String? _selectedCardId;
+  bool _showAllPurchases = false;
 
   CreditCard? get _selectedCard {
     if (widget.store.creditCards.isEmpty) return null;
@@ -135,8 +138,10 @@ class _CardsPageState extends State<CardsPage> {
           const SizedBox(height: 12),
           LayoutBuilder(
             builder: (context, constraints) {
-              final visual =
-                  _CreditCardVisual(card: card, hideValues: widget.hideValues);
+              final visual = _CreditCardVisual(
+                card: card,
+                hideValues: widget.hideValues,
+              );
               final summary = _CardSummary(
                 card: card,
                 purchases: widget.store.cardPurchases,
@@ -182,6 +187,10 @@ class _CardsPageState extends State<CardsPage> {
             purchases: widget.store.cardPurchases,
             hideValues: widget.hideValues,
             onAdd: () => widget.onAddPurchase(card.id),
+            onManageInstallments: widget.onManageInstallments,
+            showAll: _showAllPurchases,
+            onShowAllChanged: (value) =>
+                setState(() => _showAllPurchases = value),
           ),
         ],
       ],
@@ -234,7 +243,9 @@ class _CreditCardVisual extends StatelessWidget {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(
-                      color: Colors.white.withValues(alpha: .085), width: 34),
+                    color: Colors.white.withValues(alpha: .085),
+                    width: 34,
+                  ),
                 ),
               ),
             ),
@@ -255,30 +266,41 @@ class _CreditCardVisual extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(children: [
-                    Text('ORGANIZA',
+                  Row(
+                    children: [
+                      Text(
+                        'ORGANIZA',
                         style: TextStyle(
                           color: Colors.white.withValues(alpha: .92),
                           fontSize: 12,
                           letterSpacing: 1.3,
                           fontWeight: FontWeight.w800,
-                        )),
-                    const Spacer(),
-                    Text('CRÉDITO',
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        'CRÉDITO',
                         style: TextStyle(
                           color: Colors.white.withValues(alpha: .58),
                           fontSize: 10,
                           letterSpacing: 1.1,
                           fontWeight: FontWeight.w700,
-                        )),
-                  ]),
+                        ),
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 27),
-                  const Row(children: [
-                    _ChipVisual(),
-                    SizedBox(width: 12),
-                    Icon(Icons.contactless_rounded,
-                        color: Color(0xD9FFFFFF), size: 25),
-                  ]),
+                  const Row(
+                    children: [
+                      _ChipVisual(),
+                      SizedBox(width: 12),
+                      Icon(
+                        Icons.contactless_rounded,
+                        color: Color(0xD9FFFFFF),
+                        size: 25,
+                      ),
+                    ],
+                  ),
                   const Spacer(),
                   Text(
                     hideValues
@@ -292,30 +314,38 @@ class _CreditCardVisual extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 19),
-                  Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('CARTÃO',
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'CARTÃO',
                               style: TextStyle(
                                 color: Colors.white.withValues(alpha: .5),
                                 fontSize: 9,
                                 letterSpacing: 1.2,
-                              )),
-                          const SizedBox(height: 4),
-                          Text(card.name,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              card.name,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 15)),
-                        ],
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    _CardBrandMark(brand: card.brand),
-                  ]),
+                      _CardBrandMark(brand: card.brand),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -349,16 +379,28 @@ class _ChipPainter extends CustomPainter {
       ..color = const Color(0xFF9E8647)
       ..strokeWidth = 1
       ..style = PaintingStyle.stroke;
-    canvas.drawLine(Offset(size.width * .48, 0),
-        Offset(size.width * .48, size.height), paint);
-    canvas.drawLine(Offset(0, size.height * .5),
-        Offset(size.width, size.height * .5), paint);
+    canvas.drawLine(
+      Offset(size.width * .48, 0),
+      Offset(size.width * .48, size.height),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(0, size.height * .5),
+      Offset(size.width, size.height * .5),
+      paint,
+    );
     canvas.drawRRect(
-        RRect.fromRectAndRadius(
-            Rect.fromLTWH(size.width * .18, size.height * .19, size.width * .62,
-                size.height * .62),
-            const Radius.circular(4)),
-        paint);
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(
+          size.width * .18,
+          size.height * .19,
+          size.width * .62,
+          size.height * .62,
+        ),
+        const Radius.circular(4),
+      ),
+      paint,
+    );
   }
 
   @override
@@ -376,18 +418,24 @@ class _CardBrandMark extends StatelessWidget {
       return SizedBox(
         width: 43,
         height: 26,
-        child: Stack(children: [
-          Positioned(
+        child: Stack(
+          children: [
+            Positioned(
               left: 0,
               child: CircleAvatar(
-                  radius: 13,
-                  backgroundColor: Colors.white.withValues(alpha: .88))),
-          Positioned(
+                radius: 13,
+                backgroundColor: Colors.white.withValues(alpha: .88),
+              ),
+            ),
+            Positioned(
               right: 0,
               child: CircleAvatar(
-                  radius: 13,
-                  backgroundColor: Colors.white.withValues(alpha: .5))),
-        ]),
+                radius: 13,
+                backgroundColor: Colors.white.withValues(alpha: .5),
+              ),
+            ),
+          ],
+        ),
       );
     }
     return Text(
@@ -403,8 +451,11 @@ class _CardBrandMark extends StatelessWidget {
 }
 
 class _CardSummary extends StatelessWidget {
-  const _CardSummary(
-      {required this.card, required this.purchases, required this.hideValues});
+  const _CardSummary({
+    required this.card,
+    required this.purchases,
+    required this.hideValues,
+  });
 
   final CreditCard card;
   final List<CardPurchase> purchases;
@@ -429,22 +480,31 @@ class _CardSummary extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                  child: _InlineMetric(
-                      label: 'Fatura em aberto', value: _money(invoice))),
+                child: _InlineMetric(
+                  label: 'Fatura em aberto',
+                  value: _money(invoice),
+                ),
+              ),
               SizedBox(
                 height: 42,
                 child: VerticalDivider(color: Theme.of(context).dividerColor),
               ),
               Expanded(
-                  child: _InlineMetric(
-                      label: 'Disponível', value: _money(available))),
+                child: _InlineMetric(
+                  label: 'Disponível',
+                  value: _money(available),
+                ),
+              ),
               SizedBox(
                 height: 42,
                 child: VerticalDivider(color: Theme.of(context).dividerColor),
               ),
               Expanded(
-                  child: _InlineMetric(
-                      label: 'Limite total', value: _money(card.limitInCents))),
+                child: _InlineMetric(
+                  label: 'Limite total',
+                  value: _money(card.limitInCents),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 24),
@@ -453,19 +513,25 @@ class _CardSummary extends StatelessWidget {
             duration: const Duration(milliseconds: 700),
             curve: Curves.easeOutCubic,
             builder: (_, value, __) => LinearProgressIndicator(
-                value: value,
-                minHeight: 10,
-                borderRadius: BorderRadius.circular(10)),
+              value: value,
+              minHeight: 10,
+              borderRadius: BorderRadius.circular(10),
+            ),
           ),
           const SizedBox(height: 10),
           Row(
             children: [
-              Text('Uso do limite',
-                  style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant)),
+              Text(
+                'Uso do limite',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
               const Spacer(),
-              Text('${(ratio * 100).round()}%',
-                  style: const TextStyle(fontWeight: FontWeight.w700)),
+              Text(
+                '${(ratio * 100).round()}%',
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
             ],
           ),
           const SizedBox(height: 18),
@@ -506,10 +572,13 @@ class _InlineMetric extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label,
-                style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    fontSize: 13)),
+            Text(
+              label,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                fontSize: 13,
+              ),
+            ),
             const SizedBox(height: 7),
             Text(
               value,
@@ -528,52 +597,93 @@ class _PurchasesPanel extends StatelessWidget {
     required this.purchases,
     required this.hideValues,
     required this.onAdd,
+    required this.onManageInstallments,
+    required this.showAll,
+    required this.onShowAllChanged,
   });
 
   final CreditCard card;
   final List<CardPurchase> purchases;
   final bool hideValues;
   final VoidCallback onAdd;
+  final ValueChanged<CardPurchase> onManageInstallments;
+  final bool showAll;
+  final ValueChanged<bool> onShowAllChanged;
 
   @override
   Widget build(BuildContext context) {
-    final current =
-        CreditCardRules.currentCyclePurchases(card, purchases, DateTime.now())
-            .toList();
+    final current = CreditCardRules.currentCyclePurchases(
+      card,
+      purchases,
+      DateTime.now(),
+    ).toList();
+    final all = purchases
+        .where((purchase) => purchase.cardId == card.id)
+        .toList()
+      ..sort((a, b) => b.purchasedOn.compareTo(a.purchasedOn));
+    final visible = showAll ? all : current;
     return Panel(
-      title: 'Compras da fatura',
+      title: 'Compras do cartão',
       subtitle:
-          '${current.length} lançamento${current.length == 1 ? '' : 's'} no ciclo atual',
+          '${current.length} na fatura atual · ${all.length} no histórico',
       trailing: TextButton.icon(
         onPressed: onAdd,
         icon: const Icon(Icons.add_rounded, size: 18),
         label: const Text('Registrar compra'),
       ),
-      child: current.isEmpty
-          ? EmptyState(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 8,
+            children: [
+              ChoiceChip(
+                label: const Text('Fatura atual'),
+                selected: !showAll,
+                onSelected: (_) => onShowAllChanged(false),
+              ),
+              ChoiceChip(
+                label: const Text('Todas as compras'),
+                selected: showAll,
+                onSelected: (_) => onShowAllChanged(true),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (visible.isEmpty)
+            EmptyState(
               icon: Icons.shopping_bag_outlined,
-              title: 'Nenhuma compra neste ciclo',
-              description:
-                  'Registre compras manualmente para acompanhar a fatura.',
-              actionLabel: 'Nova compra',
-              onAction: onAdd,
+              title: showAll
+                  ? 'Nenhuma compra neste cartão'
+                  : 'Nenhuma compra nesta fatura',
+              description: all.isEmpty
+                  ? 'Registre uma compra para acompanhar as parcelas e a fatura.'
+                  : 'Suas compras anteriores continuam disponíveis no histórico.',
+              actionLabel: all.isEmpty ? 'Registrar compra' : 'Ver histórico',
+              onAction: all.isEmpty ? onAdd : () => onShowAllChanged(true),
             )
-          : Column(
-              children: [
-                const _TableHeader(),
-                ...current.map((purchase) => _PurchaseRow(
-                      card: card,
-                      purchase: purchase,
-                      hideValues: hideValues,
-                    )),
-              ],
+          else ...[
+            _TableHeader(showTotal: showAll),
+            ...visible.map(
+              (purchase) => _PurchaseRow(
+                card: card,
+                purchase: purchase,
+                hideValues: hideValues,
+                onManageInstallments: onManageInstallments,
+                showTotal: showAll,
+              ),
             ),
+          ],
+        ],
+      ),
     );
   }
 }
 
 class _TableHeader extends StatelessWidget {
-  const _TableHeader();
+  const _TableHeader({required this.showTotal});
+
+  final bool showTotal;
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -584,9 +694,13 @@ class _TableHeader extends StatelessWidget {
             Expanded(flex: 2, child: Text('DATA', style: _style(context))),
             Expanded(flex: 2, child: Text('PARCELAS', style: _style(context))),
             Expanded(
-                flex: 2,
-                child: Text('VALOR',
-                    textAlign: TextAlign.right, style: _style(context))),
+              flex: 2,
+              child: Text(
+                showTotal ? 'TOTAL' : 'PARCELA',
+                textAlign: TextAlign.right,
+                style: _style(context),
+              ),
+            ),
           ],
         ),
       );
@@ -599,57 +713,196 @@ class _TableHeader extends StatelessWidget {
       );
 }
 
-class _PurchaseRow extends StatelessWidget {
-  const _PurchaseRow(
-      {required this.card, required this.purchase, required this.hideValues});
+class CardInstallmentPaymentsDialog extends StatefulWidget {
+  const CardInstallmentPaymentsDialog({
+    super.key,
+    required this.purchase,
+    required this.hideValues,
+  });
 
-  final CreditCard card;
   final CardPurchase purchase;
   final bool hideValues;
 
   @override
+  State<CardInstallmentPaymentsDialog> createState() =>
+      _CardInstallmentPaymentsDialogState();
+}
+
+class _CardInstallmentPaymentsDialogState
+    extends State<CardInstallmentPaymentsDialog> {
+  late final Set<int> _paid = {...widget.purchase.paidInstallments};
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        title: const Text('Parcelas pagas'),
+        content: SizedBox(
+          width: 380,
+          height: 420,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(widget.purchase.description),
+              const SizedBox(height: 4),
+              Text(
+                'Marque as parcelas que já foram pagas. Isso atualiza apenas o progresso do cartão.',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  fontSize: 13,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: widget.purchase.installments,
+                  itemBuilder: (context, index) {
+                    final number = index + 1;
+                    final amount = CreditCardRules.installmentAmount(
+                      widget.purchase,
+                      number,
+                    );
+                    return CheckboxListTile(
+                      contentPadding: EdgeInsets.zero,
+                      value: _paid.contains(number),
+                      title: Text(
+                          'Parcela $number/${widget.purchase.installments}'),
+                      subtitle: Text(widget.hideValues
+                          ? '••••••'
+                          : FinancialRules.formatBrl(amount)),
+                      onChanged: (paid) => setState(() {
+                        if (paid == true) {
+                          _paid.add(number);
+                        } else {
+                          _paid.remove(number);
+                        }
+                      }),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, _paid),
+            child: const Text('Salvar'),
+          ),
+        ],
+      );
+}
+
+class _PurchaseRow extends StatelessWidget {
+  const _PurchaseRow({
+    required this.card,
+    required this.purchase,
+    required this.hideValues,
+    required this.onManageInstallments,
+    required this.showTotal,
+  });
+
+  final CreditCard card;
+  final CardPurchase purchase;
+  final bool hideValues;
+  final ValueChanged<CardPurchase> onManageInstallments;
+  final bool showTotal;
+
+  @override
   Widget build(BuildContext context) {
-    final index = CreditCardRules.installmentIndex(card, purchase,
-        CreditCardRules.currentCycleClosingDate(card, DateTime.now()));
-    final installment = CreditCardRules.installmentAmount(purchase, index);
+    final index = CreditCardRules.installmentIndex(
+      card,
+      purchase,
+      CreditCardRules.currentCycleClosingDate(card, DateTime.now()),
+    );
+    final installment = showTotal
+        ? purchase.amountInCents
+        : CreditCardRules.installmentAmount(purchase, index);
+    final progress = CreditCardRules.installmentProgress(purchase);
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 14),
       decoration: BoxDecoration(
-        border:
-            Border(bottom: BorderSide(color: Theme.of(context).dividerColor)),
+        border: Border(
+          bottom: BorderSide(color: Theme.of(context).dividerColor),
+        ),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            flex: 4,
-            child: Row(
+          Row(
+            children: [
+              Expanded(
+                flex: 4,
+                child: Row(
+                  children: [
+                    const IconTile(icon: Icons.shopping_bag_outlined),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        purchase.description,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(flex: 2, child: Text(shortDate(purchase.purchasedOn))),
+              Expanded(
+                flex: 2,
+                child: Text(
+                  purchase.installments == 1
+                      ? 'À vista'
+                      : showTotal
+                          ? '${purchase.installments} parcelas'
+                          : '$index/${purchase.installments}',
+                ),
+              ),
+              Expanded(
+                flex: 2,
+                child: Text(
+                  hideValues ? '••••••' : FinancialRules.formatBrl(installment),
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
+          ),
+          ...[
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: LinearProgressIndicator(
+                value: progress.ratio,
+                minHeight: 7,
+                backgroundColor:
+                    Theme.of(context).colorScheme.surfaceContainerHighest,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 8,
               children: [
-                const IconTile(icon: Icons.shopping_bag_outlined),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    purchase.description,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.w600),
+                Text(
+                  '${progress.paid} pagas · ${progress.remaining} restantes',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
                   ),
+                ),
+                TextButton.icon(
+                  onPressed: () => onManageInstallments(purchase),
+                  icon: const Icon(Icons.checklist_rounded, size: 17),
+                  label: const Text('Gerenciar parcelas'),
                 ),
               ],
             ),
-          ),
-          Expanded(flex: 2, child: Text(shortDate(purchase.purchasedOn))),
-          Expanded(
-              flex: 2,
-              child: Text(purchase.installments == 1
-                  ? 'À vista'
-                  : '$index/${purchase.installments}')),
-          Expanded(
-            flex: 2,
-            child: Text(
-              hideValues ? '••••••' : FinancialRules.formatBrl(installment),
-              textAlign: TextAlign.right,
-              style: const TextStyle(fontWeight: FontWeight.w700),
-            ),
-          ),
+          ],
         ],
       ),
     );
