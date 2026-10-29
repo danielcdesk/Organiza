@@ -1,5 +1,13 @@
 # Estado conhecido como bom
 
+## Linha de base V3 — 29/10/2026
+
+Validação local após a Fase 0: análise sem problemas com lints reforçados, 116 testes Flutter aprovados, cobertura de linhas 67,10% (6.282/9.362) e 2 fluxos de integração Windows aprovados. Sem alteração do schema. CI remoto e Android físico não são considerados aprovados por esses resultados. [Relatório de Fase 0](implementation/RELATORIO_FASE_0.md).
+
+Fonte original 0.9.0+13, schema 16. `flutter pub get` aprovado, `flutter analyze` sem problemas e `flutter test --reporter expanded` com **108 testes aprovados** em Windows usando Flutter 3.47.7/Dart 3.13.5. Esta contagem substitui contagens históricas para a linha de base atual; não declara novos recursos implementados nem novos pacotes publicados.
+
+Execução por fases: [progresso V3](implementation/PROGRESSO_V3.md).
+
 ## Código 0.9.0+13 — atualização 2.1 (14/10/2026)
 
 - Análise estática sem problemas; 95 testes Flutter e 2 fluxos de integração Windows aprovados.

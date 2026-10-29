@@ -1,5 +1,13 @@
 # Matriz de funcionalidades
 
+## Verificação V3 — 29/10/2026
+
+Após a Fase 0: análise limpa, 116 testes aprovados com cobertura de linhas 67,10%, 2 fluxos Windows aprovados. Relógio injetado nas telas e massa determinística de 10 mil/50 mil transações cobertos por testes. CI Windows/Ubuntu e builds manuais configurados; execução remota ainda pendente. [Relatório](implementation/RELATORIO_FASE_0.md).
+
+Linha de base executada em Windows com Flutter 3.47.7: análise sem problemas e 108 testes aprovados, incluindo backup criptografado, restauração, rollback e goldens. As datas da tabela histórica abaixo preservam sua validação original; não indicam nova execução de integração ou instalação física.
+
+Status por fase e limitações: [progresso V3](implementation/PROGRESSO_V3.md). Pagamento real de fatura, backup v2 e demais recursos futuros continuam pendentes até a fase correspondente.
+
 | Funcionalidade | Implementada | Testada | Integração | Regressão | Última validação |
 |---|---:|---:|---:|---:|---|
 | Previsão mensal e agenda de pendências | Sim | Sim | Sim | Sim | 2026-09-17 |
@@ -46,5 +54,5 @@
 | Categorias de metas e orçamento criadas pelo usuário | Sim | Sim | Não | Sim | 2026-09-16 |
 | Pizza interativa de despesas por categoria | Sim | Sim | Sim | Sim | 2026-09-16 |
 | Pagamento e histórico de faturas | Não | Não | Não | Não | — |
-| Backup JSON | Serviço inicial | Não executado | Não | Não | 2026-09-10 |
+| Backup atual criptografado e snapshot | Sim, formato v1 | Sim | Não nesta execução | Sim, autenticação/restauração/rollback | 2026-10-29 |
 | Build Windows | Sim | — | Sim | Sim | 2026-09-14 |

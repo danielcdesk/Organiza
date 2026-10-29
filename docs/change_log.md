@@ -1,5 +1,13 @@
 # Registro de mudanças
 
+## 2026-10-29 — Fundação V3 (Fase 0)
+
+- CI Windows/Ubuntu com cobertura, Dependabot semanal e builds manuais separados; ações fixadas por SHA. Nenhuma publicação automática.
+- Toda a UI usa o relógio do store ou uma data explícita, incluindo o hoje destacado nos seletores. Novas regressões congelam fevereiro de 2024 e preservam goldens existentes.
+- Massa determinística com séries e compras parceladas: 10 mil transações inseridas em memória e referências de 50 mil validadas.
+- Lints reforçados e documentação alinhada ao schema 16 e à validação real.
+- Validação local: análise limpa, 116 testes, cobertura de linhas 67,10% e 2 fluxos integrados Windows. CI remoto e Android físico ainda pendentes. As fases seguintes do V3 não estão concluídas.
+
 ## 2026-10-28 — Ações rápidas e assinaturas
 
 - As ações rápidas “Nova despesa”, “Nova receita” e “Transferir” abrem o formulário no tipo escolhido; transferir pede duas contas cadastradas.

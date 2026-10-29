@@ -4,9 +4,9 @@ Documento preparado para revisão arquitetural, de qualidade e de evolução do 
 
 **Projeto auditado:** Organiza
 
-**Versão declarada:** `0.7.1+10`
+**Versão declarada:** `0.9.0+13`
 
-**Data da leitura:** 28/09/2026
+**Data da atualização:** 29/10/2026
 
 **Diretório:** `C:\Users\comoe\OneDrive\Documentos\ChatGPT\Organiza 2\Organiza`
 
@@ -378,12 +378,12 @@ O fluxo integrado está em `integration_test/first_use_flow_test.dart` e cobre p
 
 ### Lacunas de qualidade para investigar
 
-- O workflow `.github/workflows/ci.yml` valida formatação, análise, testes e builds sem assinatura oficial.
+- O workflow `.github/workflows/ci.yml` executa análise e testes com cobertura em Windows/Ubuntu. As compilações Windows release e Android release sem assinatura de distribuição ficam no workflow manual `build.yml`; não são publicação oficial.
 - Não há teste de instalação Android físico automatizado.
-- Não há golden tests para proteger o visual desktop/mobile.
-- Não há benchmark com o volume-alvo de 10.000 transações e 1.000 tarefas.
+- Há golden tests de dashboard compacto e expandido; sua execução integra a suíte Flutter.
+- O gerador determinístico da Fase 0 produz 10.000/50.000 transações para testes; medições comparativas de desempenho ficam na Fase 3.
 - A cobertura de acessibilidade está baseada em semântica pontual e testes de presença; não há auditoria automatizada de contraste, leitor de tela ou navegação por teclado em todas as telas.
-- A documentação histórica de releases ainda pode citar contagens antigas; o código atual está no schema 16 e a suíte atual contém 100 testes.
+- A documentação histórica de releases ainda pode citar contagens antigas; a linha de base executada em 29/10/2026 usa schema 16 e passou 108 testes; as contagens anteriores são históricas.
 
 ## 12. Build, distribuição e organização de artefatos
 
