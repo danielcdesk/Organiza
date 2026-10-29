@@ -1,0 +1,79 @@
+name: Compilações manuais
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  BUILD_ID: ci-${{ github.run_id }}-${{ github.run_attempt }}
+
+jobs:
+  windows-release:
+    name: Windows release
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version: '3.47.7'
+          channel: stable
+          cache: true
+          pub-cache: true
+      - run: flutter pub get
+      - run: flutter build windows --release --no-pub
+      - name: Preparar pacote Windows
+        shell: pwsh
+        run: ./tooling/package_windows_build.ps1 -BuildId $env:BUILD_ID -WindowsOnly
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: organiza-windows-release-${{ env.BUILD_ID }}
+          path: builds/github/${{ env.BUILD_ID }}/windows/
+          if-no-files-found: error
+          retention-days: 14
+
+  android-release-unsigned:
+    name: Android release sem assinatura (assinar localmente)
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version: '3.47.7'
+          channel: stable
+          cache: true
+          pub-cache: true
+      - run: flutter pub get
+      - run: flutter build apk --release --no-pub
+      - name: Preparar APK release sem assinatura
+        shell: bash
+        run: |
+          apk_source=build/app/outputs/flutter-apk/app-release.apk
+          if [ ! -f "$apk_source" ]; then
+            apk_source=build/app/outputs/apk/release/app-release-unsigned.apk
+          fi
+          if [ ! -f "$apk_source" ]; then
+            echo "APK release sem assinatura não encontrado." >&2
+            exit 1
+          fi
+          for destination in "builds/local/$BUILD_ID/android-release-unsigned" "builds/github/$BUILD_ID/android-release-unsigned"; do
+            mkdir -p "$destination"
+            cp "$apk_source" "$destination/Organiza-Android-release-unsigned.apk"
+          done
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: organiza-android-release-unsigned-${{ env.BUILD_ID }}
+          path: builds/github/${{ env.BUILD_ID }}/android-release-unsigned/
+          if-no-files-found: error
+          retention-days: 14
