@@ -137,10 +137,10 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
           ),
         ),
         const SizedBox(height: 32),
-        Wrap(
+        const Wrap(
           spacing: 10,
           runSpacing: 10,
-          children: const [
+          children: [
             _SetupBenefit(
               icon: Icons.lock_outline_rounded,
               label: '100% offline',

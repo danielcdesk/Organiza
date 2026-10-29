@@ -41,6 +41,7 @@ class _CardsPageState extends State<CardsPage> {
   @override
   Widget build(BuildContext context) {
     final card = _selectedCard;
+    final referenceDate = widget.store.clock.now();
     return ListView(
       padding: pagePadding(context),
       children: [
@@ -144,6 +145,7 @@ class _CardsPageState extends State<CardsPage> {
               );
               final summary = _CardSummary(
                 card: card,
+                referenceDate: referenceDate,
                 purchases: widget.store.cardPurchases,
                 hideValues: widget.hideValues,
               );
@@ -184,6 +186,7 @@ class _CardsPageState extends State<CardsPage> {
           const SizedBox(height: 14),
           _PurchasesPanel(
             card: card,
+            referenceDate: referenceDate,
             purchases: widget.store.cardPurchases,
             hideValues: widget.hideValues,
             onAdd: () => widget.onAddPurchase(card.id),
@@ -453,11 +456,13 @@ class _CardBrandMark extends StatelessWidget {
 class _CardSummary extends StatelessWidget {
   const _CardSummary({
     required this.card,
+    required this.referenceDate,
     required this.purchases,
     required this.hideValues,
   });
 
   final CreditCard card;
+  final DateTime referenceDate;
   final List<CardPurchase> purchases;
   final bool hideValues;
 
@@ -466,7 +471,7 @@ class _CardSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final now = DateTime.now();
+    final now = referenceDate;
     final invoice = CreditCardRules.currentInvoiceTotal(card, purchases, now);
     final available = CreditCardRules.availableLimit(card, purchases, now);
     final ratio = CreditCardRules.usageRatio(card, purchases, now);
@@ -594,6 +599,7 @@ class _InlineMetric extends StatelessWidget {
 class _PurchasesPanel extends StatelessWidget {
   const _PurchasesPanel({
     required this.card,
+    required this.referenceDate,
     required this.purchases,
     required this.hideValues,
     required this.onAdd,
@@ -603,6 +609,7 @@ class _PurchasesPanel extends StatelessWidget {
   });
 
   final CreditCard card;
+  final DateTime referenceDate;
   final List<CardPurchase> purchases;
   final bool hideValues;
   final VoidCallback onAdd;
@@ -615,7 +622,7 @@ class _PurchasesPanel extends StatelessWidget {
     final current = CreditCardRules.currentCyclePurchases(
       card,
       purchases,
-      DateTime.now(),
+      referenceDate,
     ).toList();
     final all = purchases
         .where((purchase) => purchase.cardId == card.id)
@@ -667,6 +674,7 @@ class _PurchasesPanel extends StatelessWidget {
             ...visible.map(
               (purchase) => _PurchaseRow(
                 card: card,
+                referenceDate: referenceDate,
                 purchase: purchase,
                 hideValues: hideValues,
                 onManageInstallments: onManageInstallments,
@@ -798,6 +806,7 @@ class _CardInstallmentPaymentsDialogState
 class _PurchaseRow extends StatelessWidget {
   const _PurchaseRow({
     required this.card,
+    required this.referenceDate,
     required this.purchase,
     required this.hideValues,
     required this.onManageInstallments,
@@ -805,6 +814,7 @@ class _PurchaseRow extends StatelessWidget {
   });
 
   final CreditCard card;
+  final DateTime referenceDate;
   final CardPurchase purchase;
   final bool hideValues;
   final ValueChanged<CardPurchase> onManageInstallments;
@@ -815,7 +825,7 @@ class _PurchaseRow extends StatelessWidget {
     final index = CreditCardRules.installmentIndex(
       card,
       purchase,
-      CreditCardRules.currentCycleClosingDate(card, DateTime.now()),
+      CreditCardRules.currentCycleClosingDate(card, referenceDate),
     );
     final installment = showTotal
         ? purchase.amountInCents

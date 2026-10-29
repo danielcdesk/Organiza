@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -26,11 +27,13 @@ class AccountInput {
 class TransactionEditDialog extends StatefulWidget {
   const TransactionEditDialog({
     super.key,
+    required this.clock,
     required this.item,
     required this.accounts,
     required this.categories,
     required this.subcategories,
   });
+  final Clock clock;
   final TransactionRecord item;
   final List<Account> accounts;
   final List<FinanceCategory> categories;
@@ -291,6 +294,7 @@ class _TransactionEditDialogState extends State<TransactionEditDialog> {
   Future<void> _pickDate() async {
     final selected = await showDatePicker(
       context: context,
+      currentDate: widget.clock.now(),
       initialDate: _occurredOn,
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
@@ -609,6 +613,7 @@ const categorySubcategories = <String, List<String>>{
 class TransactionDialog extends StatefulWidget {
   const TransactionDialog({
     super.key,
+    required this.clock,
     this.initialType = TransactionType.expense,
     required this.accounts,
     required this.categories,
@@ -617,6 +622,7 @@ class TransactionDialog extends StatefulWidget {
     required this.onCreateSubcategory,
   });
 
+  final Clock clock;
   final List<Account> accounts;
   final TransactionType initialType;
   final List<FinanceCategory> categories;
@@ -642,13 +648,14 @@ class _TransactionDialogState extends State<TransactionDialog> {
   late List<FinanceSubcategory> _subcategories;
   late String _category;
   late String _subcategory;
-  var _occurredOn = DateTime.now();
+  late DateTime _occurredOn;
   var _scheduleType = TransactionScheduleType.single;
   String? _error;
 
   @override
   void initState() {
     super.initState();
+    _occurredOn = widget.clock.now();
     _type = widget.initialType;
     _accountId = widget.accounts.first.id;
     _categories = List.of(widget.categories);
@@ -823,15 +830,15 @@ class _TransactionDialogState extends State<TransactionDialog> {
                     decoration:
                         const InputDecoration(labelText: 'Tipo de lançamento'),
                     items: [
-                      DropdownMenuItem(
+                      const DropdownMenuItem(
                           value: TransactionScheduleType.single,
                           child: Text('Único')),
-                      DropdownMenuItem(
+                      const DropdownMenuItem(
                           value: TransactionScheduleType.recurring,
                           child: Text('Recorrente mensal')),
                       if (!(_type == TransactionType.income &&
                           _category.toLowerCase() == 'salário'))
-                        DropdownMenuItem(
+                        const DropdownMenuItem(
                             value: TransactionScheduleType.installment,
                             child: Text('Parcelado')),
                     ],
@@ -994,11 +1001,13 @@ class _TransactionDialogState extends State<TransactionDialog> {
   }
 
   Future<void> _pickDate() async {
+    final now = widget.clock.now();
     final value = await showDatePicker(
       context: context,
+      currentDate: now,
       initialDate: _occurredOn,
       firstDate: DateTime(2000),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
+      lastDate: now.add(const Duration(days: 365)),
     );
     if (value != null && mounted) setState(() => _occurredOn = value);
   }
@@ -1489,7 +1498,8 @@ class InvestmentInput {
 }
 
 class InvestmentDialog extends StatefulWidget {
-  const InvestmentDialog({super.key, this.position});
+  const InvestmentDialog({super.key, required this.clock, this.position});
+  final Clock clock;
 
   final InvestmentPosition? position;
 
@@ -1762,9 +1772,10 @@ class _InvestmentDialogState extends State<InvestmentDialog> {
   }
 
   Future<void> _pickMaturity() async {
-    final now = DateTime.now();
+    final now = widget.clock.now();
     final value = await showDatePicker(
       context: context,
+      currentDate: now,
       initialDate: _maturityDate ?? now.add(const Duration(days: 365)),
       firstDate: now,
       lastDate: DateTime(now.year + 40),
@@ -2054,7 +2065,11 @@ class FinancialGoalInput {
 
 class FinancialGoalDialog extends StatefulWidget {
   const FinancialGoalDialog(
-      {super.key, required this.categories, required this.onCreateCategory});
+      {super.key,
+      required this.clock,
+      required this.categories,
+      required this.onCreateCategory});
+  final Clock clock;
   final List<String> categories;
   final void Function(String name) onCreateCategory;
 
@@ -2184,9 +2199,10 @@ class _FinancialGoalDialogState extends State<FinancialGoalDialog> {
       );
 
   Future<void> _pickDeadline() async {
-    final now = DateTime.now();
+    final now = widget.clock.now();
     final value = await showDatePicker(
       context: context,
+      currentDate: now,
       initialDate: _deadline ?? now.add(const Duration(days: 180)),
       firstDate: now,
       lastDate: DateTime(now.year + 20),

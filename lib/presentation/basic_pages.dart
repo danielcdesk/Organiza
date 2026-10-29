@@ -36,11 +36,22 @@ class _TransactionsPageState extends State<TransactionsPage> {
   TransactionType? _filter;
   var _query = '';
   var _pendingOnly = false;
-  DateTime? _month = DateTime(DateTime.now().year, DateTime.now().month);
+  late DateTime? _month;
   String? _accountId;
   bool _largestFirst = false;
   int _visibleCount = 50;
   final _search = TextEditingController();
+
+  DateTime get _currentMonth {
+    final now = widget.store.clock.now();
+    return DateTime(now.year, now.month);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _month = _currentMonth;
+  }
 
   @override
   void dispose() {
@@ -56,7 +67,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
         _accountId = null;
         _largestFirst = false;
         _visibleCount = 50;
-        _month = DateTime(DateTime.now().year, DateTime.now().month);
+        _month = _currentMonth;
       });
 
   @override
@@ -107,17 +118,19 @@ class _TransactionsPageState extends State<TransactionsPage> {
             accountId: _accountId,
             accounts: widget.store.accounts,
             onPreviousMonth: () => setState(() {
-              final current = _month ?? DateTime.now();
+              final current = _month ?? widget.store.clock.now();
               _month = DateTime(current.year, current.month - 1);
             }),
             onNextMonth: () => setState(() {
-              final current = _month ?? DateTime.now();
+              final current = _month ?? widget.store.clock.now();
               _month = DateTime(current.year, current.month + 1);
             }),
             onChooseMonth: () async {
+              final now = widget.store.clock.now();
               final date = await showDatePicker(
                 context: context,
-                initialDate: _month ?? DateTime.now(),
+                currentDate: now,
+                initialDate: _month ?? now,
                 firstDate: DateTime(2000),
                 lastDate: DateTime(2100, 12, 31),
                 helpText: 'Escolha uma data do mês desejado',
@@ -128,9 +141,8 @@ class _TransactionsPageState extends State<TransactionsPage> {
             },
             onAccountChanged: (value) =>
                 setState(() => _accountId = value == '' ? null : value),
-            onAllPeriodChanged: (value) => setState(() => _month = value
-                ? null
-                : DateTime(DateTime.now().year, DateTime.now().month)),
+            onAllPeriodChanged: (value) =>
+                setState(() => _month = value ? null : _currentMonth),
             onReset: _resetFilters,
           ),
           SizedBox(height: OrganizaDesignTokens.of(context).spaceLg),

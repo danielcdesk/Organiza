@@ -24,6 +24,7 @@ class GoalsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final goals = store.financialGoals;
+    final referenceDate = store.clock.now();
     final saved = goals.fold(0, (sum, item) => sum + item.savedInCents);
     final target = goals.fold(0, (sum, item) => sum + item.targetInCents);
     final completed =
@@ -85,6 +86,7 @@ class GoalsPage extends StatelessWidget {
                           width: width,
                           child: _GoalCard(
                             goal: goal,
+                            referenceDate: referenceDate,
                             hideValues: hideValues,
                             onContribute: () => onContribute(goal),
                             onDelete: () => onDelete(goal.id),
@@ -205,12 +207,14 @@ class _GoalOverview extends StatelessWidget {
 class _GoalCard extends StatelessWidget {
   const _GoalCard({
     required this.goal,
+    required this.referenceDate,
     required this.hideValues,
     required this.onContribute,
     required this.onDelete,
   });
 
   final FinancialGoal goal;
+  final DateTime referenceDate;
   final bool hideValues;
   final VoidCallback onContribute;
   final VoidCallback onDelete;
@@ -222,7 +226,7 @@ class _GoalCard extends StatelessWidget {
     final remaining = goal.targetInCents - goal.savedInCents;
     final done = remaining <= 0;
     final deadline = goal.deadline;
-    final days = deadline?.difference(DateTime.now()).inDays;
+    final days = deadline?.difference(referenceDate).inDays;
     String money(int cents) =>
         hideValues ? '••••••' : FinancialRules.formatBrl(cents);
 

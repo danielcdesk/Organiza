@@ -1,3 +1,4 @@
+import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:organiza/domain/models.dart';
@@ -30,7 +31,10 @@ void main() {
                     onPressed: () async {
                       saved = await showDialog<InvestmentInput>(
                         context: context,
-                        builder: (_) => InvestmentDialog(position: position),
+                        builder: (_) => InvestmentDialog(
+                          clock: Clock.fixed(DateTime(2026, 9, 29, 12)),
+                          position: position,
+                        ),
                       );
                     },
                     child: const Text('Editar'),

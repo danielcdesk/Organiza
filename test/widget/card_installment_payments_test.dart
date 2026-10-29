@@ -14,7 +14,8 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
-    final store = OrganizaStore.inMemory(clock: Clock.fixed(DateTime.now()));
+    final now = DateTime(2026, 9, 29, 12);
+    final store = OrganizaStore.inMemory(clock: Clock.fixed(now));
     addTearDown(store.dispose);
     store.addAccount('Principal', 100000);
     store.addCreditCard(
@@ -37,7 +38,7 @@ void main() {
       CreditCardRules.currentCyclePurchases(
         store.creditCards.single,
         store.cardPurchases,
-        DateTime.now(),
+        now,
       ),
       isNotEmpty,
     );
@@ -90,9 +91,8 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
-    final store = OrganizaStore.inMemory(
-      clock: Clock.fixed(DateTime.now().subtract(const Duration(days: 365))),
-    );
+    var now = DateTime(2025, 9, 29, 12);
+    final store = OrganizaStore.inMemory(clock: Clock(() => now));
     addTearDown(store.dispose);
     store.addCreditCard(
       name: 'Principal',
@@ -109,6 +109,7 @@ void main() {
       amountInCents: 120000,
       installments: 3,
     );
+    now = DateTime(2026, 9, 29, 12);
 
     await tester.pumpWidget(MaterialApp(
       theme: OrganizaTheme.dark(),
