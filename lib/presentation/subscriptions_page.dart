@@ -25,7 +25,7 @@ class SubscriptionsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final active = store.subscriptions.where((item) => item.isActive).toList();
     final total = active.fold(0, (sum, item) => sum + item.amountInCents);
-    final now = DateTime.now();
+    final now = store.clock.now();
     DateTime nextDate(int day) {
       DateTime forMonth(int offset) {
         final month = DateTime(now.year, now.month + offset);

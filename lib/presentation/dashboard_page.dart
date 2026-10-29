@@ -471,7 +471,8 @@ class _PaymentCalendarState extends State<_PaymentCalendar> {
                 .map((day) => Expanded(
                       child: Center(
                         child: Text(day,
-                            style: TextStyle(fontWeight: FontWeight.w700)),
+                            style:
+                                const TextStyle(fontWeight: FontWeight.w700)),
                       ),
                     ))
                 .toList(),

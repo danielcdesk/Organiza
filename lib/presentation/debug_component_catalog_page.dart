@@ -20,7 +20,7 @@ class _DebugComponentCatalogPageState extends State<DebugComponentCatalogPage> {
         body: ListView(
           padding: const EdgeInsets.all(24),
           children: [
-            HeroAmount(
+            const HeroAmount(
               label: 'HeroAmount',
               value: 'R\$ 2.094,00',
               subtitle: 'Depois das contas pendentes',

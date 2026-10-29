@@ -1,3 +1,4 @@
+import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:organiza/application/organiza_store.dart';
@@ -15,6 +16,7 @@ void main() {
     Widget dialog(TransactionType type) => MaterialApp(
           home: Scaffold(
             body: TransactionDialog(
+              clock: Clock.fixed(DateTime(2026, 9, 29, 12)),
               key: ValueKey(type),
               initialType: type,
               accounts: store.accounts,
@@ -52,6 +54,7 @@ void main() {
                       result = await showDialog<TransactionInput>(
                           context: context,
                           builder: (_) => TransactionDialog(
+                              clock: Clock.fixed(DateTime(2026, 9, 29, 12)),
                               accounts: store.accounts,
                               categories: store.financeCategories,
                               subcategories: store.financeSubcategories,

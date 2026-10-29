@@ -29,6 +29,12 @@ O **Organiza** reúne contas, lançamentos, cartões, orçamentos, assinaturas, 
 
 ## ✨ Destaques
 
+### Evolução V3 em execução
+
+A execução segue o [contrato V3](docs/product/ORGANIZA_MEGA_PROMPT_V3.md) por fases. O [registro de progresso](docs/implementation/PROGRESSO_V3.md) separa o que foi implementado, validado localmente e ainda depende de CI/dispositivo. A linha de base de 29/10/2026 passou em `flutter analyze` e nos 108 testes Flutter. Isso não significa que os novos módulos do V3 já estejam disponíveis.
+
+Os pacotes publicados abaixo continuam em 0.7.1; nenhuma alteração no código atualiza automaticamente o aplicativo instalado.
+
 ### Atualização 2.1 — código 0.9.0
 
 - **Renda única:** a distribuição usa o valor do perfil local. Alterar a renda em Configurações atualiza os limites sem criar movimentações.

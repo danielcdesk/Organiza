@@ -150,9 +150,9 @@ class _WelcomePainter extends CustomPainter {
       mark,
     );
     final dots = [
-      (Offset(.12, .12), secondary),
-      (Offset(.86, .27), tertiary),
-      (Offset(.78, .86), primary),
+      (const Offset(.12, .12), secondary),
+      (const Offset(.86, .27), tertiary),
+      (const Offset(.78, .86), primary),
     ];
     for (final dot in dots) {
       canvas.drawCircle(

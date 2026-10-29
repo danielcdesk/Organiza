@@ -31,7 +31,7 @@ class _ReportsPageState extends State<ReportsPage> {
   @override
   void initState() {
     super.initState();
-    final now = DateTime.now();
+    final now = widget.store.clock.now();
     _selectedMonth = DateTime(now.year, now.month);
   }
 

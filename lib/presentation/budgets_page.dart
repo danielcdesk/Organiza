@@ -47,7 +47,7 @@ class BudgetSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final now = DateTime.now();
+    final now = store.clock.now();
     final monthBudgets = store.budgets
         .where((item) => item.year == now.year && item.month == now.month)
         .toList();

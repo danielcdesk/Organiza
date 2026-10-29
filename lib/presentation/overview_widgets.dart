@@ -19,9 +19,13 @@ class CashFlowWorkspace extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final summary = CashFlowSummary(store.transactions, DateTime.now());
-    final evolution =
-        CashFlowChart(transactions: store.transactions, hideValues: hideValues);
+    final referenceDate = store.clock.now();
+    final summary = CashFlowSummary(store.transactions, referenceDate);
+    final evolution = CashFlowChart(
+      transactions: store.transactions,
+      referenceDate: referenceDate,
+      hideValues: hideValues,
+    );
     final agenda = _PendingAgenda(
         store: store,
         summary: summary,
@@ -527,7 +531,7 @@ class _PendingAgenda extends StatelessWidget {
                 ]))
             : Column(
                 children: summary.pending.take(3).map((item) {
-                final now = DateTime.now();
+                final now = store.clock.now();
                 final overdue = item.occurredOn
                     .isBefore(DateTime(now.year, now.month, now.day));
                 final account = store.accounts
@@ -633,8 +637,12 @@ class _PendingAgenda extends StatelessWidget {
 /// No continuous animation is used; reduced motion is respected.
 class CashFlowChart extends StatefulWidget {
   const CashFlowChart(
-      {super.key, required this.transactions, required this.hideValues});
+      {super.key,
+      required this.transactions,
+      required this.referenceDate,
+      required this.hideValues});
   final List<TransactionRecord> transactions;
+  final DateTime referenceDate;
   final bool hideValues;
   @override
   State<CashFlowChart> createState() => _CashFlowChartState();
@@ -645,7 +653,7 @@ class _CashFlowChartState extends State<CashFlowChart> {
 
   @override
   Widget build(BuildContext context) {
-    final now = DateTime.now();
+    final now = widget.referenceDate;
     final months =
         List.generate(6, (i) => DateTime(now.year, now.month - 5 + i));
     final incomes = months
@@ -844,7 +852,7 @@ class BudgetWatch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final now = DateTime.now();
+    final now = store.clock.now();
     final budgets = store.budgets
         .where((b) =>
             b.year == now.year && b.month == now.month && b.limitInCents > 0)

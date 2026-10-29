@@ -704,6 +704,7 @@ class _OrganizaShellState extends State<OrganizaShell> {
     final input = await showDialog<TransactionRecord>(
         context: context,
         builder: (_) => TransactionEditDialog(
+              clock: widget.store.clock,
               item: item,
               accounts: widget.store.accounts,
               categories: widget.store.financeCategories,
@@ -805,6 +806,7 @@ class _OrganizaShellState extends State<OrganizaShell> {
     final value = await showDialog<TransactionInput>(
       context: context,
       builder: (_) => TransactionDialog(
+        clock: widget.store.clock,
         initialType: initialType,
         accounts: widget.store.accounts,
         categories: widget.store.financeCategories,
@@ -933,6 +935,7 @@ class _OrganizaShellState extends State<OrganizaShell> {
     final value = await showDialog<FinancialGoalInput>(
       context: context,
       builder: (_) => FinancialGoalDialog(
+          clock: widget.store.clock,
           categories: widget.store.goalCategories,
           onCreateCategory: widget.store.addGoalCategory),
     );
@@ -1059,7 +1062,10 @@ class _OrganizaShellState extends State<OrganizaShell> {
   Future<void> _showInvestmentDialog([InvestmentPosition? position]) async {
     final value = await showDialog<InvestmentInput>(
       context: context,
-      builder: (_) => InvestmentDialog(position: position),
+      builder: (_) => InvestmentDialog(
+        clock: widget.store.clock,
+        position: position,
+      ),
     );
     if (value == null || !mounted) return;
     try {
@@ -1415,8 +1421,8 @@ class _Sidebar extends StatelessWidget {
                       onTap: () => onSelect(9),
                       borderRadius: BorderRadius.circular(13),
                       child: Padding(
-                        padding:
-                            EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 7),
                         child: Row(
                           children: [
                             CircleAvatar(
@@ -1434,7 +1440,7 @@ class _Sidebar extends StatelessWidget {
                                       size: 16, color: sidebarText)
                                   : null,
                             ),
-                            SizedBox(width: 9),
+                            const SizedBox(width: 9),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1447,7 +1453,7 @@ class _Sidebar extends StatelessWidget {
                                           color: sidebarText,
                                           fontSize: 12,
                                           fontWeight: FontWeight.w700)),
-                                  SizedBox(height: 2),
+                                  const SizedBox(height: 2),
                                   Text('Somente neste dispositivo',
                                       style: TextStyle(
                                           color: sidebarMuted, fontSize: 10.5)),

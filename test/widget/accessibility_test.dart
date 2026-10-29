@@ -112,7 +112,11 @@ void main() {
     await tester.pumpWidget(MaterialApp(
       theme: OrganizaTheme.light(),
       home: Scaffold(
-        body: CashFlowChart(transactions: const [], hideValues: false),
+        body: CashFlowChart(
+          transactions: const [],
+          referenceDate: DateTime(2026, 9, 29, 12),
+          hideValues: false,
+        ),
       ),
     ));
     await tester.pumpAndSettle();

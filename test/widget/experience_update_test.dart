@@ -1,3 +1,4 @@
+import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:organiza/application/organiza_store.dart';
@@ -42,6 +43,7 @@ void main() {
                       result = await showDialog<TransactionRecord>(
                           context: context,
                           builder: (_) => TransactionEditDialog(
+                              clock: Clock.fixed(now),
                               item: item,
                               accounts: [account],
                               categories: [category],
