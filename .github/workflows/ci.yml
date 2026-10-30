@@ -72,4 +72,4 @@ jobs:
       - name: Resolver dependências
         run: flutter pub get
       - name: Compilar APK release
-        run: flutter build apk --release --no-pub
+        run: flutter build apk --release
