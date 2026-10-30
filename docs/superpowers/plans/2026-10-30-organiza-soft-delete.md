@@ -74,10 +74,10 @@ The selected approach follows the existing app structure. `deleted_at` is set as
 
 **Interfaces:** Existing migration fixture helpers for opening v1 and v18 stores.
 
-- [ ] **Step 1: Add failing v18 migration tests** that assert all ten tables gain both columns, `updated_at` is backfilled from each row's `created_at`, `deleted_at` is null, counts and account balances are unchanged, and foreign keys remain valid.
-- [ ] **Step 2: Run only the new v18 test** and confirm it fails because schema 19 columns are absent.
-- [ ] **Step 3: Add a failing v1-to-current assertion** proving the full sequential migration reaches 19 and preserves the seed account/transaction values.
-- [ ] **Step 4: Run the focused v1 test** and confirm the expected schema-version failure.
+- [x] **Step 1: Add failing v18 migration tests** that assert all ten tables gain both columns, `updated_at` is backfilled from each row's `created_at`, `deleted_at` is null, counts and account balances are unchanged, and foreign keys remain valid.
+- [x] **Step 2: Run only the new v18 test** and confirm it fails because schema 19 columns are absent (`Expected 19, got 18`).
+- [x] **Step 3: Add a failing v1-to-current assertion** proving the full sequential migration reaches 19 and preserves the seed account/transaction values.
+- [x] **Step 4: Run the focused v1 test** and confirm the expected schema-version failure (`Expected 19, got 18`).
 
 ### Task 2: Implement schema 19 and timestamp triggers
 
@@ -88,12 +88,12 @@ The selected approach follows the existing app structure. `deleted_at` is set as
 
 **Interfaces:** `AppDatabase.currentSchemaVersion` becomes 19; add a private migration helper for the ten named tables.
 
-- [ ] **Step 1: Bump schema version** to 19 and add the v18→v19 migration in the guarded migration sequence.
-- [ ] **Step 2: Add the migration** to add both fields to every named table, backfill `updated_at` from `created_at`, and create `IF NOT EXISTS` triggers that initialize new rows from `created_at` and advance `updated_at` on updates. Keep migration safe to retry and execute inside the existing transaction.
-- [ ] **Step 3: Update integrity validation** to allow only the exact ten known audit triggers at schema 19, continue rejecting views and unknown triggers, and have `_emptyAtVersion(19)` generate the same allowed trigger set.
-- [ ] **Step 4: Test trigger behavior and schema validation**: new row has a nonempty audit timestamp, modifying a seeded row advances it, logical delete preserves/sets the expected fields, reopening schema 19 does not alter counts or create duplicate triggers, and an unknown trigger still fails validation.
-- [ ] **Step 5: Run migration tests from v1 and v18** and verify schema 19, exact row counts/balances, integrity check, and foreign-key check.
-- [ ] **Step 6: Update the technical dossier** with schema 19 tables, trigger behavior, and backup retention semantics.
+- [x] **Step 1: Bump schema version** to 19 and add the v18→v19 migration in the guarded migration sequence.
+- [x] **Step 2: Add the migration** to add both fields to every named table, backfill `updated_at` from `created_at`, and create `IF NOT EXISTS` triggers that initialize new rows from `created_at` and advance `updated_at` on updates. Keep migration safe to retry and execute inside the existing transaction.
+- [x] **Step 3: Update integrity validation** to allow only the exact ten known audit triggers at schema 19, continue rejecting views and unknown triggers, and have `_emptyAtVersion(19)` generate the same allowed trigger set.
+- [x] **Step 4: Test trigger behavior and schema validation**: new row has a nonempty audit timestamp, modifying a seeded row advances it, logical delete preserves/sets the expected fields, reopening schema 19 does not alter counts or create duplicate triggers, and an unknown trigger still fails validation.
+- [x] **Step 5: Run migration tests from v1 and v18** and verify schema 19, exact row counts/balances, integrity check, and foreign-key check.
+- [x] **Step 6: Update the technical dossier** with schema 19 tables, trigger behavior, and backup retention semantics.
 - [ ] **Step 7: Commit** `Adicione auditoria e tombstones no schema 19`.
 
 ### Task 3: Filter normal reads and retain tombstones in backups

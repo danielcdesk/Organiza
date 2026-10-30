@@ -15,7 +15,41 @@ class AppDatabase {
   int _transactionDepth = 0;
   final String? filePath;
   static int get currentSchemaVersion => _schemaVersion;
-  static const _schemaVersion = 18;
+  static const _schemaVersion = 19;
+  static const _auditTables = <String>[
+    'transactions',
+    'accounts',
+    'credit_cards',
+    'card_purchases',
+    'investments',
+    'budgets',
+    'subscriptions',
+    'financial_goals',
+    'shopping_items',
+    'tasks',
+  ];
+  static const _auditTriggerNames = <String>{
+    'audit_transactions_insert',
+    'audit_transactions_update',
+    'audit_accounts_insert',
+    'audit_accounts_update',
+    'audit_credit_cards_insert',
+    'audit_credit_cards_update',
+    'audit_card_purchases_insert',
+    'audit_card_purchases_update',
+    'audit_investments_insert',
+    'audit_investments_update',
+    'audit_budgets_insert',
+    'audit_budgets_update',
+    'audit_subscriptions_insert',
+    'audit_subscriptions_update',
+    'audit_financial_goals_insert',
+    'audit_financial_goals_update',
+    'audit_shopping_items_insert',
+    'audit_shopping_items_update',
+    'audit_tasks_insert',
+    'audit_tasks_update',
+  };
   static const _backupTables = <String>[
     'accounts',
     'transactions',
@@ -195,8 +229,14 @@ class AppDatabase {
     final objects = _database.select(
       "SELECT type, name FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'",
     );
-    if (objects
-        .any((row) => row['type'] == 'trigger' || row['type'] == 'view')) {
+    final expectedTriggers = version >= 19 ? _auditTriggerNames : <String>{};
+    final actualTriggers = objects
+        .where((row) => row['type'] == 'trigger')
+        .map((row) => row['name'] as String)
+        .toSet();
+    if (objects.any((row) => row['type'] == 'view') ||
+        actualTriggers.any((name) => !expectedTriggers.contains(name)) ||
+        actualTriggers.length != expectedTriggers.length) {
       throw const FormatException('O banco contém objetos não reconhecidos.');
     }
     final expectedTables = _tablesForVersion(version).toSet();
@@ -760,6 +800,37 @@ class AppDatabase {
       }
       _database.execute('PRAGMA user_version = 18');
     }
+    if (current < 19 && target >= 19) {
+      for (final table in _auditTables) {
+        _addColumnIfMissing(table, 'updated_at', "TEXT NOT NULL DEFAULT ''");
+        _addColumnIfMissing(table, 'deleted_at', 'TEXT');
+        _database.execute('''
+          UPDATE "$table"
+          SET updated_at = created_at
+          WHERE updated_at IS NULL OR updated_at = ''
+        ''');
+        _database.execute('''
+          CREATE TRIGGER IF NOT EXISTS "audit_${table}_insert"
+          AFTER INSERT ON "$table"
+          WHEN NEW.updated_at = ''
+          BEGIN
+            UPDATE "$table" SET updated_at = NEW.created_at
+            WHERE rowid = NEW.rowid;
+          END
+        ''');
+        _database.execute('''
+          CREATE TRIGGER IF NOT EXISTS "audit_${table}_update"
+          AFTER UPDATE ON "$table"
+          WHEN NEW.updated_at = OLD.updated_at
+          BEGIN
+            UPDATE "$table"
+            SET updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+            WHERE rowid = NEW.rowid;
+          END
+        ''');
+      }
+      _database.execute('PRAGMA user_version = 19');
+    }
   }
 
   void _addColumnIfMissing(String table, String column, String definition) {
@@ -884,6 +955,7 @@ class AppDatabase {
 
   static void _configure(Database database, {required bool persistent}) {
     database.execute('PRAGMA foreign_keys = ON');
+    database.execute('PRAGMA recursive_triggers = OFF');
     database.execute('PRAGMA busy_timeout = 5000');
     database.execute('PRAGMA synchronous = NORMAL');
     if (persistent) database.execute('PRAGMA journal_mode = WAL');

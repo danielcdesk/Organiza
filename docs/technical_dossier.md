@@ -6,7 +6,7 @@ Documento preparado para revisão arquitetural, de qualidade e de evolução do 
 
 **Versão declarada:** `0.9.0+13`
 
-**Data da atualização:** 29/10/2026
+**Data da atualização:** 30/10/2026
 
 **Diretório:** `C:\Users\comoe\OneDrive\Documentos\ChatGPT\Organiza 2\Organiza`
 
@@ -533,6 +533,12 @@ A migração 16→17 adiciona FKs opcionais para categoria e subcategoria em lan
 
 Um arquivo `organiza.db.pre-v17.bak` é produzido e validado antes de migrar. Testes partem de schemas 1 e 16, validam `integrity_check`, `foreign_key_check`, reabertura idempotente, contagens e saldo inalterado. A restauração de snapshots passou a diferir as FKs dentro da transação de importação e verificá-las antes do commit, pois a ordem histórica das tabelas no snapshot não é uma ordem de dependência.
 
-## 19. Schema 18 — faturas do cartão (Fase 2.2 local; PR/CI pendentes)
+## 19. Schema 18 — faturas do cartão (Fase 2.2; CI verde no PR #5)
 
 A migração 17→18 cria `card_invoices` e `card_invoice_payments`, adiciona FKs opcionais de categoria e subcategoria às compras e associa compras históricas à categoria de despesa `Outros/Geral`. A cópia validada `organiza.db.pre-v18.bak` precede a transação de migração. Pagamentos reais são atômicos, estornáveis e excluídos de categorias/orçamentos, mas incluídos nas saídas de caixa. Marcações manuais antigas não alteram saldo de conta nem geram débito; são excluídas do valor confirmado a pagar e exibidas como valores que precisam de conferência. A projeção distingue essas marcas e avisa que o saldo deve ser conferido.
+
+## 20. Schema 19 — auditoria e exclusão lógica (Fase 2.3)
+
+A migração 18→19 adiciona `updated_at TEXT NOT NULL` e `deleted_at TEXT NULL` a `transactions`, `accounts`, `credit_cards`, `card_purchases`, `investments`, `budgets`, `subscriptions`, `financial_goals`, `shopping_items` e `tasks`. Linhas existentes recebem `updated_at = created_at` e `deleted_at = NULL`. Triggers SQLite inicializam `updated_at` de linhas novas com `created_at` e atualizam o carimbo em alterações; `AppDatabase.validateIntegrity` permite somente os 20 triggers conhecidos da auditoria e segue rejeitando triggers desconhecidos e views.
+
+Leituras normais das dez entidades excluem `deleted_at IS NOT NULL`; snapshots e restauração mantêm os tombstones para não perder histórico. O backup automático pré-migração é `organiza.db.pre-v19.bak`. A exclusão definitiva e a política de retenção não fazem parte desta migração.
