@@ -1,6 +1,6 @@
 # Relatório da Fase 2.2 — Faturas e pagamentos de cartão
 
-Data: 2026-10-30. Estado: implementação concluída localmente; PR e CI ainda pendentes. O build Android local não foi executado porque este ambiente não tem Android SDK.
+Data: 2026-10-30. Estado: implementação concluída localmente; PR aberto e CI em andamento. O build Android local não foi executado porque este ambiente não tem Android SDK.
 
 ## 1. Resumo
 
@@ -23,11 +23,11 @@ Schema 17 → 18 preserva compras e marcações manuais antigas de parcelas; cat
 - Testes focados de pagamento/estorno pela UI, limite liberado, marcações antigas, rollback transacional, projeção, categorias, CSV e resumos de caixa: aprovados.
 - `git diff --check`: sem erros de whitespace.
 - Revisão independente: quatro achados importantes corrigidos com testes; uma lacuna menor de injeção de falha durante a transação continua documentada.
-- PR draft e CI do GitHub: pendentes.
+- PR draft aberto; CI do GitHub em andamento. O workflow de PR agora inclui um build Android release sem assinatura, além de análise e testes Windows/Ubuntu.
 
 ## 5. Não validado
 
-Compilação Android local e execução em dispositivo/emulador. Compilação Android no CI será verificada no PR. Não foi validada migração com bancos reais de usuários.
+Execução Android em dispositivo/emulador. O build Android release no CI e os jobs de qualidade do PR ainda aguardam conclusão. Não foi validada migração com bancos reais de usuários.
 
 ## 6. Riscos e pendências
 
@@ -39,4 +39,4 @@ Competência da compra: data da compra; caixa: parcelas por vencimento. Pagament
 
 ## 8. Próxima fase e perguntas
 
-Criar/atualizar PR draft da Fase 2.2 sobre a Fase 2.1 e verificar CI Windows/Ubuntu/Android. Não há decisão pendente do usuário para este escopo.
+Atualizar PR draft da Fase 2.2 sobre a Fase 2.1 e verificar CI Windows/Ubuntu/Android. Não há decisão pendente do usuário para este escopo.

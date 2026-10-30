@@ -50,3 +50,26 @@ jobs:
           path: coverage/lcov.info
           if-no-files-found: error
           retention-days: 14
+
+  android-release-build:
+    name: Build APK Android (release sem assinatura)
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version: '3.47.7'
+          channel: stable
+          cache: true
+          pub-cache: true
+      - name: Resolver dependências
+        run: flutter pub get
+      - name: Compilar APK release
+        run: flutter build apk --release --no-pub
