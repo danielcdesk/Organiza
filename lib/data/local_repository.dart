@@ -133,6 +133,10 @@ class LocalRepository {
       _database.insertFinancialGoal(item);
   void insertFinanceCategory(FinanceCategory item) =>
       _database.insertFinanceCategory(item);
+  void renameFinanceCategory(String id, String newName) =>
+      _database.renameFinanceCategory(id, newName);
+  void archiveFinanceCategory(String id, {DateTime? at}) =>
+      _database.archiveFinanceCategory(id, at: at);
   void insertFinanceSubcategory(FinanceSubcategory item) =>
       _database.insertFinanceSubcategory(item);
   void setTransactionSettled(String id, bool value) =>

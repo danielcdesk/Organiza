@@ -54,6 +54,8 @@ class TransactionRecord {
     this.destinationAccountId,
     this.category = 'Outros',
     this.subcategory = 'Geral',
+    this.categoryId,
+    this.subcategoryId,
     this.scheduleType = TransactionScheduleType.single,
     this.seriesId,
     this.installmentNumber = 1,
@@ -71,6 +73,8 @@ class TransactionRecord {
   final DateTime createdAt;
   final String category;
   final String subcategory;
+  final String? categoryId;
+  final String? subcategoryId;
   final TransactionScheduleType scheduleType;
   final String? seriesId;
   final int installmentNumber;
@@ -290,10 +294,12 @@ class Budget {
     required this.year,
     required this.month,
     required this.createdAt,
+    this.categoryId,
   });
 
   final String id;
   final String category;
+  final String? categoryId;
   final int limitInCents;
   final int year;
   final int month;
@@ -309,6 +315,7 @@ class Subscription {
     required this.category,
     required this.createdAt,
     this.isActive = true,
+    this.categoryId,
   });
 
   final String id;
@@ -316,6 +323,7 @@ class Subscription {
   final int amountInCents;
   final int billingDay;
   final String category;
+  final String? categoryId;
   final DateTime createdAt;
   final bool isActive;
 }

@@ -1534,6 +1534,9 @@ class SettingsPage extends StatelessWidget {
       required this.onEditProfile,
       required this.onExportBackup,
       required this.onRestoreBackup,
+      this.financeCategories = const [],
+      this.onRenameFinanceCategory,
+      this.onArchiveFinanceCategory,
       this.automaticBackupEnabled = false,
       this.lastBackupAt,
       this.backupError,
@@ -1555,6 +1558,9 @@ class SettingsPage extends StatelessWidget {
   final VoidCallback onEditProfile;
   final Future<void> Function() onExportBackup;
   final Future<void> Function() onRestoreBackup;
+  final List<FinanceCategory> financeCategories;
+  final void Function(String id, String newName)? onRenameFinanceCategory;
+  final void Function(String id)? onArchiveFinanceCategory;
   final bool automaticBackupEnabled;
   final String? lastBackupAt;
   final String? backupError;
@@ -1766,6 +1772,39 @@ class SettingsPage extends StatelessWidget {
               const SizedBox(height: 14),
             ],
             Panel(
+              title: 'Categorias financeiras',
+              subtitle: 'Renomeie ou arquive categorias criadas por você.',
+              child: Column(children: [
+                for (final category
+                    in financeCategories.where((item) => !item.isSystem))
+                  ListTile(
+                    title: Text(category.name),
+                    subtitle: Text(category.type == TransactionType.income
+                        ? 'Receita'
+                        : 'Despesa'),
+                    trailing: Wrap(spacing: 4, children: [
+                      IconButton(
+                        tooltip: 'Renomear ${category.name}',
+                        onPressed: onRenameFinanceCategory == null
+                            ? null
+                            : () => _renameCategory(context, category),
+                        icon: const Icon(Icons.edit_outlined),
+                      ),
+                      IconButton(
+                        tooltip: 'Arquivar ${category.name}',
+                        onPressed: onArchiveFinanceCategory == null
+                            ? null
+                            : () => _archiveCategory(context, category),
+                        icon: const Icon(Icons.archive_outlined),
+                      ),
+                    ]),
+                  ),
+                if (!financeCategories.any((item) => !item.isSystem))
+                  const Text('Nenhuma categoria personalizada.'),
+              ]),
+            ),
+            const SizedBox(height: 14),
+            Panel(
               title: 'Backup local',
               subtitle:
                   'Crie um arquivo protegido por senha para recuperar seus dados em outro dispositivo. A senha não pode ser recuperada.',
@@ -1824,6 +1863,69 @@ class SettingsPage extends StatelessWidget {
           ],
         ),
       );
+
+  Future<void> _renameCategory(
+      BuildContext context, FinanceCategory category) async {
+    var enteredName = category.name;
+    final next = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Renomear categoria'),
+        content: TextFormField(
+          initialValue: category.name,
+          onChanged: (value) => enteredName = value,
+          autofocus: true,
+          decoration: const InputDecoration(labelText: 'Novo nome'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, enteredName),
+            child: const Text('Salvar'),
+          ),
+        ],
+      ),
+    );
+    if (next == null || !context.mounted) return;
+    try {
+      onRenameFinanceCategory?.call(category.id, next);
+    } on Object catch (error) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('$error')));
+    }
+  }
+
+  Future<void> _archiveCategory(
+      BuildContext context, FinanceCategory category) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Arquivar ${category.name}?'),
+        content: const Text(
+            'A categoria sairá dos novos lançamentos. O histórico será preservado.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Arquivar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    try {
+      onArchiveFinanceCategory?.call(category.id);
+    } on Object catch (error) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('$error')));
+    }
+  }
 
   Widget _themeButton(IconData icon, String label, ThemeMode mode) =>
       OutlinedButton.icon(

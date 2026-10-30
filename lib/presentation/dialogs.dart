@@ -1832,7 +1832,7 @@ class _SubscriptionDialogState extends State<SubscriptionDialog> {
   void initState() {
     super.initState();
     final item = widget.subscription;
-    _category = item != null && widget.categories.contains(item.category)
+    _category = item != null
         ? item.category
         : widget.categories.contains('Lazer')
             ? 'Lazer'
@@ -1886,10 +1886,19 @@ class _SubscriptionDialogState extends State<SubscriptionDialog> {
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
                 initialValue: _category,
+                isExpanded: true,
                 decoration: const InputDecoration(labelText: 'Categoria'),
-                items: widget.categories
-                    .map((value) =>
-                        DropdownMenuItem(value: value, child: Text(value)))
+                items: <String>{
+                  ...widget.categories,
+                  if (widget.subscription != null)
+                    widget.subscription!.category,
+                }
+                    .map((value) => DropdownMenuItem(
+                        value: value,
+                        child: Text(value == widget.subscription?.category &&
+                                !widget.categories.contains(value)
+                            ? '$value (arquivada)'
+                            : value)))
                     .toList(),
                 onChanged: (value) => setState(() => _category = value!)),
             _DialogError(_error),

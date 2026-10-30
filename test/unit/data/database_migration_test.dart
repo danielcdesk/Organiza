@@ -69,7 +69,7 @@ void main() {
       createdAt: now,
     ));
 
-    expect(database.schemaVersion, 16);
+    expect(database.schemaVersion, AppDatabase.currentSchemaVersion);
     expect(database.loadAccounts().single.name, 'Principal');
     expect(
         database.loadAccounts().single.institution, AccountInstitution.generic);
@@ -121,7 +121,7 @@ void main() {
     final database = AppDatabase.openInMemoryFromVersion15ForTest();
     addTearDown(database.close);
 
-    expect(database.schemaVersion, 16);
+    expect(database.schemaVersion, AppDatabase.currentSchemaVersion);
     expect(database.loadCardPurchases().single.description, 'Notebook');
     expect(database.loadCardPurchases().single.paidInstallments, isEmpty);
     database.setCardPurchaseInstallmentsPaid(

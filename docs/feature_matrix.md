@@ -34,6 +34,8 @@ Status por fase e limitações: [progresso V3](implementation/PROGRESSO_V3.md). 
 | Orçamentos mensais por categoria | Sim | Sim | Sim | Sim | 2026-09-11 |
 | Assinaturas recorrentes | Sim | Sim | Sim | Sim | 2026-09-11 |
 | Categorias e subcategorias personalizadas | Sim | Sim | Sim | Sim | 2026-09-14 |
+| Categorias vinculadas por ID, renomeação e arquivo (schema 17) | Sim, local | Sim, 161 testes na suíte | Interface Windows; Android pendente | Sim, v1/v16→v17 | 2026-10-30 |
+| Categorias próprias de metas com FK | Sim, local | Sim | Não | Sim | 2026-10-30 |
 | Lançamento único, recorrente e parcelado | Sim | Sim | Sim | Sim | 2026-09-14 |
 | Estado pago/pendente | Sim | Sim | Sim | Sim | 2026-09-14 |
 | Planejamento de salário | Sim | Sim | Sim | Sim | 2026-09-11 |

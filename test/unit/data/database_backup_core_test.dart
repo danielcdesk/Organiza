@@ -16,7 +16,7 @@ void main() {
 
     database.restoreSnapshot(_versionOneSnapshot());
 
-    expect(database.schemaVersion, 16);
+    expect(database.schemaVersion, AppDatabase.currentSchemaVersion);
     expect(database.loadAccounts().single.name, 'Conta histórica');
     expect(database.loadTransactions().single.description, 'Mercado histórico');
     expect(database.loadTransactions().single.category, 'Outros');
@@ -61,7 +61,7 @@ void main() {
     expect(copied.loadPreference('theme'), 'light');
     expect(_balance(copied), 88000);
     expect(copied.filePath, destination.absolute.path);
-    expect(AppDatabase.currentSchemaVersion, 16);
+    expect(AppDatabase.currentSchemaVersion, 17);
     await expectLater(
       database.createConsistentCopy(file),
       throwsArgumentError,
@@ -77,7 +77,7 @@ void main() {
     source.close();
 
     var database = AppDatabase.openFile(file);
-    expect(database.schemaVersion, 16);
+    expect(database.schemaVersion, AppDatabase.currentSchemaVersion);
     expect(_balance(database), 88000);
     expect(database.loadTasks().single.title, 'Tarefa histórica');
     database.validateIntegrity();
@@ -85,7 +85,7 @@ void main() {
     database.close();
 
     final beforeMigration = AppDatabase.openFile(
-      File('${file.path}.pre-v16.bak'),
+      File('${file.path}.pre-v${AppDatabase.currentSchemaVersion}.bak'),
       migrate: false,
     );
     expect(beforeMigration.schemaVersion, 1);
@@ -129,7 +129,7 @@ void main() {
     final database = AppDatabase.openFile(file);
     addTearDown(database.close);
     database.validateIntegrity();
-    expect(database.schemaVersion, 16);
+    expect(database.schemaVersion, AppDatabase.currentSchemaVersion);
     expect(_balance(database), 88000);
     expect(database.loadCardPurchases().single.amountInCents, 10001);
     expect(database.loadCardPurchases().single.paidInstallments, isEmpty);
@@ -169,7 +169,10 @@ void main() {
     addTearDown(database.close);
     database.validateIntegrity();
     expect(_balance(database), 88000);
-    expect(File('${file.path}.pre-v16.bak').existsSync(), isTrue);
+    expect(
+        File('${file.path}.pre-v${AppDatabase.currentSchemaVersion}.bak')
+            .existsSync(),
+        isTrue);
   });
 
   test('retenção mantém três cópias somente após migração íntegra', () async {
@@ -191,7 +194,10 @@ void main() {
           .where((entry) => entry.path.endsWith('.bak')),
       hasLength(3),
     );
-    expect(File('${file.path}.pre-v16.bak').existsSync(), isTrue);
+    expect(
+        File('${file.path}.pre-v${AppDatabase.currentSchemaVersion}.bak')
+            .existsSync(),
+        isTrue);
     expect(File('${file.path}.pre-v1.bak').existsSync(), isFalse);
   });
 
