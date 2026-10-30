@@ -353,13 +353,17 @@ class OrganizaStore extends ChangeNotifier {
       final card =
           creditCards.where((item) => item.id == invoice.cardId).firstOrNull;
       if (card == null) continue;
-      final total = CardInvoiceRules.totalInCents(
-          card, cardPurchases, invoice.referenceYear, invoice.referenceMonth);
       final paid = cardInvoicePayments
           .where((item) => item.invoiceId == invoice.id)
           .fold<int>(0, (sum, item) => sum + item.amountInCents);
-      final next =
-          CardInvoiceRules.status(total, paid, _now, invoice.closingOn);
+      final next = CardInvoiceRules.statusForPeriod(
+        card,
+        cardPurchases,
+        invoice.referenceYear,
+        invoice.referenceMonth,
+        actualPaymentsInCents: paid,
+        today: _now,
+      );
       if (next == invoice.status) continue;
       _repository.updateCardInvoiceStatus(invoice.id, next, _now);
       changed = true;
@@ -1055,13 +1059,25 @@ class OrganizaStore extends ChangeNotifier {
     final paid = cardInvoicePayments
         .where((item) => item.invoiceId == invoiceId)
         .fold<int>(0, (sum, item) => sum + item.amountInCents);
-    final remaining = CardInvoiceRules.remainingInCents(total, paid);
+    final remaining = CardInvoiceRules.remainingForPeriod(
+      card,
+      cardPurchases,
+      referenceYear,
+      referenceMonth,
+      actualPaymentsInCents: paid,
+    );
     if (amountInCents > remaining) {
       throw ArgumentError('Pagamento acima do saldo da fatura.');
     }
     final now = _now;
-    final nextStatus = CardInvoiceRules.status(
-        total, paid + amountInCents, now, cycle.closingOn);
+    final nextStatus = CardInvoiceRules.statusForPeriod(
+      card,
+      cardPurchases,
+      referenceYear,
+      referenceMonth,
+      actualPaymentsInCents: paid + amountInCents,
+      today: now,
+    );
     _repository.transaction(() {
       if (existing == null) {
         _repository.insertCardInvoice(CardInvoice(
@@ -1071,7 +1087,14 @@ class OrganizaStore extends ChangeNotifier {
           referenceMonth: referenceMonth,
           closingOn: cycle.closingOn,
           dueOn: cycle.dueOn,
-          status: CardInvoiceRules.status(total, 0, now, cycle.closingOn),
+          status: CardInvoiceRules.statusForPeriod(
+            card,
+            cardPurchases,
+            referenceYear,
+            referenceMonth,
+            actualPaymentsInCents: 0,
+            today: now,
+          ),
           createdAt: now,
           updatedAt: now,
         ));
@@ -1119,14 +1142,18 @@ class OrganizaStore extends ChangeNotifier {
       throw StateError('Lançamento do pagamento inválido.');
     }
     final card = creditCards.where((item) => item.id == invoice.cardId).first;
-    final total = CardInvoiceRules.totalInCents(
-        card, cardPurchases, invoice.referenceYear, invoice.referenceMonth);
     final paidAfter = cardInvoicePayments
         .where((item) => item.invoiceId == invoice.id && item.id != paymentId)
         .fold<int>(0, (sum, item) => sum + item.amountInCents);
     final now = _now;
-    final nextStatus =
-        CardInvoiceRules.status(total, paidAfter, now, invoice.closingOn);
+    final nextStatus = CardInvoiceRules.statusForPeriod(
+      card,
+      cardPurchases,
+      invoice.referenceYear,
+      invoice.referenceMonth,
+      actualPaymentsInCents: paidAfter,
+      today: now,
+    );
     _repository.transaction(() {
       _repository.deleteCardInvoicePayment(paymentId);
       _repository.deleteTransaction(payment.transactionId!);

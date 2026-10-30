@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 
 import '../application/organiza_store.dart';
 import '../domain/cash_flow_summary.dart';
+import '../domain/card_invoice_rules.dart';
 import '../domain/credit_card_rules.dart';
 import '../domain/financial_rules.dart';
 import '../domain/models.dart';
 import 'organiza_theme.dart';
 import 'shared_widgets.dart';
+import 'overview_widgets.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({
@@ -66,10 +68,12 @@ class _DashboardPageState extends State<DashboardPage> {
             TransactionType.income,
           );
           final monthExpense = FinancialRules.monthTotal(
-            monthTransactions,
-            _month,
-            TransactionType.expense,
-          );
+                monthTransactions,
+                _month,
+                TransactionType.expense,
+              ) +
+              FinancialRules.cardPurchaseTotal(
+                  widget.store.cardPurchases, _month);
           final expenses = _recentTransactions(
             monthTransactions,
             TransactionType.expense,
@@ -224,6 +228,8 @@ class _DashboardPageState extends State<DashboardPage> {
         onOpenBudgets: widget.onOpenBudgets ?? widget.onOpenReports,
       ),
       SizedBox(height: tokens.spaceXl),
+      BalanceProjectionCard(store: widget.store, hideValues: widget.hideValues),
+      SizedBox(height: tokens.spaceXl),
       _RecentSection(
         title: 'Últimas despesas',
         items: expenses,
@@ -361,6 +367,8 @@ class _DashboardPageState extends State<DashboardPage> {
       ),
       SizedBox(height: tokens.spaceXl),
       _DesktopQuickActions(actions: _quickActions()),
+      SizedBox(height: tokens.spaceXl),
+      BalanceProjectionCard(store: widget.store, hideValues: widget.hideValues),
       if (_showTip) ...[
         SizedBox(height: tokens.spaceXl),
         _Tip(
@@ -906,7 +914,7 @@ class _MonthlySnapshot extends StatelessWidget {
       _SnapshotMetricData(
         icon: Icons.north_east_rounded,
         label: 'Saídas',
-        context: 'pagas no mês',
+        context: 'registradas no mês',
         value:
             hideValues ? '••••••' : FinancialRules.formatBrl(-expenseInCents),
         color: Theme.of(context).colorScheme.error,
@@ -916,7 +924,7 @@ class _MonthlySnapshot extends StatelessWidget {
             ? Icons.trending_up_rounded
             : Icons.trending_down_rounded,
         label: 'Resultado',
-        context: 'entradas menos saídas',
+        context: 'entradas menos saídas registradas',
         value: hideValues
             ? '••••••'
             : FinancialRules.formatBrl(result, signed: true),
@@ -1476,7 +1484,7 @@ class _EssentialsSection extends StatelessWidget {
           label: 'Próxima fatura',
           description: invoice == null
               ? 'Adicione um cartão para acompanhar'
-              : '${invoice!.card.name} · vence em ${shortDate(invoice!.dueDate)}',
+              : '${invoice!.card.name} · ${invoice!.overdue ? 'vencida desde' : 'vence em'} ${shortDate(invoice!.dueDate)}',
           value: invoice == null
               ? null
               : _visibleMoney(invoice!.amountInCents, hideValues),
@@ -1789,11 +1797,13 @@ class _NextInvoice {
     required this.card,
     required this.dueDate,
     required this.amountInCents,
+    required this.overdue,
   });
 
   final CreditCard card;
   final DateTime dueDate;
   final int amountInCents;
+  final bool overdue;
 }
 
 class _NextSubscription {
@@ -1819,28 +1829,53 @@ class _BudgetSummary {
 
 _NextInvoice? _nextInvoice(OrganizaStore store, DateTime reference) {
   _NextInvoice? result;
-  for (final card in store.creditCards) {
-    var dueDate = _safeDate(reference.year, reference.month, card.dueDay);
-    if (dueDate.isBefore(_dateOnly(reference))) {
-      dueDate = _safeDate(reference.year, reference.month + 1, card.dueDay);
+  final periodsByCard = <String, Set<(int, int)>>{};
+  final cardsById = {for (final card in store.creditCards) card.id: card};
+  for (final purchase in store.cardPurchases) {
+    final card = cardsById[purchase.cardId];
+    if (card == null ||
+        DateTime(purchase.purchasedOn.year, purchase.purchasedOn.month,
+                purchase.purchasedOn.day)
+            .isAfter(
+                DateTime(reference.year, reference.month, reference.day))) {
+      continue;
     }
-    final closingMonthOffset = card.dueDay > card.closingDay ? 0 : -1;
-    final closingDate = _safeDate(
-      dueDate.year,
-      dueDate.month + closingMonthOffset,
-      card.closingDay,
-    );
-    final candidate = _NextInvoice(
-      card: card,
-      dueDate: dueDate,
-      amountInCents: CreditCardRules.currentInvoiceTotal(
+    final first =
+        CreditCardRules.currentCycleClosingDate(card, purchase.purchasedOn);
+    final periods = periodsByCard.putIfAbsent(card.id, () => <(int, int)>{});
+    for (var index = 0; index < purchase.installments; index++) {
+      final month = DateTime(first.year, first.month + index);
+      periods.add((month.year, month.month));
+    }
+  }
+  for (final card in store.creditCards) {
+    for (final period in periodsByCard[card.id] ?? const <(int, int)>{}) {
+      final amount = CardInvoiceRules.remainingForPeriod(
         card,
         store.cardPurchases,
-        closingDate,
-      ),
-    );
-    if (result == null || candidate.dueDate.isBefore(result.dueDate)) {
-      result = candidate;
+        period.$1,
+        period.$2,
+        actualPaymentsInCents: CardInvoiceRules.actualPaymentsForPeriodInCents(
+          card,
+          period.$1,
+          period.$2,
+          invoices: store.cardInvoices,
+          payments: store.cardInvoicePayments,
+          through: reference,
+        ),
+      );
+      if (amount == 0) continue;
+      final cycle = CardInvoiceRules.cycle(card, period.$1, period.$2);
+      final candidate = _NextInvoice(
+        card: card,
+        dueDate: cycle.dueOn,
+        amountInCents: amount,
+        overdue: cycle.dueOn
+            .isBefore(DateTime(reference.year, reference.month, reference.day)),
+      );
+      if (result == null || candidate.dueDate.isBefore(result.dueDate)) {
+        result = candidate;
+      }
     }
   }
   return result;

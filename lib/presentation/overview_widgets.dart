@@ -85,6 +85,8 @@ class _BalanceProjectionCardState extends State<BalanceProjectionCard> {
       clock: widget.store.clock,
       horizonDays: _horizonDays,
     );
+    final hasLegacyMarks = widget.store.cardPurchases
+        .any((purchase) => purchase.paidInstallments.isNotEmpty);
     String money(int cents) =>
         widget.hideValues ? '••••••' : FinancialRules.formatBrl(cents);
 
@@ -111,8 +113,19 @@ class _BalanceProjectionCardState extends State<BalanceProjectionCard> {
           : Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (hasLegacyMarks) ...[
+                  Text(
+                    'Há parcelas marcadas no controle antigo. Essa marcação não movimenta a conta; confira esses valores antes de confiar no saldo projetado.',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.tertiary,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
                 _ProjectionMetricRow(
                   dailySpendable: money(projection.canSpendPerDayInCents),
+                  invoiceObligations:
+                      money(projection.points.last.cardObligationsInCents),
                   nextSalary: projection.nextSalaryDate == null
                       ? 'Sem próximo salário cadastrado'
                       : 'Até ${_dayMonth(projection.nextSalaryDate!)}',
@@ -189,11 +202,13 @@ class _BalanceProjectionCardState extends State<BalanceProjectionCard> {
 class _ProjectionMetricRow extends StatelessWidget {
   const _ProjectionMetricRow({
     required this.dailySpendable,
+    required this.invoiceObligations,
     required this.nextSalary,
     required this.hideValues,
   });
 
   final String dailySpendable;
+  final String invoiceObligations;
   final String nextSalary;
   final bool hideValues;
 
@@ -207,6 +222,12 @@ class _ProjectionMetricRow extends StatelessWidget {
             value: dailySpendable,
             detail: nextSalary,
             color: Theme.of(context).colorScheme.primary,
+          ),
+          _ProjectionMetric(
+            label: 'Obrigação de faturas',
+            value: invoiceObligations,
+            detail: 'Vencimentos previstos no período',
+            color: Theme.of(context).colorScheme.error,
           ),
           _ProjectionMetric(
             label: 'Critério',

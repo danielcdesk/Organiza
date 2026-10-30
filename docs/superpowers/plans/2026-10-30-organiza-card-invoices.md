@@ -17,15 +17,15 @@
 - [x] Add pure invoice calculations for closing/due dates, installment totals, partial payments, overpayment prevention and status.
 - [x] Add a system marker to payment transactions. Store payment plus invoice payment record atomically; make it idempotent for retries. Prevent payment from appearing as a category expense in reports.
 - [x] Ensure a closed invoice does not silently change after editing/removing an old purchase; require explicit confirmation for historical purchases that alter closed cycles. Purchases cannot be edited/deleted through the current UI.
-- [x] Test payment, partial payment, cancellation/reversal, rollback and projection at due date without double subtraction. Payment, partial payment, reversal, overpayment, DB rollback and projection tests pass.
+- [x] Test payment, partial payment, cancellation/reversal, rollback and projection at due date without double subtraction. Payment/partial/reversal/idempotency, overpayment, database rollback primitive and due-date projection tests pass; the UI purchase→payment→estorno widget flow is covered.
 
 ## Task 3 — reports and UI
 
 - [x] Add purchase-category selection and invoice list/detail/payment flows in the card UI.
 - [x] Count purchases by purchase date in category reports; show invoice due obligations in balance projection. Update CSV and budget totals consistently.
-- [x] Document numerical examples in `docs/financial_rules.md`; add widget and integration tests for purchase categories, projection, payments, and reports.
+- [x] Document numerical examples in `docs/financial_rules.md`; add widget and integration tests for purchase categories, dashboard projection, payment/estorno UI, and cash/category reporting.
 
 ## Task 4 — gate
 
-- [ ] Run analysis, full tests with coverage, migration fixtures, Windows integration and Android build. Local Android SDK is unavailable; CI release build is the remaining Android build gate.
+- [ ] Run analysis, full tests with coverage, migration fixtures, Windows integration and Android build. Local Android SDK is unavailable; CI release build is the remaining Android build gate. Review fix pass is implemented; fresh review classified a payment failure-injection case as minor and it remains deferred.
 - [ ] Review important findings, produce 8-section phase report, push isolated draft PR based on Phase 2.1 and verify Windows/Ubuntu CI before schema 19.

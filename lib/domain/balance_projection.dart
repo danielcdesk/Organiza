@@ -198,6 +198,7 @@ class BalanceProjection {
       final firstClosing =
           CreditCardRules.currentCycleClosingDate(card, purchase.purchasedOn);
       for (var index = 1; index <= purchase.installments; index++) {
+        if (purchase.paidInstallments.contains(index)) continue;
         final month =
             DateTime(firstClosing.year, firstClosing.month + index - 1);
         final key = (card.id, month.year, month.month);
@@ -222,9 +223,8 @@ class BalanceProjection {
     final dues = <DateTime, int>{};
     for (final entry in totals.entries) {
       final card = cardById[entry.key.$1]!;
-      final remaining =
-          CardInvoiceRules.remainingInCents(entry.value, paid[entry.key] ?? 0);
-      if (remaining == 0) continue;
+      final remaining = entry.value - (paid[entry.key] ?? 0);
+      if (remaining <= 0) continue;
       final due =
           CardInvoiceRules.cycle(card, entry.key.$2, entry.key.$3).dueOn;
       final effective = _effectiveDate(due, today);

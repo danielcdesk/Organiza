@@ -97,4 +97,28 @@ void main() {
     expect(result.points[11].balanceInCents, 40000);
     expect(result.points[11].cardObligationsInCents, 6000);
   });
+
+  test('marcação manual antiga não volta como obrigação da fatura', () {
+    final legacyPurchase = CardPurchase(
+      id: 'legacy',
+      cardId: card.id,
+      description: 'Compra já marcada paga',
+      amountInCents: 10000,
+      purchasedOn: DateTime(2026, 2, 5),
+      installments: 1,
+      createdAt: DateTime(2026, 2, 5),
+      paidInstallments: const {1},
+    );
+    final result = BalanceProjection.calculate(
+      accounts: [account],
+      transactions: const [],
+      salaries: const [],
+      creditCards: [card],
+      cardPurchases: [legacyPurchase],
+      clock: Clock.fixed(DateTime(2026, 2, 1)),
+      horizonDays: 20,
+    );
+    expect(result.points[16].balanceInCents, 50000);
+    expect(result.points[16].cardObligationsInCents, 0);
+  });
 }

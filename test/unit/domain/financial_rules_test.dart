@@ -45,6 +45,23 @@ void main() {
     expect(FinancialRules.currentBalance([primary, reserve], items), 105000);
   });
 
+  test('saída de caixa inclui pagamento de cartão sem categorizá-lo de novo',
+      () {
+    final payment = TransactionRecord(
+      id: 'card-payment',
+      accountId: 'a',
+      type: TransactionType.expense,
+      amountInCents: 6000,
+      description: 'Pagamento da fatura',
+      occurredOn: now,
+      createdAt: now,
+      systemType: TransactionSystemType.cardPayment,
+    );
+    expect(
+        FinancialRules.monthTotal([payment], now, TransactionType.expense), 0);
+    expect(FinancialRules.settledCashOutflowTotal([payment]), 6000);
+  });
+
   test('total mensal não mistura outro mês nem transferência', () {
     final items = [
       TransactionRecord(

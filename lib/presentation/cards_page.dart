@@ -152,6 +152,8 @@ class _CardsPageState extends State<CardsPage> {
                 card: card,
                 referenceDate: referenceDate,
                 purchases: widget.store.cardPurchases,
+                invoices: widget.store.cardInvoices,
+                payments: widget.store.cardInvoicePayments,
                 hideValues: widget.hideValues,
               );
               if (constraints.maxWidth < 940) {
@@ -272,15 +274,35 @@ class _InvoicesPanel extends StatelessWidget {
             .where((item) => item.invoiceId == invoice.id)
             .toList();
     final paid = payments.fold<int>(0, (sum, item) => sum + item.amountInCents);
-    final remaining = CardInvoiceRules.remainingInCents(total, paid);
-    final status = CardInvoiceRules.status(
-        total, paid, store.clock.now(), cycle.closingOn);
-    final label = switch (status) {
-      CardInvoiceStatus.open => 'Aberta',
-      CardInvoiceStatus.closed => 'Fechada',
-      CardInvoiceStatus.partiallyPaid => 'Parcialmente paga',
-      CardInvoiceStatus.paid => 'Paga',
-    };
+    final legacyPaid = CardInvoiceRules.legacyPaidInCents(
+        card, store.cardPurchases, period.year, period.month);
+    final remaining = CardInvoiceRules.remainingForPeriod(
+      card,
+      store.cardPurchases,
+      period.year,
+      period.month,
+      actualPaymentsInCents: paid,
+    );
+    final status = CardInvoiceRules.statusForPeriod(
+      card,
+      store.cardPurchases,
+      period.year,
+      period.month,
+      actualPaymentsInCents: paid,
+      today: store.clock.now(),
+    );
+    final today = DateTime(
+        store.clock.now().year, store.clock.now().month, store.clock.now().day);
+    final label = remaining > 0 && cycle.dueOn.isBefore(today)
+        ? 'Vencida'
+        : legacyPaid > 0 && paid == 0
+            ? 'Marcação antiga para conferir'
+            : switch (status) {
+                CardInvoiceStatus.open => 'Aberta',
+                CardInvoiceStatus.closed => 'Fechada',
+                CardInvoiceStatus.partiallyPaid => 'Parcialmente paga',
+                CardInvoiceStatus.paid => 'Paga',
+              };
     final periodLabel =
         '${period.month.toString().padLeft(2, '0')}/${period.year}';
     return ExpansionTile(
@@ -292,8 +314,16 @@ class _InvoicesPanel extends StatelessWidget {
         ListTile(
           title: Text('Total: ${money(total)}'),
           subtitle: Text(
-              'Pago: ${money(paid)} · fecha ${shortDate(cycle.closingOn)}'),
+              'Pagamento registrado: ${money(paid)} · fecha ${shortDate(cycle.closingOn)}'),
         ),
+        if (legacyPaid > 0)
+          ListTile(
+            leading: const Icon(Icons.info_outline_rounded),
+            title: Text('Marcação antiga: ${money(legacyPaid)}'),
+            subtitle: const Text(
+              'Não movimenta a conta. Foi excluída do valor a pagar para evitar cobrança duplicada; confira manualmente o saldo.',
+            ),
+          ),
         if (remaining > 0)
           Align(
             alignment: Alignment.centerLeft,
@@ -577,12 +607,16 @@ class _CardSummary extends StatelessWidget {
     required this.card,
     required this.referenceDate,
     required this.purchases,
+    required this.invoices,
+    required this.payments,
     required this.hideValues,
   });
 
   final CreditCard card;
   final DateTime referenceDate;
   final List<CardPurchase> purchases;
+  final List<CardInvoice> invoices;
+  final List<CardInvoicePayment> payments;
   final bool hideValues;
 
   String _money(int cents) =>
@@ -591,10 +625,35 @@ class _CardSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final now = referenceDate;
-    final invoice = CreditCardRules.currentInvoiceTotal(card, purchases, now);
-    final available = CreditCardRules.availableLimit(card, purchases, now);
-    final ratio = CreditCardRules.usageRatio(card, purchases, now);
     final closing = CreditCardRules.currentCycleClosingDate(card, now);
+    final invoiceYear = closing.year;
+    final invoiceMonth = closing.month;
+    final actualPaid = CardInvoiceRules.actualPaymentsForPeriodInCents(
+      card,
+      invoiceYear,
+      invoiceMonth,
+      invoices: invoices,
+      payments: payments,
+      through: now,
+    );
+    final invoice = CardInvoiceRules.remainingForPeriod(
+      card,
+      purchases,
+      invoiceYear,
+      invoiceMonth,
+      actualPaymentsInCents: actualPaid,
+    );
+    final outstanding = CardInvoiceRules.outstandingBalanceInCents(
+      card,
+      purchases,
+      invoices: invoices,
+      payments: payments,
+      reference: now,
+    );
+    final available = card.limitInCents - outstanding;
+    final ratio = card.limitInCents <= 0
+        ? 0.0
+        : (outstanding / card.limitInCents).clamp(0, 1).toDouble();
     return Panel(
       title: 'Ciclo atual',
       subtitle: 'Fecha em ${shortDate(closing)} · vence dia ${card.dueDay}',
@@ -871,7 +930,7 @@ class _CardInstallmentPaymentsDialogState
               Text(widget.purchase.description),
               const SizedBox(height: 4),
               Text(
-                'Marque as parcelas que já foram pagas. Isso atualiza apenas o progresso do cartão.',
+                'Controle antigo de acompanhamento: não registra saída na conta. Para registrar um pagamento real, use Pagar fatura.',
                 style: TextStyle(
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                   fontSize: 13,

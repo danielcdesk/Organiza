@@ -35,6 +35,131 @@ class CardInvoiceRules {
     return total;
   }
 
+  static int legacyPaidInCents(
+      CreditCard card, Iterable<CardPurchase> purchases, int year, int month) {
+    final closing = cycle(card, year, month).closingOn;
+    var total = 0;
+    for (final purchase in purchases) {
+      if (purchase.cardId != card.id) continue;
+      final index = CreditCardRules.installmentIndex(card, purchase, closing);
+      if (purchase.paidInstallments.contains(index)) {
+        total += CreditCardRules.installmentAmount(purchase, index);
+      }
+    }
+    return total;
+  }
+
+  static int remainingForPeriod(
+    CreditCard card,
+    Iterable<CardPurchase> purchases,
+    int year,
+    int month, {
+    int actualPaymentsInCents = 0,
+  }) {
+    final total = totalInCents(card, purchases, year, month);
+    final legacyPaid = legacyPaidInCents(card, purchases, year, month);
+    if (actualPaymentsInCents < 0 || legacyPaid > total) {
+      throw ArgumentError('Pagamento fora do valor da fatura.');
+    }
+    // A legacy marker can overlap a real payment. It must never create a
+    // negative obligation or cause the view to fail while the user reviews it.
+    final remaining = total - legacyPaid - actualPaymentsInCents;
+    return remaining < 0 ? 0 : remaining;
+  }
+
+  static CardInvoiceStatus statusForPeriod(
+    CreditCard card,
+    Iterable<CardPurchase> purchases,
+    int year,
+    int month, {
+    required int actualPaymentsInCents,
+    required DateTime today,
+  }) {
+    final total = totalInCents(card, purchases, year, month);
+    final legacyPaid = legacyPaidInCents(card, purchases, year, month);
+    if (total > 0 && actualPaymentsInCents + legacyPaid >= total) {
+      return actualPaymentsInCents > 0
+          ? CardInvoiceStatus.paid
+          : CardInvoiceStatus.closed;
+    }
+    return status(
+      total,
+      actualPaymentsInCents + legacyPaid,
+      today,
+      cycle(card, year, month).closingOn,
+    );
+  }
+
+  static int actualPaymentsForPeriodInCents(
+    CreditCard card,
+    int year,
+    int month, {
+    required Iterable<CardInvoice> invoices,
+    required Iterable<CardInvoicePayment> payments,
+    DateTime? through,
+  }) {
+    final invoiceIds = invoices
+        .where((item) =>
+            item.cardId == card.id &&
+            item.referenceYear == year &&
+            item.referenceMonth == month)
+        .map((item) => item.id)
+        .toSet();
+    final date = through == null
+        ? null
+        : DateTime(through.year, through.month, through.day);
+    return payments
+        .where((item) =>
+            invoiceIds.contains(item.invoiceId) &&
+            (date == null ||
+                !DateTime(item.paidOn.year, item.paidOn.month, item.paidOn.day)
+                    .isAfter(date)))
+        .fold(0, (total, item) => total + item.amountInCents);
+  }
+
+  static int outstandingBalanceInCents(
+    CreditCard card,
+    Iterable<CardPurchase> purchases, {
+    required Iterable<CardInvoice> invoices,
+    required Iterable<CardInvoicePayment> payments,
+    required DateTime reference,
+  }) {
+    final periods = <(int, int)>{};
+    final referenceDate =
+        DateTime(reference.year, reference.month, reference.day);
+    for (final purchase in purchases.where((item) =>
+        item.cardId == card.id &&
+        !DateTime(item.purchasedOn.year, item.purchasedOn.month,
+                item.purchasedOn.day)
+            .isAfter(referenceDate))) {
+      final first =
+          CreditCardRules.currentCycleClosingDate(card, purchase.purchasedOn);
+      for (var index = 0; index < purchase.installments; index++) {
+        final month = DateTime(first.year, first.month + index);
+        periods.add((month.year, month.month));
+      }
+    }
+    var total = 0;
+    for (final period in periods) {
+      final actual = actualPaymentsForPeriodInCents(
+        card,
+        period.$1,
+        period.$2,
+        invoices: invoices,
+        payments: payments,
+        through: reference,
+      );
+      total += remainingForPeriod(
+        card,
+        purchases,
+        period.$1,
+        period.$2,
+        actualPaymentsInCents: actual,
+      );
+    }
+    return total;
+  }
+
   static int remainingInCents(int total, int paid) {
     if (total < 0 || paid < 0 || paid > total) {
       throw ArgumentError('Pagamento fora do valor da fatura.');

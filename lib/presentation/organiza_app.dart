@@ -1163,8 +1163,6 @@ class _OrganizaShellState extends State<OrganizaShell>
       _showError('Cadastre uma conta antes de pagar a fatura.');
       return;
     }
-    final total = CardInvoiceRules.totalInCents(
-        card, widget.store.cardPurchases, year, month);
     final invoice = widget.store.cardInvoices
         .where((item) =>
             item.cardId == card.id &&
@@ -1176,7 +1174,13 @@ class _OrganizaShellState extends State<OrganizaShell>
         : widget.store.cardInvoicePayments
             .where((item) => item.invoiceId == invoice.id)
             .fold<int>(0, (sum, item) => sum + item.amountInCents);
-    final remaining = CardInvoiceRules.remainingInCents(total, paid);
+    final remaining = CardInvoiceRules.remainingForPeriod(
+      card,
+      widget.store.cardPurchases,
+      year,
+      month,
+      actualPaymentsInCents: paid,
+    );
     if (remaining == 0) return;
     var accountId = widget.store.accounts.first.id;
     var enteredAmount =

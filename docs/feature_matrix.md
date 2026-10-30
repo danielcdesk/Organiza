@@ -6,7 +6,7 @@ Após a Fase 0: análise limpa, 116 testes aprovados com cobertura de linhas 67,
 
 Linha de base executada em Windows com Flutter 3.47.7: análise sem problemas e 108 testes aprovados, incluindo backup criptografado, restauração, rollback e goldens. As datas da tabela histórica abaixo preservam sua validação original; não indicam nova execução de integração ou instalação física.
 
-Status por fase e limitações: [progresso V3](implementation/PROGRESSO_V3.md). Pagamento real de fatura, backup v2 e demais recursos futuros continuam pendentes até a fase correspondente.
+Status por fase e limitações: [progresso V3](implementation/PROGRESSO_V3.md). Faturas/pagamentos e backup v2 foram implementados localmente; PR/CI e validação Android em dispositivo permanecem como gates.
 
 | Funcionalidade | Implementada | Testada | Integração | Regressão | Última validação |
 |---|---:|---:|---:|---:|---|
@@ -55,7 +55,7 @@ Status por fase e limitações: [progresso V3](implementation/PROGRESSO_V3.md). 
 | Assinaturas editáveis e pausáveis | Sim | Sim | Sim | Sim | 2026-09-16 |
 | Categorias de metas e orçamento criadas pelo usuário | Sim | Sim | Não | Sim | 2026-09-16 |
 | Pizza interativa de despesas por categoria | Sim | Sim | Sim | Sim | 2026-09-16 |
-| Pagamento e histórico de faturas | Não | Não | Não | Não | — |
+| Pagamento, faturas, projeção e relatórios por competência | Sim, local | Sim, 184 testes | Windows, 2 fluxos | Sim | 2026-10-30; CI do PR pendente |
 | Backup atual criptografado e snapshot | Sim, formato v1 | Sim | Não nesta execução | Sim, autenticação/restauração/rollback | 2026-10-29 |
 | Backup v2 com banco consistente, imagens e prévia | Sim, em desenvolvimento | Sim | Teste coordenador Windows | Sim, unidade e integração de serviços | 2026-10-30 |
 | Backup automático e rotação em pasta escolhida | Sim, em desenvolvimento | Sim | Windows; Android sem dispositivo de teste | Parcial, pasta Windows e agendamento | 2026-10-30 |

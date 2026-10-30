@@ -635,12 +635,7 @@ class _TransactionFlowSummary extends StatelessWidget {
     final incomes = transactions
         .where((t) => t.isSettled && t.type == TransactionType.income)
         .fold(0, (sum, t) => sum + t.amountInCents);
-    final expenses = transactions
-        .where((t) =>
-            t.isSettled &&
-            t.type == TransactionType.expense &&
-            t.systemType == null)
-        .fold(0, (sum, t) => sum + t.amountInCents);
+    final expenses = FinancialRules.settledCashOutflowTotal(transactions);
     final metrics = [
       _FlowMetric(
           label: 'Entradas confirmadas',
@@ -648,7 +643,7 @@ class _TransactionFlowSummary extends StatelessWidget {
           color: OrganizaDesignTokens.of(context).positive,
           icon: Icons.south_west_rounded),
       _FlowMetric(
-          label: 'Saídas confirmadas',
+          label: 'Saídas de caixa',
           value: money(expenses),
           color: Theme.of(context).colorScheme.error,
           icon: Icons.north_east_rounded),

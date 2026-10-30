@@ -122,7 +122,7 @@ void main() {
     await tester.tap(find.text('Finanças').first);
     await tester.pumpAndSettle();
     expect(find.text('Movimentações'), findsOneWidget);
-    expect(find.text('Saídas confirmadas'), findsOneWidget);
+    expect(find.text('Saídas de caixa'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await _saveScreenshot(
         screenshotKey, File('${output.path}/organiza-transactions.png'));

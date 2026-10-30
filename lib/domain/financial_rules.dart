@@ -50,6 +50,12 @@ class FinancialRules {
               item.occurredOn.month == month.month)
           .fold(0, (total, item) => total + item.amountInCents);
 
+  /// Settled cash leaving owned accounts, including system card payments.
+  /// Category expense reporting must use [monthTotal] and card purchases.
+  static int settledCashOutflowTotal(Iterable<TransactionRecord> items) => items
+      .where((item) => item.type == TransactionType.expense && item.isSettled)
+      .fold(0, (total, item) => total + item.amountInCents);
+
   static bool isValidAmount(int cents) => cents > 0 && cents < 100000000000;
 
   static int budgetSpent(Budget budget, List<TransactionRecord> transactions,

@@ -4,7 +4,7 @@ Data: 2026-10-30. Estado: implementação concluída localmente; PR e CI ainda p
 
 ## 1. Resumo
 
-Schema 18 registra categorias das compras, ciclos/faturas e pagamentos vinculados a movimentos de conta. Compras entram nos relatórios e orçamentos pela data e categoria da compra; parcelas definem os vencimentos de caixa. Pagamentos reduzem a conta e o saldo da fatura, sem contar uma segunda despesa por categoria. A projeção desconta obrigações vencidas na data de vencimento e compensa pagamentos já feitos. Dívidas e financiamentos continuam adiados.
+Schema 18 registra categorias das compras, ciclos/faturas e pagamentos vinculados a movimentos de conta. Compras entram nos relatórios e orçamentos pela data e categoria da compra; parcelas definem os vencimentos de caixa. Pagamentos reduzem a conta e o saldo da fatura, sem contar uma segunda despesa por categoria. A projeção navegável desconta obrigações vencidas, inclui atrasos desde hoje e destaca marcações antigas que não criam débitos bancários. Dívidas e financiamentos continuam adiados.
 
 ## 2. Arquivos
 
@@ -17,12 +17,13 @@ Schema 17 → 18 preserva compras e marcações manuais antigas de parcelas; cat
 ## 4. Comandos e resultados reais
 
 - `flutter analyze --no-pub`: sem problemas.
-- `flutter test --no-pub --coverage`: **175 testes aprovados**, cobertura **8.122/11.190 linhas, 72,58%**.
+- `flutter test --no-pub --coverage`: **184 testes aprovados**, cobertura **8.256/11.309 linhas, 73,00%**.
 - `flutter test integration_test -d windows --no-pub`: **2 fluxos aprovados**, incluindo compilação Windows Debug.
 - `flutter build apk --debug --no-pub`: não iniciou; Flutter reportou que não há Android SDK configurado neste ambiente.
-- Testes focados de pagamentos, rollback, projeção, categorias, CSV e interface: aprovados.
+- Testes focados de pagamento/estorno pela UI, limite liberado, marcações antigas, rollback transacional, projeção, categorias, CSV e resumos de caixa: aprovados.
 - `git diff --check`: sem erros de whitespace.
-- CI do PR e revisão independente: pendentes.
+- Revisão independente: quatro achados importantes corrigidos com testes; uma lacuna menor de injeção de falha durante a transação continua documentada.
+- PR draft e CI do GitHub: pendentes.
 
 ## 5. Não validado
 
@@ -30,12 +31,12 @@ Compilação Android local e execução em dispositivo/emulador. Compilação An
 
 ## 6. Riscos e pendências
 
-Faturas pagas manualmente no fluxo antigo não tinham conta nem valor e permanecem distintas de pagamentos reais. Compras antigas que alterem ciclo fechado exigem confirmação explícita. Não há conexão bancária/cartão, importação de fatura ou registro de dívidas nesta fase. O estado da fase só deve avançar após revisão e CI verde.
+Marcações manuais antigas de parcelas não identificavam conta nem valor; aparecem destacadas, não criam lançamentos e ficam fora do valor confirmado a pagar até conferência. Compras antigas que alterem ciclo fechado exigem confirmação explícita. Não há conexão bancária/cartão, importação de fatura ou registro de dívidas nesta fase. O estado da fase só deve avançar após CI verde.
 
 ## 7. Decisões
 
-Competência da compra: data da compra; caixa: parcelas por vencimento. Pagamento diminui apenas o caixa e o saldo da fatura, sem duplicar despesa categorizada. Estorno reverte em conjunto pagamento e transação. Dívidas/financiamentos permanecem adiados conforme decisão do usuário.
+Competência da compra: data da compra; caixa: parcelas por vencimento. Pagamento diminui apenas o caixa e o saldo da fatura, sem duplicar despesa categorizada. Estorno reverte em conjunto pagamento e transação. Marcação antiga não cria caixa e fica explicitamente sinalizada para conferência. Dívidas/financiamentos permanecem adiados conforme decisão do usuário.
 
 ## 8. Próxima fase e perguntas
 
-Criar/atualizar PR draft da Fase 2.2 sobre a Fase 2.1, concluir revisão independente e CI Windows/Ubuntu/Android. Não há decisão pendente do usuário para este escopo.
+Criar/atualizar PR draft da Fase 2.2 sobre a Fase 2.1 e verificar CI Windows/Ubuntu/Android. Não há decisão pendente do usuário para este escopo.
