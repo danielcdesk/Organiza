@@ -43,6 +43,7 @@ class _ReportsPageState extends State<ReportsPage> {
     );
     final data = _monthlyDataUntil(
       widget.store.transactions,
+      widget.store.cardPurchases,
       _selectedMonth,
       _months,
       includePending: _includePending,
@@ -68,17 +69,21 @@ class _ReportsPageState extends State<ReportsPage> {
       TransactionType.income,
     );
     final expenses = _typeTotal(
-      visibleMonthTransactions,
-      TransactionType.expense,
-    );
+          visibleMonthTransactions,
+          TransactionType.expense,
+        ) +
+        FinancialRules.cardPurchaseTotal(
+            widget.store.cardPurchases, _selectedMonth);
     final previousIncomes = _typeTotal(
       visiblePreviousTransactions,
       TransactionType.income,
     );
     final previousExpenses = _typeTotal(
-      visiblePreviousTransactions,
-      TransactionType.expense,
-    );
+          visiblePreviousTransactions,
+          TransactionType.expense,
+        ) +
+        FinancialRules.cardPurchaseTotal(
+            widget.store.cardPurchases, previousMonth);
     final balance = incomes - expenses;
     final previousBalance = previousIncomes - previousExpenses;
     final hide = widget.hideValues;
@@ -192,6 +197,11 @@ class _ReportsPageState extends State<ReportsPage> {
                 _IncomeExpensePanel(data: data, hideValues: hide);
             final ranking = _ExpenseRanking(
               transactions: visibleMonthTransactions,
+              purchases: widget.store.cardPurchases
+                  .where((item) =>
+                      item.purchasedOn.year == _selectedMonth.year &&
+                      item.purchasedOn.month == _selectedMonth.month)
+                  .toList(),
               hideValues: hide,
             );
             if (constraints.maxWidth < 920) {
@@ -200,7 +210,7 @@ class _ReportsPageState extends State<ReportsPage> {
               );
             }
             return SizedBox(
-              height: 294,
+              height: 340,
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -215,8 +225,12 @@ class _ReportsPageState extends State<ReportsPage> {
         const SizedBox(height: 14),
         LayoutBuilder(
           builder: (context, constraints) {
-            final expensesByCategory =
-                _byCategory(visibleMonthTransactions, TransactionType.expense);
+            final expensesByCategory = _byCategory(
+                visibleMonthTransactions,
+                TransactionType.expense,
+                widget.store.cardPurchases.where((item) =>
+                    item.purchasedOn.year == _selectedMonth.year &&
+                    item.purchasedOn.month == _selectedMonth.month));
             final incomesByCategory =
                 _byCategory(visibleMonthTransactions, TransactionType.income);
             final expensePanel = _ExpensePieChart(
@@ -247,6 +261,7 @@ class _ReportsPageState extends State<ReportsPage> {
         const SizedBox(height: 14),
         _SpendingRoadmap(
             transactions: widget.store.transactions,
+            purchases: widget.store.cardPurchases,
             subscriptions: widget.store.subscriptions,
             hideValues: hide,
             year: _selectedMonth.year,
@@ -591,11 +606,13 @@ class _ReportModeBar extends StatelessWidget {
 class _SpendingRoadmap extends StatelessWidget {
   const _SpendingRoadmap(
       {required this.transactions,
+      required this.purchases,
       required this.subscriptions,
       required this.hideValues,
       required this.year,
       required this.includePending});
   final List<TransactionRecord> transactions;
+  final List<CardPurchase> purchases;
   final List<Subscription> subscriptions;
   final bool hideValues;
   final int year;
@@ -614,10 +631,18 @@ class _SpendingRoadmap extends StatelessWidget {
     final totals = <DateTime, int>{};
     for (final item in transactions.where((item) =>
         item.type == TransactionType.expense &&
+        item.systemType == null &&
         item.occurredOn.year == year &&
         (includePending || item.isSettled))) {
       final key = DateTime(
           item.occurredOn.year, item.occurredOn.month, item.occurredOn.day);
+      totals.update(key, (value) => value + item.amountInCents,
+          ifAbsent: () => item.amountInCents);
+    }
+    for (final item
+        in purchases.where((item) => item.purchasedOn.year == year)) {
+      final key = DateTime(
+          item.purchasedOn.year, item.purchasedOn.month, item.purchasedOn.day);
       totals.update(key, (value) => value + item.amountInCents,
           ifAbsent: () => item.amountInCents);
     }
@@ -812,11 +837,19 @@ class _WeekdayLabel extends StatelessWidget {
 }
 
 Map<String, int> _byCategory(
-    List<TransactionRecord> transactions, TransactionType type) {
+    List<TransactionRecord> transactions, TransactionType type,
+    [Iterable<CardPurchase> purchases = const []]) {
   final result = <String, int>{};
-  for (final item in transactions.where((item) => item.type == type)) {
+  for (final item in transactions
+      .where((item) => item.type == type && item.systemType == null)) {
     result.update(item.category, (value) => value + item.amountInCents,
         ifAbsent: () => item.amountInCents);
+  }
+  if (type == TransactionType.expense) {
+    for (final item in purchases) {
+      result.update(item.category, (value) => value + item.amountInCents,
+          ifAbsent: () => item.amountInCents);
+    }
   }
   return result;
 }
@@ -1116,16 +1149,26 @@ class _IncomeExpensePanel extends StatelessWidget {
 }
 
 class _ExpenseRanking extends StatelessWidget {
-  const _ExpenseRanking({required this.transactions, required this.hideValues});
+  const _ExpenseRanking(
+      {required this.transactions,
+      required this.purchases,
+      required this.hideValues});
 
   final List<TransactionRecord> transactions;
+  final List<CardPurchase> purchases;
   final bool hideValues;
 
   @override
   Widget build(BuildContext context) {
     final totals = <String, int>{};
-    for (final item in transactions.where(
-        (item) => item.type == TransactionType.expense && item.isSettled)) {
+    for (final item in transactions.where((item) =>
+        item.type == TransactionType.expense &&
+        item.systemType == null &&
+        item.isSettled)) {
+      totals.update(item.description, (value) => value + item.amountInCents,
+          ifAbsent: () => item.amountInCents);
+    }
+    for (final item in purchases) {
       totals.update(item.description, (value) => value + item.amountInCents,
           ifAbsent: () => item.amountInCents);
     }
@@ -1169,6 +1212,7 @@ class _MonthData {
 
 List<_MonthData> _monthlyDataUntil(
   List<TransactionRecord> transactions,
+  List<CardPurchase> purchases,
   DateTime endMonth,
   int months, {
   required bool includePending,
@@ -1183,7 +1227,8 @@ List<_MonthData> _monthlyDataUntil(
       includePending: includePending,
     );
     final incomes = _typeTotal(monthTransactions, TransactionType.income);
-    final expenses = _typeTotal(monthTransactions, TransactionType.expense);
+    final expenses = _typeTotal(monthTransactions, TransactionType.expense) +
+        FinancialRules.cardPurchaseTotal(purchases, date);
     return _MonthData(
       label: monthName(date.month).substring(0, 3),
       incomes: incomes,
@@ -1215,7 +1260,7 @@ int _typeTotal(
   TransactionType type,
 ) =>
     transactions
-        .where((item) => item.type == type)
+        .where((item) => item.type == type && item.systemType == null)
         .fold(0, (total, item) => total + item.amountInCents);
 
 String _longMonth(DateTime month) =>

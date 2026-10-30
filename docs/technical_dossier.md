@@ -155,7 +155,7 @@ O estado é compartilhado por composição: não há Provider, Riverpod, Bloc ou
 - `models.dart`: entidades e enums do produto.
 - `financial_rules.dart`: saldo por conta, saldo consolidado, totais mensais, validação de valores, orçamento consumido e formatação BRL.
 - `cash_flow_summary.dart`: previsão do fechamento do mês com pendências vencidas e futuras, excluindo transferências.
-- `credit_card_rules.dart`: ciclo, parcela corrente, fatura atual, saldo comprometido, limite disponível e proporção de uso.
+- `credit_card_rules.dart` e `card_invoice_rules.dart`: ciclos, parcelas, saldo em aberto, pagamentos reais, limite disponível e proporção de uso.
 - `investment_rules.dart`: total aplicado, saldo atual, lucro, retorno acumulado e participação na carteira.
 
 ### Data
@@ -257,7 +257,7 @@ O projeto também oferece `AppDatabase.openInMemory()` e um banco em memória qu
 - Ajustar o saldo atual recalcula o saldo inicial pela diferença e preserva o histórico de movimentações.
 - Orçamento soma despesas confirmadas da categoria no mesmo mês. O indicador visual é limitado a 100%, mas o valor excedente continua explícito.
 - Cartão guarda apenas quatro últimos dígitos; nunca armazena número completo, CVV ou senha.
-- Fatura atual é a soma das parcelas da compra no ciclo atual. Pagamento definitivo e histórico de faturas ainda não existem.
+- Fatura é derivada das parcelas por ciclo. Pagamentos reais são ligados a uma transação de conta e não duplicam despesa por categoria; marcações manuais legadas ficam identificadas separadamente.
 - Investimento é uma posição manual: o usuário informa aplicado e atual. O retorno é uma variação acumulada simples; taxa cadastrada e dia de crédito são informativos e não geram rendimento automático.
 - Distribuição salarial considera a categoria `Salário` e precisa totalizar exatamente 100%.
 - Lista de desejos não altera o saldo financeiro quando o item é marcado como comprado.
@@ -460,7 +460,7 @@ Também gera instaladores auxiliares para emulador Android, um `LEIA-ME.txt`, co
 
 **P1 — Segurança local.** Backups têm proteção AES-GCM/Argon2id e o comportamento do Windows está documentado no modelo de ameaças. Falta avaliar SQLCipher, proteção da chave e uma opção para exportar CSV protegido.
 
-**P2 — Completar cartões.** Se o produto continuar tratando cartão como módulo financeiro completo, adicionar pagamento, fechamento e histórico de faturas; caso contrário, deixar explícito na UI que é uma projeção manual.
+**P2 — Completar cartões.** Faturas, pagamentos e projeção foram acrescentados na Fase 2.2; aguardar revisão e CI antes de integrar.
 
 **P2 — CI/CD.** O pipeline inicial valida formatação, análise, testes e builds Windows/Android sem assinatura oficial. Falta publicar artefatos e executar integração em um emulador controlado.
 
@@ -532,3 +532,7 @@ O agendamento é verificado ao abrir e periodicamente enquanto o app está ativo
 A migração 16→17 adiciona FKs opcionais para categoria e subcategoria em lançamentos, categoria em orçamentos e assinaturas, e `archived_at` em categorias financeiras. Metas recebem FK separada para `goal_categories(name)` com atualização em cascata, preservando o vocabulário de metas. O backfill cria categorias/subcategorias que existem apenas como texto histórico e associa IDs no mesmo bloco transacional. Transferências não ganham categoria financeira. O texto legado permanece durante a transição.
 
 Um arquivo `organiza.db.pre-v17.bak` é produzido e validado antes de migrar. Testes partem de schemas 1 e 16, validam `integrity_check`, `foreign_key_check`, reabertura idempotente, contagens e saldo inalterado. A restauração de snapshots passou a diferir as FKs dentro da transação de importação e verificá-las antes do commit, pois a ordem histórica das tabelas no snapshot não é uma ordem de dependência.
+
+## 19. Schema 18 — faturas do cartão (Fase 2.2 local; PR/CI pendentes)
+
+A migração 17→18 cria `card_invoices` e `card_invoice_payments`, adiciona FKs opcionais de categoria e subcategoria às compras e associa compras históricas à categoria de despesa `Outros/Geral`. A cópia validada `organiza.db.pre-v18.bak` precede a transação de migração. Pagamentos reais são atômicos, estornáveis e excluídos de categorias/orçamentos, mas incluídos nas saídas de caixa. Marcações manuais antigas não alteram saldo de conta nem geram débito; são excluídas do valor confirmado a pagar e exibidas como valores que precisam de conferência. A projeção distingue essas marcas e avisa que o saldo deve ser conferido.

@@ -1,6 +1,6 @@
 # Relatório da Fase 2.1 — Categorias com vínculo estável
 
-Data: 2026-10-30. Estado: implementação local validada; CI do PR pendente.
+Data: 2026-10-30. Estado: implementação validada localmente e no CI do PR #4.
 
 ## 1. Resumo
 
@@ -22,6 +22,7 @@ Schema **16 → 17** em transação, com cópia `pre-v17` antes da migração em
 - `flutter test integration_test -d windows --no-pub`: **2 fluxos aprovados**.
 - `git diff --check`: sem erros.
 - Revisão independente encontrou três problemas importantes, corrigidos com testes: edição de lançamento arquivado, edição de assinatura arquivada e divisão salarial alterada por categoria de receita homônima. Uma tentativa de recriar categoria arquivada agora recebe erro controlado.
+- GitHub Actions `Qualidade Flutter`, run **41079612624**: Windows e Ubuntu concluídos com sucesso no PR #4.
 
 ## 5. Não validado
 

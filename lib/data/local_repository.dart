@@ -50,6 +50,9 @@ class LocalRepository {
   List<ShoppingItem> loadShoppingItems() => _database.loadShoppingItems();
   List<CreditCard> loadCreditCards() => _database.loadCreditCards();
   List<CardPurchase> loadCardPurchases() => _database.loadCardPurchases();
+  List<CardInvoice> loadCardInvoices() => _database.loadCardInvoices();
+  List<CardInvoicePayment> loadCardInvoicePayments() =>
+      _database.loadCardInvoicePayments();
   List<InvestmentPosition> loadInvestments() => _database.loadInvestments();
   List<Budget> loadBudgets() => _database.loadBudgets();
   List<Subscription> loadSubscriptions() => _database.loadSubscriptions();
@@ -112,6 +115,14 @@ class LocalRepository {
   void insertCreditCard(CreditCard item) => _database.insertCreditCard(item);
   void insertCardPurchase(CardPurchase item) =>
       _database.insertCardPurchase(item);
+  void insertCardInvoice(CardInvoice item) => _database.insertCardInvoice(item);
+  void updateCardInvoiceStatus(
+          String id, CardInvoiceStatus status, DateTime updatedAt) =>
+      _database.updateCardInvoiceStatus(id, status, updatedAt);
+  void insertCardInvoicePayment(CardInvoicePayment item) =>
+      _database.insertCardInvoicePayment(item);
+  void deleteCardInvoicePayment(String id) =>
+      _database.deleteCardInvoicePayment(id);
   void setCardPurchaseInstallmentsPaid(
     String purchaseId,
     Set<int> paidInstallments,

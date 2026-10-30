@@ -11,6 +11,7 @@ class ReportExportService {
   Future<File> exportTransactions(
     Iterable<TransactionRecord> items, {
     DateTime? period,
+    Iterable<CardPurchase> purchases = const [],
   }) async {
     final directory = await getApplicationDocumentsDirectory();
     final folder =
@@ -23,24 +24,44 @@ class ReportExportService {
         : '${period.year}-${period.month.toString().padLeft(2, '0')}';
     final file =
         File(path.join(folder.path, 'relatorio-$periodLabel-$stamp.csv'));
+    final rows = buildCsvRows(items, purchases: purchases);
+    await file.writeAsString('\uFEFF${rows.join('\r\n')}');
+    return file;
+  }
+
+  List<String> buildCsvRows(Iterable<TransactionRecord> items,
+      {Iterable<CardPurchase> purchases = const []}) {
     final rows = <String>[
       'data;tipo;descricao;categoria;subcategoria;valor_centavos;status;forma;conta_id'
     ];
     for (final item in items) {
+      final cardPayment = item.systemType == TransactionSystemType.cardPayment;
       rows.add([
         item.occurredOn.toIso8601String().substring(0, 10),
-        item.type.name,
+        cardPayment ? 'card_payment' : item.type.name,
+        _escape(item.description),
+        _escape(cardPayment ? '' : item.category),
+        _escape(cardPayment ? '' : item.subcategory),
+        item.amountInCents,
+        item.isSettled ? 'pago' : 'pendente',
+        cardPayment ? 'fatura' : item.scheduleType.name,
+        item.accountId,
+      ].join(';'));
+    }
+    for (final item in purchases) {
+      rows.add([
+        item.purchasedOn.toIso8601String().substring(0, 10),
+        'card_purchase',
         _escape(item.description),
         _escape(item.category),
         _escape(item.subcategory),
         item.amountInCents,
-        item.isSettled ? 'pago' : 'pendente',
-        item.scheduleType.name,
-        item.accountId,
+        'comprado',
+        'cartão',
+        '',
       ].join(';'));
     }
-    await file.writeAsString('\uFEFF${rows.join('\r\n')}');
-    return file;
+    return rows;
   }
 
   String _escape(String value) {

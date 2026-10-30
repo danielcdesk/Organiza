@@ -44,30 +44,62 @@ class FinancialRules {
       items
           .where((item) =>
               item.type == type &&
+              item.systemType == null &&
               item.isSettled &&
               item.occurredOn.year == month.year &&
               item.occurredOn.month == month.month)
           .fold(0, (total, item) => total + item.amountInCents);
 
+  /// Settled cash leaving owned accounts, including system card payments.
+  /// Category expense reporting must use [monthTotal] and card purchases.
+  static int settledCashOutflowTotal(Iterable<TransactionRecord> items) => items
+      .where((item) => item.type == TransactionType.expense && item.isSettled)
+      .fold(0, (total, item) => total + item.amountInCents);
+
   static bool isValidAmount(int cents) => cents > 0 && cents < 100000000000;
 
-  static int budgetSpent(Budget budget, List<TransactionRecord> transactions) {
-    return transactions
+  static int budgetSpent(Budget budget, List<TransactionRecord> transactions,
+      [Iterable<CardPurchase> cardPurchases = const []]) {
+    final accountExpenses = transactions
         .where((item) =>
             item.type == TransactionType.expense &&
+            item.systemType == null &&
             item.isSettled &&
-            item.category.toLowerCase() == budget.category.toLowerCase() &&
+            (budget.categoryId != null && item.categoryId != null
+                ? item.categoryId == budget.categoryId
+                : item.category.toLowerCase() ==
+                    budget.category.toLowerCase()) &&
             item.occurredOn.year == budget.year &&
             item.occurredOn.month == budget.month)
         .fold(0, (sum, item) => sum + item.amountInCents);
+    final cardExpenses = cardPurchases
+        .where((item) =>
+            (budget.categoryId != null && item.categoryId != null
+                ? item.categoryId == budget.categoryId
+                : item.category.toLowerCase() ==
+                    budget.category.toLowerCase()) &&
+            item.purchasedOn.year == budget.year &&
+            item.purchasedOn.month == budget.month)
+        .fold(0, (sum, item) => sum + item.amountInCents);
+    return accountExpenses + cardExpenses;
   }
 
   static double budgetProgress(
-      Budget budget, List<TransactionRecord> transactions) {
+      Budget budget, List<TransactionRecord> transactions,
+      [Iterable<CardPurchase> cardPurchases = const []]) {
     if (budget.limitInCents <= 0) return 0;
-    return (budgetSpent(budget, transactions) / budget.limitInCents)
+    return (budgetSpent(budget, transactions, cardPurchases) /
+            budget.limitInCents)
         .clamp(0, 1);
   }
+
+  static int cardPurchaseTotal(
+          Iterable<CardPurchase> purchases, DateTime month) =>
+      purchases
+          .where((item) =>
+              item.purchasedOn.year == month.year &&
+              item.purchasedOn.month == month.month)
+          .fold(0, (sum, item) => sum + item.amountInCents);
 
   static String formatBrl(int cents, {bool signed = false}) {
     final prefix = signed ? (cents < 0 ? '-' : '+') : (cents < 0 ? '-' : '');

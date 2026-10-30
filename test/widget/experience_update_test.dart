@@ -207,12 +207,64 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Entradas confirmadas'), findsOneWidget);
-    expect(find.text('Saídas confirmadas'), findsOneWidget);
+    expect(find.text('Saídas de caixa'), findsOneWidget);
     expect(find.text('Resultado do período'), findsOneWidget);
     expect(find.byIcon(Icons.calendar_month_outlined), findsOneWidget);
     expect(find.text('2 resultados'), findsOneWidget);
     expect(find.text('Salário'), findsOneWidget);
     expect(find.text('Mercado'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('resumo de saídas inclui pagamentos reais da fatura',
+      (tester) async {
+    tester.view.physicalSize = const Size(1180, 820);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final store = OrganizaStore.inMemory(
+      clock: Clock.fixed(DateTime(2026, 9, 29, 12)),
+    );
+    addTearDown(store.dispose);
+    store.addAccount('Conta', 100000);
+    store.addCreditCard(
+      name: 'Cartão',
+      brand: CardBrand.visa,
+      lastFour: '4242',
+      limitInCents: 200000,
+      closingDay: 28,
+      dueDay: 17,
+      colorValue: 0xff245943,
+    );
+    store.addCardPurchase(
+      cardId: store.creditCards.single.id,
+      description: 'Compra',
+      amountInCents: 6000,
+      installments: 1,
+    );
+    store.payCardInvoice(
+      cardId: store.creditCards.single.id,
+      referenceYear: 2026,
+      referenceMonth: 10,
+      accountId: store.accounts.single.id,
+      amountInCents: 6000,
+      paymentId: 'summary-cash-payment',
+    );
+    await tester.pumpWidget(MaterialApp(
+      theme: OrganizaTheme.dark(),
+      home: Scaffold(
+        body: TransactionsPage(
+          store: store,
+          hideValues: false,
+          onAdd: () {},
+          onDelete: (_) {},
+          onSettledChanged: (_, __) {},
+        ),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text(r'R$ 60,00'), findsNWidgets(2));
     expect(tester.takeException(), isNull);
   });
 

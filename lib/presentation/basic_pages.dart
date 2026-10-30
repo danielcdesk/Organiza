@@ -273,43 +273,51 @@ class _TransactionsPageState extends State<TransactionsPage> {
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Semantics(
-              button: true,
-              label:
-                  item.isSettled ? 'Marcar como pendente' : 'Marcar como pago',
-              child: IconButton(
-                tooltip: item.isSettled
+            if (item.systemType == TransactionSystemType.cardPayment)
+              const Tooltip(
+                message: 'Gerencie este pagamento pela fatura',
+                child: Icon(Icons.lock_outline_rounded),
+              )
+            else ...[
+              Semantics(
+                button: true,
+                label: item.isSettled
                     ? 'Marcar como pendente'
                     : 'Marcar como pago',
-                onPressed: () =>
-                    widget.onSettledChanged(item.id, !item.isSettled),
-                icon: Icon(
-                  item.isSettled
-                      ? Icons.check_circle_rounded
-                      : Icons.schedule_rounded,
-                  color: item.isSettled
-                      ? OrganizaDesignTokens.of(context).positive
-                      : Theme.of(context).colorScheme.onSurfaceVariant,
+                child: IconButton(
+                  tooltip: item.isSettled
+                      ? 'Marcar como pendente'
+                      : 'Marcar como pago',
+                  onPressed: () =>
+                      widget.onSettledChanged(item.id, !item.isSettled),
+                  icon: Icon(
+                    item.isSettled
+                        ? Icons.check_circle_rounded
+                        : Icons.schedule_rounded,
+                    color: item.isSettled
+                        ? OrganizaDesignTokens.of(context).positive
+                        : Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ),
-            ),
-            Semantics(
-              button: true,
-              label: 'Ações do lançamento',
-              child: PopupMenuButton<String>(
-                tooltip: 'Ações do lançamento',
-                onSelected: (value) => value == 'edit'
-                    ? widget.onEdit?.call(item)
-                    : widget.onDelete(item.id),
-                itemBuilder: (_) => [
-                  if (widget.onEdit != null)
+              Semantics(
+                button: true,
+                label: 'Ações do lançamento',
+                child: PopupMenuButton<String>(
+                  tooltip: 'Ações do lançamento',
+                  onSelected: (value) => value == 'edit'
+                      ? widget.onEdit?.call(item)
+                      : widget.onDelete(item.id),
+                  itemBuilder: (_) => [
+                    if (widget.onEdit != null)
+                      const PopupMenuItem(
+                          value: 'edit', child: Text('Editar lançamento')),
                     const PopupMenuItem(
-                        value: 'edit', child: Text('Editar lançamento')),
-                  const PopupMenuItem(
-                      value: 'delete', child: Text('Excluir lançamento')),
-                ],
+                        value: 'delete', child: Text('Excluir lançamento')),
+                  ],
+                ),
               ),
-            ),
+            ],
           ],
         ),
       ));
@@ -627,9 +635,7 @@ class _TransactionFlowSummary extends StatelessWidget {
     final incomes = transactions
         .where((t) => t.isSettled && t.type == TransactionType.income)
         .fold(0, (sum, t) => sum + t.amountInCents);
-    final expenses = transactions
-        .where((t) => t.isSettled && t.type == TransactionType.expense)
-        .fold(0, (sum, t) => sum + t.amountInCents);
+    final expenses = FinancialRules.settledCashOutflowTotal(transactions);
     final metrics = [
       _FlowMetric(
           label: 'Entradas confirmadas',
@@ -637,7 +643,7 @@ class _TransactionFlowSummary extends StatelessWidget {
           color: OrganizaDesignTokens.of(context).positive,
           icon: Icons.south_west_rounded),
       _FlowMetric(
-          label: 'Saídas confirmadas',
+          label: 'Saídas de caixa',
           value: money(expenses),
           color: Theme.of(context).colorScheme.error,
           icon: Icons.north_east_rounded),

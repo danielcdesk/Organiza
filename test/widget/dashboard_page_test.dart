@@ -19,6 +19,84 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('dashboard expõe a projeção que inclui vencimentos do cartão',
+      (tester) async {
+    final store = _store();
+    addTearDown(store.dispose);
+    store.addAccount('Conta principal', 50000);
+    store.addCreditCard(
+      name: 'Cartão principal',
+      brand: CardBrand.visa,
+      lastFour: '4242',
+      limitInCents: 300000,
+      closingDay: 10,
+      dueDay: 17,
+      colorValue: 0xff245943,
+    );
+    store.addCardPurchase(
+      cardId: store.creditCards.single.id,
+      description: 'Compra projetada',
+      amountInCents: 30000,
+      installments: 1,
+      purchasedOn: DateTime(2026, 8, 5),
+      allowClosedInvoiceChange: true,
+    );
+    await _pumpDashboard(tester, store);
+
+    await tester.scrollUntilVisible(
+      find.text('Saldo projetado'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('Saldo projetado'), findsOneWidget);
+    expect(find.text('Obrigação de faturas'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.textContaining('vencida desde'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.textContaining('vencida desde'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('movimento mensal inclui compra no cartão pela data de compra',
+      (tester) async {
+    tester.view.physicalSize = const Size(1280, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final store = _store();
+    addTearDown(store.dispose);
+    store.addAccount('Conta principal', 50000);
+    store.addCreditCard(
+      name: 'Cartão',
+      brand: CardBrand.visa,
+      lastFour: '4242',
+      limitInCents: 200000,
+      closingDay: 10,
+      dueDay: 17,
+      colorValue: 0xff245943,
+    );
+    store.addCardPurchase(
+      cardId: store.creditCards.single.id,
+      description: 'Compra categorizada',
+      amountInCents: 10000,
+      installments: 1,
+      purchasedOn: DateTime(2026, 9, 20),
+      category: 'Mercado',
+    );
+    await _pumpDashboard(tester, store);
+
+    await tester.scrollUntilVisible(
+      find.text('Movimento do mês'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('Movimento do mês'), findsOneWidget);
+    expect(find.text(r'-R$ 100,00'), findsNWidgets(2));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('visão geral não avança além do mês atual', (tester) async {
     tester.view.physicalSize = const Size(1280, 900);
     tester.view.devicePixelRatio = 1;

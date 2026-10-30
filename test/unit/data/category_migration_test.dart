@@ -8,7 +8,7 @@ import 'package:path/path.dart' as path;
 import 'package:sqlite3/sqlite3.dart';
 
 void main() {
-  test('schema 1 chega ao 17 com categoria e saldo preservados', () async {
+  test('schema 1 chega ao atual com categoria e saldo preservados', () async {
     final folder =
         await Directory.systemTemp.createTemp('organiza-category-v1-');
     addTearDown(() => folder.delete(recursive: true));
@@ -44,7 +44,7 @@ void main() {
     old.close();
 
     final database = AppDatabase.openFile(file);
-    expect(database.schemaVersion, 17);
+    expect(database.schemaVersion, AppDatabase.currentSchemaVersion);
     expect(
         FinancialRules.currentBalance(
             database.loadAccounts(), database.loadTransactions()),
@@ -141,7 +141,7 @@ void main() {
 
     var migrated = AppDatabase.openFile(file);
     active = migrated;
-    expect(migrated.schemaVersion, 17);
+    expect(migrated.schemaVersion, AppDatabase.currentSchemaVersion);
     expect(
         FinancialRules.currentBalance(
             migrated.loadAccounts(), migrated.loadTransactions()),
@@ -187,10 +187,10 @@ void main() {
     migrated = AppDatabase.openFile(file);
     active = migrated;
     expect(migrated.exportSnapshot(), snapshot);
-    expect(migrated.schemaVersion, 17);
+    expect(migrated.schemaVersion, AppDatabase.currentSchemaVersion);
     migrated.validateIntegrity();
     migrated.close();
     active = null;
-    expect(await File('${file.path}.pre-v17.bak').exists(), isTrue);
+    expect(await File('${file.path}.pre-v18.bak').exists(), isTrue);
   });
 }

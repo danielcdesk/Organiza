@@ -72,14 +72,21 @@ class _BalanceProjectionCardState extends State<BalanceProjectionCard> {
   Widget build(BuildContext context) {
     final hasData = widget.store.accounts.isNotEmpty ||
         widget.store.transactions.isNotEmpty ||
-        widget.store.salarySchedules.isNotEmpty;
+        widget.store.salarySchedules.isNotEmpty ||
+        widget.store.cardPurchases.isNotEmpty;
     final projection = BalanceProjection.calculate(
       accounts: widget.store.accounts,
       transactions: widget.store.transactions,
       salaries: widget.store.salarySchedules,
+      creditCards: widget.store.creditCards,
+      cardPurchases: widget.store.cardPurchases,
+      cardInvoices: widget.store.cardInvoices,
+      cardInvoicePayments: widget.store.cardInvoicePayments,
       clock: widget.store.clock,
       horizonDays: _horizonDays,
     );
+    final hasLegacyMarks = widget.store.cardPurchases
+        .any((purchase) => purchase.paidInstallments.isNotEmpty);
     String money(int cents) =>
         widget.hideValues ? '••••••' : FinancialRules.formatBrl(cents);
 
@@ -106,8 +113,19 @@ class _BalanceProjectionCardState extends State<BalanceProjectionCard> {
           : Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (hasLegacyMarks) ...[
+                  Text(
+                    'Há parcelas marcadas no controle antigo. Essa marcação não movimenta a conta; confira esses valores antes de confiar no saldo projetado.',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.tertiary,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
                 _ProjectionMetricRow(
                   dailySpendable: money(projection.canSpendPerDayInCents),
+                  invoiceObligations:
+                      money(projection.points.last.cardObligationsInCents),
                   nextSalary: projection.nextSalaryDate == null
                       ? 'Sem próximo salário cadastrado'
                       : 'Até ${_dayMonth(projection.nextSalaryDate!)}',
@@ -184,11 +202,13 @@ class _BalanceProjectionCardState extends State<BalanceProjectionCard> {
 class _ProjectionMetricRow extends StatelessWidget {
   const _ProjectionMetricRow({
     required this.dailySpendable,
+    required this.invoiceObligations,
     required this.nextSalary,
     required this.hideValues,
   });
 
   final String dailySpendable;
+  final String invoiceObligations;
   final String nextSalary;
   final bool hideValues;
 
@@ -202,6 +222,12 @@ class _ProjectionMetricRow extends StatelessWidget {
             value: dailySpendable,
             detail: nextSalary,
             color: Theme.of(context).colorScheme.primary,
+          ),
+          _ProjectionMetric(
+            label: 'Obrigação de faturas',
+            value: invoiceObligations,
+            detail: 'Vencimentos previstos no período',
+            color: Theme.of(context).colorScheme.error,
           ),
           _ProjectionMetric(
             label: 'Critério',
@@ -857,10 +883,12 @@ class BudgetWatch extends StatelessWidget {
         .where((b) =>
             b.year == now.year && b.month == now.month && b.limitInCents > 0)
         .toList()
-      ..sort((a, b) =>
-          (FinancialRules.budgetSpent(b, store.transactions) / b.limitInCents)
-              .compareTo(FinancialRules.budgetSpent(a, store.transactions) /
-                  a.limitInCents));
+      ..sort((a, b) => (FinancialRules.budgetSpent(
+                  b, store.transactions, store.cardPurchases) /
+              b.limitInCents)
+          .compareTo(FinancialRules.budgetSpent(
+                  a, store.transactions, store.cardPurchases) /
+              a.limitInCents));
     if (budgets.isEmpty) return const SizedBox.shrink();
     return Padding(
         padding: const EdgeInsets.only(bottom: 16),
@@ -871,8 +899,8 @@ class BudgetWatch extends StatelessWidget {
               TextButton(onPressed: onOpen, child: const Text('Planejar')),
           child: Column(
               children: budgets.take(3).map((budget) {
-            final spent =
-                FinancialRules.budgetSpent(budget, store.transactions);
+            final spent = FinancialRules.budgetSpent(
+                budget, store.transactions, store.cardPurchases);
             final ratio = spent / budget.limitInCents;
             final color = ratio >= 1
                 ? Theme.of(context).colorScheme.error

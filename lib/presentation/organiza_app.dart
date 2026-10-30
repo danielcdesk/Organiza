@@ -10,6 +10,7 @@ import 'package:window_manager/window_manager.dart';
 
 import '../application/organiza_store.dart';
 import '../domain/models.dart';
+import '../domain/card_invoice_rules.dart';
 import '../domain/financial_rules.dart';
 import '../services/local_image_service.dart';
 import 'basic_pages.dart';
@@ -552,6 +553,8 @@ class _OrganizaShellState extends State<OrganizaShell>
             onAddCard: _openCardDialog,
             onAddPurchase: _openCardPurchaseDialog,
             onManageInstallments: _manageCardPurchaseInstallments,
+            onPayInvoice: _payCardInvoice,
+            onReverseInvoicePayment: _reverseCardInvoicePayment,
           ),
         4 => PlanningPage(
             store: widget.store,
@@ -745,6 +748,10 @@ class _OrganizaShellState extends State<OrganizaShell>
     final transaction = widget.store.transactions
         .where((item) => item.id == transactionId)
         .firstOrNull;
+    if (transaction?.systemType == TransactionSystemType.cardPayment) {
+      _showError('Estorne o pagamento pela fatura.');
+      return;
+    }
     final recurringSalary = transaction?.category.toLowerCase() == 'salário' &&
         widget.store.salarySchedules
             .any((item) => item.id == transaction?.seriesId);
@@ -758,6 +765,10 @@ class _OrganizaShellState extends State<OrganizaShell>
   }
 
   Future<void> _editTransaction(TransactionRecord item) async {
+    if (item.systemType == TransactionSystemType.cardPayment) {
+      _showError('Estorne o pagamento pela fatura.');
+      return;
+    }
     final input = await showDialog<TransactionRecord>(
         context: context,
         builder: (_) => TransactionEditDialog(
@@ -1072,6 +1083,9 @@ class _OrganizaShellState extends State<OrganizaShell>
       context: context,
       builder: (_) => CardPurchaseDialog(
         cards: widget.store.creditCards,
+        categories: widget.store.financeCategories,
+        subcategories: widget.store.financeSubcategories,
+        clock: widget.store.clock,
         initialCardId: initialCardId,
       ),
     );
@@ -1082,8 +1096,44 @@ class _OrganizaShellState extends State<OrganizaShell>
         description: value.description,
         amountInCents: value.amountInCents,
         installments: value.installments,
+        category: value.category,
+        subcategory: value.subcategory,
+        purchasedOn: value.purchasedOn,
       );
     } on ArgumentError catch (error) {
+      if (error.message.toString().contains('altera faturas já fechadas')) {
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('Alterar faturas fechadas?'),
+            content: const Text(
+                'Esta compra antiga muda o valor de uma ou mais faturas já fechadas. Confira as faturas antes de continuar.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Cancelar'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('Confirmar compra'),
+              ),
+            ],
+          ),
+        );
+        if (confirmed == true && mounted) {
+          widget.store.addCardPurchase(
+            cardId: value.cardId,
+            description: value.description,
+            amountInCents: value.amountInCents,
+            installments: value.installments,
+            category: value.category,
+            subcategory: value.subcategory,
+            purchasedOn: value.purchasedOn,
+            allowClosedInvoiceChange: true,
+          );
+        }
+        return;
+      }
       _showError(
           error.message?.toString() ?? 'Não foi possível salvar a compra.');
     }
@@ -1105,6 +1155,110 @@ class _OrganizaShellState extends State<OrganizaShell>
       );
     } on ArgumentError catch (error) {
       _showError(error.message?.toString() ?? 'Não foi possível salvar.');
+    }
+  }
+
+  Future<void> _payCardInvoice(CreditCard card, int year, int month) async {
+    if (widget.store.accounts.isEmpty) {
+      _showError('Cadastre uma conta antes de pagar a fatura.');
+      return;
+    }
+    final invoice = widget.store.cardInvoices
+        .where((item) =>
+            item.cardId == card.id &&
+            item.referenceYear == year &&
+            item.referenceMonth == month)
+        .firstOrNull;
+    final paid = invoice == null
+        ? 0
+        : widget.store.cardInvoicePayments
+            .where((item) => item.invoiceId == invoice.id)
+            .fold<int>(0, (sum, item) => sum + item.amountInCents);
+    final remaining = CardInvoiceRules.remainingForPeriod(
+      card,
+      widget.store.cardPurchases,
+      year,
+      month,
+      actualPaymentsInCents: paid,
+    );
+    if (remaining == 0) return;
+    var accountId = widget.store.accounts.first.id;
+    var enteredAmount =
+        '${remaining ~/ 100},${(remaining % 100).toString().padLeft(2, '0')}';
+    final result = await showDialog<({String accountId, int cents})>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Pagar fatura ${month.toString().padLeft(2, '0')}/$year'),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text('Restante: ${FinancialRules.formatBrl(remaining)}'),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            initialValue: accountId,
+            isExpanded: true,
+            decoration: const InputDecoration(labelText: 'Conta de pagamento'),
+            items: widget.store.accounts
+                .map((account) => DropdownMenuItem(
+                      value: account.id,
+                      child: Text(account.name),
+                    ))
+                .toList(),
+            onChanged: (value) => accountId = value!,
+          ),
+          const SizedBox(height: 12),
+          TextFormField(
+            initialValue: enteredAmount,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(labelText: 'Valor (R\$)'),
+            onChanged: (value) => enteredAmount = value,
+          ),
+        ]),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancelar')),
+          FilledButton(
+            onPressed: () {
+              final cents = parseMoney(enteredAmount);
+              if (cents == null || cents <= 0 || cents > remaining) {
+                ScaffoldMessenger.of(dialogContext).showSnackBar(const SnackBar(
+                  content: Text('Informe um valor até o restante da fatura.'),
+                ));
+                return;
+              }
+              Navigator.pop(
+                  dialogContext, (accountId: accountId, cents: cents));
+            },
+            child: const Text('Confirmar pagamento'),
+          ),
+        ],
+      ),
+    );
+    if (result == null || !mounted) return;
+    try {
+      widget.store.payCardInvoice(
+        cardId: card.id,
+        referenceYear: year,
+        referenceMonth: month,
+        accountId: result.accountId,
+        amountInCents: result.cents,
+      );
+      _showError('Pagamento registrado.');
+    } on ArgumentError catch (error) {
+      _showError(error.message.toString());
+    }
+  }
+
+  Future<void> _reverseCardInvoicePayment(String paymentId) async {
+    final confirmed = await _confirmDelete(
+      title: 'Estornar pagamento?',
+      message: 'O valor voltará ao saldo da conta e à fatura pendente.',
+    );
+    if (!confirmed || !mounted) return;
+    try {
+      widget.store.reverseCardInvoicePayment(paymentId);
+      _showError('Pagamento estornado.');
+    } on Object catch (error) {
+      _showError('Não foi possível estornar: $error');
     }
   }
 
@@ -1498,6 +1652,9 @@ class _OrganizaShellState extends State<OrganizaShell>
       final file = await const ReportExportService().exportTransactions(
         transactions,
         period: month,
+        purchases: widget.store.cardPurchases.where((item) =>
+            item.purchasedOn.year == month.year &&
+            item.purchasedOn.month == month.month),
       );
       if (!mounted) return;
       _showError('Relatório salvo em ${file.path}');
