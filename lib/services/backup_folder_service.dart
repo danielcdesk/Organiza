@@ -4,6 +4,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as path;
 
+import 'app_storage_paths.dart';
+
 /// Writes scheduled backups only into a folder deliberately chosen by the user.
 /// Android retains its Storage Access Framework tree permission in native code.
 class BackupFolderService {
@@ -15,20 +17,50 @@ class BackupFolderService {
 
   Future<String?> choose() async {
     if (Platform.isAndroid) {
-      final chosen = await _channel.invokeMethod<bool>('choose') ?? false;
-      return chosen ? 'Pasta escolhida no Android' : null;
+      return _channel.invokeMethod<String>('choose');
     }
-    return FilePicker.platform.getDirectoryPath(
+    final selected = await FilePicker.platform.getDirectoryPath(
         dialogTitle: 'Escolha a pasta dos backups automáticos');
+    if (selected != null) _validateDesktopFolder(selected);
+    return selected;
   }
 
-  Future<bool> configured(String? desktopFolder) async {
+  Future<bool> configured(String? desktopFolder, {String? candidate}) async {
     if (Platform.isAndroid) {
-      return await _channel.invokeMethod<bool>('configured') ?? false;
+      return await _channel
+              .invokeMethod<bool>('configured', {'candidate': candidate}) ??
+          false;
     }
-    return desktopFolder != null &&
-        desktopFolder.isNotEmpty &&
-        await Directory(desktopFolder).exists();
+    final chosen = candidate ?? desktopFolder;
+    if (chosen == null || chosen.isEmpty) return false;
+    _validateDesktopFolder(chosen);
+    return Directory(chosen).exists();
+  }
+
+  Future<void> commit(String selected) async {
+    if (Platform.isAndroid) {
+      await _channel.invokeMethod<void>('commit', {'uri': selected});
+    } else {
+      _validateDesktopFolder(selected);
+    }
+  }
+
+  Future<void> discard(String selected) async {
+    if (Platform.isAndroid) {
+      await _channel.invokeMethod<void>('discard', {'uri': selected});
+    }
+  }
+
+  static void _validateDesktopFolder(String folder) {
+    if (!Platform.isWindows) return;
+    final images = path
+        .normalize(AppStoragePaths.imageDirectory.absolute.path)
+        .toLowerCase();
+    final chosen =
+        path.normalize(Directory(folder).absolute.path).toLowerCase();
+    if (chosen == images || path.isWithin(images, chosen)) {
+      throw ArgumentError('Escolha uma pasta fora das imagens do Organiza.');
+    }
   }
 
   Future<void> save(File source, String name, String? desktopFolder) async {
@@ -43,6 +75,7 @@ class BackupFolderService {
     if (desktopFolder == null || desktopFolder.isEmpty) {
       throw StateError('Escolha uma pasta de backup.');
     }
+    _validateDesktopFolder(desktopFolder);
     final folder = Directory(desktopFolder);
     if (!await folder.exists()) {
       throw StateError('Pasta de backup indisponível.');

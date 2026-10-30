@@ -2,13 +2,20 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:organiza/services/backup_folder_service.dart';
+import 'package:organiza/services/app_storage_paths.dart';
 import 'package:path/path.dart' as path;
 
 void main() {
-  test('pasta escolhida lista e remove só backups automáticos do app', () async {
+  test('pasta escolhida lista e remove só backups automáticos do app',
+      () async {
     if (!Platform.isWindows) return;
     final root = await Directory.systemTemp.createTemp('organiza-folder-test-');
-    addTearDown(() => root.delete(recursive: true));
+    await AppStoragePaths.initialize(
+        root: Directory(path.join(root.path, 'app')));
+    addTearDown(() async {
+      AppStoragePaths.resetForTesting();
+      await root.delete(recursive: true);
+    });
     final source = File(path.join(root.path, 'source'));
     await source.writeAsBytes([1, 2, 3]);
     final unrelated = File(path.join(root.path, 'extrato.organizabak'));
@@ -24,5 +31,10 @@ void main() {
     expect(await unrelated.readAsBytes(), [9]);
     await expectLater(
         service.delete('extrato.organizabak', root.path), throwsArgumentError);
+    await expectLater(service.configured(AppStoragePaths.imageDirectory.path),
+        throwsArgumentError);
+    await expectLater(
+        service.save(source, name, AppStoragePaths.imageDirectory.path),
+        throwsArgumentError);
   });
 }

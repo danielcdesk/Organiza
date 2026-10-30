@@ -1537,6 +1537,7 @@ class SettingsPage extends StatelessWidget {
       this.automaticBackupEnabled = false,
       this.lastBackupAt,
       this.backupError,
+      this.backupOverdue = false,
       required this.onConfigureAutomaticBackup,
       required this.onDisableAutomaticBackup,
       required this.onRunAutomaticBackup});
@@ -1557,6 +1558,7 @@ class SettingsPage extends StatelessWidget {
   final bool automaticBackupEnabled;
   final String? lastBackupAt;
   final String? backupError;
+  final bool backupOverdue;
   final Future<void> Function() onConfigureAutomaticBackup;
   final Future<void> Function() onDisableAutomaticBackup;
   final Future<void> Function() onRunAutomaticBackup;
@@ -1803,6 +1805,9 @@ class SettingsPage extends StatelessWidget {
                     Text('Último backup automático: $lastBackupAt'),
                   if (backupError != null && backupError!.isNotEmpty)
                     Text('Falha no último backup: $backupError'),
+                  if (backupOverdue)
+                    const Text(
+                        'Backup atrasado: confira a pasta e faça uma cópia agora.'),
                 ],
               ),
             ),

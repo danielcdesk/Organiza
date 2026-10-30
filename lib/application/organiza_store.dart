@@ -89,19 +89,18 @@ class OrganizaStore extends ChangeNotifier {
   int get backupRetention =>
       int.tryParse(_repository.loadPreference('backup_retention') ?? '') ?? 3;
   String? get lastBackupAt => _repository.loadPreference('backup_last_success');
+  bool get backupOverdue => BackupSchedule.isDue(_now,
+      enabled: automaticBackupEnabled,
+      intervalDays: (backupIntervalDays * 2).clamp(1, 365),
+      lastSuccess: DateTime.tryParse(lastBackupAt ?? ''));
   String? get backupError => _repository.loadPreference('backup_last_error');
   String? get _desktopBackupFolder =>
       _repository.loadPreference('backup_desktop_folder');
 
-  Future<bool> chooseAutomaticBackupFolder() async {
-    final selected = await _backupFolder.choose();
-    if (selected == null) return false;
-    if (!Platform.isAndroid) {
-      _repository.savePreference('backup_desktop_folder', selected);
-    }
-    notifyListeners();
-    return true;
-  }
+  Future<String?> chooseAutomaticBackupFolder() => _backupFolder.choose();
+
+  Future<void> discardAutomaticBackupFolder(String selected) =>
+      _backupFolder.discard(selected);
 
   Future<void> configureAutomaticBackup({
     required bool enabled,
@@ -109,6 +108,7 @@ class OrganizaStore extends ChangeNotifier {
     required int retention,
     required bool onClose,
     String? password,
+    String? selectedFolder,
   }) async {
     if (intervalDays < 1 ||
         intervalDays > 365 ||
@@ -117,7 +117,8 @@ class OrganizaStore extends ChangeNotifier {
       throw ArgumentError('Intervalo ou retenção fora dos limites.');
     }
     if (enabled) {
-      if (!await _backupFolder.configured(_desktopBackupFolder)) {
+      if (!await _backupFolder.configured(_desktopBackupFolder,
+          candidate: selectedFolder)) {
         throw StateError('Escolha primeiro a pasta dos backups.');
       }
       if (password != null) {
@@ -125,6 +126,12 @@ class OrganizaStore extends ChangeNotifier {
         await _vault.write(_backupPasswordKey, password);
       } else if (await _vault.read(_backupPasswordKey) == null) {
         throw StateError('Informe a senha do backup.');
+      }
+      if (selectedFolder != null) {
+        await _backupFolder.commit(selectedFolder);
+        if (!Platform.isAndroid) {
+          _repository.savePreference('backup_desktop_folder', selectedFolder);
+        }
       }
     }
     _repository.savePreference('backup_enabled', '$enabled');
@@ -166,9 +173,11 @@ class OrganizaStore extends ChangeNotifier {
       }
       final name =
           'organiza-auto-${_now.toUtc().toIso8601String().replaceAll(':', '-')}-${_uuid.v4()}.organizabak';
-      temporary = await exportEncryptedBackup(password,
-          destination: File(path.join(AppStoragePaths.rootDirectory.path,
-              'backup-pending.organizabak')));
+      final pending = File(path.join(
+          AppStoragePaths.rootDirectory.path, 'backup-pending.organizabak'));
+      // A previous process can leave this encrypted scratch file behind.
+      if (await pending.exists()) await pending.delete();
+      temporary = await exportEncryptedBackup(password, destination: pending);
       await _backupFolder.save(temporary, name, _desktopBackupFolder);
       _repository.savePreference('backup_last_success', _now.toIso8601String());
       _repository.savePreference('backup_last_error', '');

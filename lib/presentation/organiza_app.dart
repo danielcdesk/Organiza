@@ -606,6 +606,7 @@ class _OrganizaShellState extends State<OrganizaShell>
             automaticBackupEnabled: widget.store.automaticBackupEnabled,
             lastBackupAt: widget.store.lastBackupAt,
             backupError: widget.store.backupError,
+            backupOverdue: widget.store.backupOverdue,
             onConfigureAutomaticBackup: _configureAutomaticBackup,
             onDisableAutomaticBackup: _disableAutomaticBackup,
             onRunAutomaticBackup: _runAutomaticBackup),
@@ -1220,14 +1221,22 @@ class _OrganizaShellState extends State<OrganizaShell>
   }
 
   Future<void> _configureAutomaticBackup() async {
+    String? selected;
     try {
-      final selected = await widget.store.chooseAutomaticBackupFolder();
-      if (!selected || !mounted) return;
+      selected = await widget.store.chooseAutomaticBackupFolder();
+      if (selected == null) return;
+      if (!mounted) {
+        await widget.store.discardAutomaticBackupFolder(selected);
+        return;
+      }
       final password = await _backupPasswordDialog(
         title: 'Senha para backups automáticos',
         confirm: true,
       );
-      if (password == null || !mounted) return;
+      if (password == null || !mounted) {
+        await widget.store.discardAutomaticBackupFolder(selected);
+        return;
+      }
       var interval = widget.store.backupIntervalDays;
       var retention = widget.store.backupRetention;
       var onClose = widget.store.backupOnClose;
@@ -1283,15 +1292,22 @@ class _OrganizaShellState extends State<OrganizaShell>
           ),
         ),
       );
-      if (confirmed != true) return;
+      if (confirmed != true) {
+        await widget.store.discardAutomaticBackupFolder(selected);
+        return;
+      }
       await widget.store.configureAutomaticBackup(
           enabled: true,
           intervalDays: interval,
           retention: retention,
           onClose: onClose,
-          password: password);
+          password: password,
+          selectedFolder: selected);
       if (mounted) _showError('Backup automático ativado.');
     } on Object catch (error) {
+      if (selected != null) {
+        await widget.store.discardAutomaticBackupFolder(selected);
+      }
       if (mounted) _showError('Não foi possível configurar o backup: $error');
     }
   }

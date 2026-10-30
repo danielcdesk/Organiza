@@ -44,7 +44,27 @@ class MainActivity : FlutterActivity() {
                                 startActivityForResult(intent, treeRequest)
                             }
                         }
-                        "configured" -> result.success(selectedTree() != null)
+                        "configured" -> {
+                            val candidate = call.argument<String>("candidate")
+                            result.success(if (candidate == null) selectedTree() != null
+                                else grantedTree(Uri.parse(candidate)))
+                        }
+                        "commit" -> {
+                            val raw = call.argument<String>("uri") ?: error("Pasta ausente")
+                            require(grantedTree(Uri.parse(raw))) { "Permissão da pasta ausente" }
+                            preferences.edit().putString("uri", raw).apply()
+                            result.success(null)
+                        }
+                        "discard" -> {
+                            val raw = call.argument<String>("uri") ?: error("Pasta ausente")
+                            if (raw != preferences.getString("uri", null)) {
+                                contentResolver.releasePersistableUriPermission(
+                                    Uri.parse(raw), Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                                        Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                                )
+                            }
+                            result.success(null)
+                        }
                         "save" -> {
                             val name = call.argument<String>("name") ?: error("Nome ausente")
                             val source = call.argument<String>("source") ?: error("Arquivo ausente")
@@ -102,15 +122,14 @@ class MainActivity : FlutterActivity() {
         pendingTree = null
         val uri = data?.data
         if (resultCode != Activity.RESULT_OK || uri == null) {
-            pending.success(false)
+            pending.success(null)
             return
         }
         try {
             contentResolver.takePersistableUriPermission(
                 uri, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
             )
-            preferences.edit().putString("uri", uri.toString()).apply()
-            pending.success(true)
+            pending.success(uri.toString())
         } catch (failure: Exception) {
             pending.error("backup_folder", failure.message, null)
         }
@@ -119,11 +138,13 @@ class MainActivity : FlutterActivity() {
     private fun selectedTree(): Uri? {
         val raw = preferences.getString("uri", null) ?: return null
         val uri = Uri.parse(raw)
-        val granted = contentResolver.persistedUriPermissions.any {
+        return if (grantedTree(uri)) uri else null
+    }
+
+    private fun grantedTree(uri: Uri): Boolean =
+        contentResolver.persistedUriPermissions.any {
             it.uri == uri && it.isReadPermission && it.isWritePermission
         }
-        return if (granted) uri else null
-    }
 
     private fun listBackups(): List<Pair<String, Uri>> {
         val tree = selectedTree() ?: return emptyList()

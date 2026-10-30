@@ -23,6 +23,7 @@ O schema de produção permanece em **16**. Referências absolutas a imagens exi
 - `flutter build apk --debug --no-pub`: APK compilado com `MainActivity.kt` atualizado.
 - Teste do coordenador: exportar, alterar dados, restaurar recupera saldo de **87.655 centavos**, preferências e imagem; senha errada e conflito de imagem preservam dados atuais; JSON v1 é lido.
 - `git diff --check`: sem erros de whitespace.
+- Revisão independente encontrou dois casos corrigidos: escolha de pasta agora só é confirmada após todos os diálogos; pasta `Organiza/images` e suas subpastas são recusadas para backup agendado. Teste da restrição Windows aprovado.
 
 ## 5. Não validado
 
