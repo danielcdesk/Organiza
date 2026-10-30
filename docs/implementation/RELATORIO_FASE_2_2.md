@@ -1,6 +1,6 @@
 # Relatório da Fase 2.2 — Faturas e pagamentos de cartão
 
-Data: 2026-10-30. Estado: implementação concluída localmente; PR aberto e CI em andamento. O build Android local não foi executado porque este ambiente não tem Android SDK.
+Data: 2026-10-30. Estado: Fase 2.2 implementada e validada; PR draft aberto e CI verde. O build Android local não foi executado porque este ambiente não tem Android SDK.
 
 ## 1. Resumo
 
@@ -23,15 +23,17 @@ Schema 17 → 18 preserva compras e marcações manuais antigas de parcelas; cat
 - Testes focados de pagamento/estorno pela UI, limite liberado, marcações antigas, rollback transacional, projeção, categorias, CSV e resumos de caixa: aprovados.
 - `git diff --check`: sem erros de whitespace.
 - Revisão independente: quatro achados importantes corrigidos com testes; uma lacuna menor de injeção de falha durante a transação continua documentada.
-- PR draft aberto; CI do GitHub em andamento. O workflow de PR agora inclui um build Android release sem assinatura, além de análise e testes Windows/Ubuntu.
+- CI GitHub Actions: run **41144349736**, commit `8288b91`; análise/testes Windows, análise/testes Ubuntu e build APK Android release sem assinatura passaram.
+- O primeiro build Android falhou porque o registrador gerado ainda incluía `IntegrationTestPlugin` com `--no-pub`. Conforme ERR-006 já documentado, o build foi ajustado para atualizar a resolução de plugins; a nova execução compilou o APK.
+- PR draft #5 aberto e sem conflitos: https://github.com/danielcdesk/Organiza/pull/5.
 
 ## 5. Não validado
 
-Execução Android em dispositivo/emulador. O build Android release no CI e os jobs de qualidade do PR ainda aguardam conclusão. Não foi validada migração com bancos reais de usuários.
+Execução Android em dispositivo/emulador. Não foi validada migração com bancos reais de usuários.
 
 ## 6. Riscos e pendências
 
-Marcações manuais antigas de parcelas não identificavam conta nem valor; aparecem destacadas, não criam lançamentos e ficam fora do valor confirmado a pagar até conferência. Compras antigas que alterem ciclo fechado exigem confirmação explícita. Não há conexão bancária/cartão, importação de fatura ou registro de dívidas nesta fase. O estado da fase só deve avançar após CI verde.
+Marcações manuais antigas de parcelas não identificavam conta nem valor; aparecem destacadas, não criam lançamentos e ficam fora do valor confirmado a pagar até conferência. Compras antigas que alterem ciclo fechado exigem confirmação explícita. Não há conexão bancária/cartão, importação de fatura ou registro de dívidas nesta fase. O gate CI da Fase 2.2 está verde; a Fase 2 completa segue pendente das demais entregas de dados.
 
 ## 7. Decisões
 
@@ -39,4 +41,4 @@ Competência da compra: data da compra; caixa: parcelas por vencimento. Pagament
 
 ## 8. Próxima fase e perguntas
 
-Atualizar PR draft da Fase 2.2 sobre a Fase 2.1 e verificar CI Windows/Ubuntu/Android. Não há decisão pendente do usuário para este escopo.
+PR draft #5 da Fase 2.2 sobre a Fase 2.1 está aberto; CI Windows/Ubuntu/Android verde. Não há decisão pendente do usuário para este escopo.

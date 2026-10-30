@@ -27,5 +27,5 @@
 
 ## Task 4 — gate
 
-- [ ] Run analysis, full tests with coverage, migration fixtures, Windows integration and Android build. Local Android SDK is unavailable; CI release build is the remaining Android build gate. Review fix pass is implemented; fresh review classified a payment failure-injection case as minor and it remains deferred.
-- [ ] Review important findings, produce 8-section phase report, push isolated draft PR based on Phase 2.1 and verify Windows/Ubuntu CI before schema 19.
+- [x] Run analysis, full tests with coverage, migration fixtures, Windows integration and Android build. Local Android SDK is unavailable; CI run 41144349736 built the unsigned release APK. Review fix pass is implemented; fresh review classified a payment failure-injection case as minor and it remains deferred.
+- [x] Review important findings, produce 8-section phase report, push isolated draft PR based on Phase 2.1 and verify Windows/Ubuntu/Android CI before schema 19. PR #5 is open as a draft and all three CI jobs passed.
