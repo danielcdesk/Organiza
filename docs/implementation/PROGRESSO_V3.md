@@ -57,3 +57,5 @@ Validação final local da Fase 1: `flutter analyze` limpo; 151 testes aprovados
 ## Fase 2.1 — categorias com FK
 
 Schema 17 implementado em commits temáticos: migração com preenchimento dos IDs, leitura/gravação por ID e interface de renomeação/arquivamento. Metas mantêm `goal_categories` como tabela separada, decisão documentada em `docs/DECISIONS.md`. Análise limpa, 161 testes aprovados com 69,13% de cobertura, incluindo migração v1/v16→v17 com saldo preservado. Dois fluxos de integração Windows passaram e três problemas importantes encontrados na revisão foram corrigidos. CI do PR é o gate restante. Relatório: `RELATORIO_FASE_2_1.md`. A Fase 2 completa continua pendente.
+
+O PR #4 da Fase 2.1 passou no CI Windows/Ubuntu (`Qualidade Flutter`, run 41079612624). A Fase 2.2 segue em branch isolada com schema 18; a Fase 2 completa continua pendente.

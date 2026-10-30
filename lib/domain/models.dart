@@ -164,6 +164,10 @@ class CardPurchase {
     required this.installments,
     required this.createdAt,
     this.paidInstallments = const {},
+    this.category = 'Outros',
+    this.subcategory = 'Geral',
+    this.categoryId,
+    this.subcategoryId,
   });
 
   final String id;
@@ -174,6 +178,10 @@ class CardPurchase {
   final int installments;
   final DateTime createdAt;
   final Set<int> paidInstallments;
+  final String category;
+  final String subcategory;
+  final String? categoryId;
+  final String? subcategoryId;
 
   int get paidInstallmentCount => paidInstallments.length;
   int get remainingInstallmentCount => installments - paidInstallments.length;
