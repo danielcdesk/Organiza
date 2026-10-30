@@ -105,10 +105,10 @@ The selected approach follows the existing app structure. `deleted_at` is set as
 
 **Interfaces:** Existing `loadAccounts`, `loadTransactions`, `loadTasks`, `loadShoppingItems`, `loadCreditCards`, `loadCardPurchases`, `loadInvestments`, `loadBudgets`, `loadSubscriptions`, and `loadFinancialGoals` remain the normal active-only reads.
 
-- [ ] **Step 1: Add failing repository tests** that seed one active and one deleted row in each of the ten tables and assert normal loaders return only active rows, including joins and card installment reads.
-- [ ] **Step 2: Verify backup test failure first**: snapshot/restore must preserve both active and deleted rows and the original `deleted_at` values.
-- [ ] **Step 3: Add `deleted_at IS NULL` to every ordinary read and single-row lookup for the ten tables.** Keep migration, integrity, backup snapshot, and restore enumeration intentionally unfiltered.
-- [ ] **Step 4: Run focused repository and snapshot tests** and prove active reads hide tombstones while snapshots retain them.
+- [x] **Step 1: Add failing repository tests** that seed one active and one deleted row in each of the ten tables and assert normal loaders return only active rows, including joins and card installment reads. RED showed the deleted account leaking into `loadAccounts`.
+- [x] **Step 2: Run the backup regression test**: snapshot/restore should already preserve both active and deleted rows and original `deleted_at` values because backup serializes every stored row; it passed and remains covered.
+- [x] **Step 3: Add `deleted_at IS NULL` to every ordinary read and single-row lookup for the ten tables.** Keep migration, integrity, backup snapshot, and restore enumeration intentionally unfiltered.
+- [x] **Step 4: Run focused repository and snapshot tests** and prove active reads hide tombstones while snapshots retain them. `flutter test --no-pub test/unit/data`: 27 tests passed.
 - [ ] **Step 5: Commit** `Filtre registros excluídos das leituras normais`.
 
 ### Task 4: Add soft-delete and restore use cases

@@ -173,6 +173,10 @@ class AppDatabase {
   int get schemaVersion =>
       _database.select('PRAGMA user_version').first['user_version'] as int;
 
+  String _activeRowPredicate([String? alias]) => schemaVersion >= 19
+      ? '${alias == null ? '' : '$alias.'}deleted_at IS NULL'
+      : '1 = 1';
+
   static List<String> _tablesForVersion(int version) => _backupTables
       .where((table) =>
           version >=
@@ -1101,7 +1105,8 @@ class AppDatabase {
   }
 
   List<Account> loadAccounts() => _database
-      .select('SELECT * FROM accounts ORDER BY created_at ASC')
+      .select('SELECT * FROM accounts WHERE ${_activeRowPredicate()} '
+          'ORDER BY created_at ASC')
       .map((row) => Account(
             id: row['id'] as String,
             name: row['name'] as String,
@@ -1119,13 +1124,15 @@ class AppDatabase {
           ? '''SELECT *, category AS resolved_category, subcategory AS resolved_subcategory,
               NULL AS category_id, NULL AS subcategory_id,
               NULL AS system_type
-             FROM transactions ORDER BY occurred_on DESC, created_at DESC'''
+             FROM transactions WHERE ${_activeRowPredicate()}
+             ORDER BY occurred_on DESC, created_at DESC'''
           : '''SELECT t.*, ${schemaVersion < 18 ? 'NULL AS system_type,' : ''}
               COALESCE(c.name, t.category) AS resolved_category,
              COALESCE(sc.name, t.subcategory) AS resolved_subcategory
              FROM transactions t
              LEFT JOIN finance_categories c ON c.id = t.category_id
              LEFT JOIN finance_subcategories sc ON sc.id = t.subcategory_id
+             WHERE ${_activeRowPredicate('t')}
              ORDER BY t.occurred_on DESC, t.created_at DESC''')
       .map((row) => TransactionRecord(
             id: row['id'] as String,
@@ -1156,8 +1163,8 @@ class AppDatabase {
       .toList();
 
   List<TaskItem> loadTasks() => _database
-      .select(
-          'SELECT * FROM tasks ORDER BY is_done ASC, due_on ASC, created_at DESC')
+      .select('SELECT * FROM tasks WHERE ${_activeRowPredicate()} '
+          'ORDER BY is_done ASC, due_on ASC, created_at DESC')
       .map((row) => TaskItem(
             id: row['id'] as String,
             title: row['title'] as String,
@@ -1170,8 +1177,8 @@ class AppDatabase {
       .toList();
 
   List<ShoppingItem> loadShoppingItems() => _database
-      .select(
-          'SELECT * FROM shopping_items ORDER BY is_purchased ASC, created_at DESC')
+      .select('SELECT * FROM shopping_items WHERE ${_activeRowPredicate()} '
+          'ORDER BY is_purchased ASC, created_at DESC')
       .map((row) => ShoppingItem(
             id: row['id'] as String,
             name: row['name'] as String,
@@ -1187,7 +1194,8 @@ class AppDatabase {
       .toList();
 
   List<CreditCard> loadCreditCards() => _database
-      .select('SELECT * FROM credit_cards ORDER BY created_at ASC')
+      .select('SELECT * FROM credit_cards WHERE ${_activeRowPredicate()} '
+          'ORDER BY created_at ASC')
       .map((row) => CreditCard(
             id: row['id'] as String,
             name: row['name'] as String,
@@ -1204,7 +1212,10 @@ class AppDatabase {
   List<CardPurchase> loadCardPurchases() {
     final paidInstallments = <String, Set<int>>{};
     for (final row in _database.select(
-      'SELECT purchase_id, installment_number FROM card_installment_payments',
+      '''SELECT p.purchase_id, p.installment_number
+         FROM card_installment_payments p
+         JOIN card_purchases c ON c.id = p.purchase_id
+         WHERE ${_activeRowPredicate('c')}''',
     )) {
       paidInstallments
           .putIfAbsent(row['purchase_id'] as String, () => <int>{})
@@ -1215,12 +1226,14 @@ class AppDatabase {
             ? '''SELECT *, 'Outros' AS resolved_category,
                  'Geral' AS resolved_subcategory,
                  NULL AS category_id, NULL AS subcategory_id
-                 FROM card_purchases ORDER BY purchased_on DESC, created_at DESC'''
+                 FROM card_purchases WHERE ${_activeRowPredicate()}
+                 ORDER BY purchased_on DESC, created_at DESC'''
             : '''SELECT p.*, COALESCE(c.name, 'Outros') AS resolved_category,
                  COALESCE(sc.name, 'Geral') AS resolved_subcategory
                  FROM card_purchases p
                  LEFT JOIN finance_categories c ON c.id = p.category_id
                  LEFT JOIN finance_subcategories sc ON sc.id = p.subcategory_id
+                 WHERE ${_activeRowPredicate('p')}
                  ORDER BY p.purchased_on DESC, p.created_at DESC''')
         .map((row) => CardPurchase(
               id: row['id'] as String,
@@ -1276,7 +1289,8 @@ class AppDatabase {
       .toList();
 
   List<InvestmentPosition> loadInvestments() => _database
-      .select('SELECT * FROM investments ORDER BY created_at DESC')
+      .select('SELECT * FROM investments WHERE ${_activeRowPredicate()} '
+          'ORDER BY created_at DESC')
       .map((row) => InvestmentPosition(
             id: row['id'] as String,
             name: row['name'] as String,
@@ -1304,9 +1318,11 @@ class AppDatabase {
   List<Budget> loadBudgets() => _database
       .select(schemaVersion < 17
           ? '''SELECT *, category AS resolved_category, NULL AS category_id
-             FROM budgets ORDER BY year DESC, month DESC, created_at DESC'''
+             FROM budgets WHERE ${_activeRowPredicate()}
+             ORDER BY year DESC, month DESC, created_at DESC'''
           : '''SELECT b.*, COALESCE(c.name, b.category) AS resolved_category
              FROM budgets b LEFT JOIN finance_categories c ON c.id = b.category_id
+             WHERE ${_activeRowPredicate('b')}
              ORDER BY b.year DESC, b.month DESC, b.created_at DESC''')
       .map((row) => Budget(
             id: row['id'] as String,
@@ -1322,9 +1338,11 @@ class AppDatabase {
   List<Subscription> loadSubscriptions() => _database
       .select(schemaVersion < 17
           ? '''SELECT *, category AS resolved_category, NULL AS category_id
-             FROM subscriptions ORDER BY is_active DESC, billing_day ASC, created_at DESC'''
+             FROM subscriptions WHERE ${_activeRowPredicate()}
+             ORDER BY is_active DESC, billing_day ASC, created_at DESC'''
           : '''SELECT s.*, COALESCE(c.name, s.category) AS resolved_category
              FROM subscriptions s LEFT JOIN finance_categories c ON c.id = s.category_id
+             WHERE ${_activeRowPredicate('s')}
              ORDER BY s.is_active DESC, s.billing_day ASC, s.created_at DESC''')
       .map((row) => Subscription(
             id: row['id'] as String,
@@ -1351,9 +1369,11 @@ class AppDatabase {
   List<FinancialGoal> loadFinancialGoals() => _database
       .select(schemaVersion < 17
           ? '''SELECT *, category AS resolved_category FROM financial_goals
+             WHERE ${_activeRowPredicate()}
              ORDER BY deadline IS NULL, deadline ASC, created_at DESC'''
           : '''SELECT *, COALESCE(goal_category_name, category) AS resolved_category
-             FROM financial_goals ORDER BY deadline IS NULL, deadline ASC, created_at DESC''')
+             FROM financial_goals WHERE ${_activeRowPredicate()}
+             ORDER BY deadline IS NULL, deadline ASC, created_at DESC''')
       .map((row) => FinancialGoal(
             id: row['id'] as String,
             name: row['name'] as String,
@@ -1851,7 +1871,8 @@ class AppDatabase {
     DateTime paidOn,
   ) {
     final purchase = _database.select(
-      'SELECT installments FROM card_purchases WHERE id = ?',
+      'SELECT installments FROM card_purchases WHERE id = ? '
+      'AND ${_activeRowPredicate()}',
       [purchaseId],
     );
     if (purchase.isEmpty) throw ArgumentError('Compra não encontrada.');
@@ -2006,7 +2027,9 @@ class AppDatabase {
           return;
         }
         final existing = _database.select(
-            'SELECT category_id FROM transactions WHERE id = ?', [item.id]);
+            'SELECT category_id FROM transactions WHERE id = ? '
+            'AND ${_activeRowPredicate()}',
+            [item.id]);
         final keepsCategory = existing.isNotEmpty &&
             existing.single['category_id'] == item.categoryId;
         final category = item.type == TransactionType.transfer
@@ -2129,7 +2152,9 @@ class AppDatabase {
           return;
         }
         final existing = _database.select(
-            'SELECT category_id FROM subscriptions WHERE id = ?', [item.id]);
+            'SELECT category_id FROM subscriptions WHERE id = ? '
+            'AND ${_activeRowPredicate()}',
+            [item.id]);
         final keepsCategory = existing.isNotEmpty &&
             existing.single['category_id'] == item.categoryId;
         final category = _resolveCategory(
