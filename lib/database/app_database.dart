@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqlite3/sqlite3.dart';
+import 'package:uuid/uuid.dart';
 
 import '../domain/models.dart';
 
@@ -13,7 +14,7 @@ class AppDatabase {
   final Database _database;
   final String? filePath;
   static int get currentSchemaVersion => _schemaVersion;
-  static const _schemaVersion = 16;
+  static const _schemaVersion = 17;
   static const _backupTables = <String>[
     'accounts',
     'transactions',
@@ -351,6 +352,9 @@ class AppDatabase {
 
     _database.execute('BEGIN IMMEDIATE');
     try {
+      // Snapshot table order is historical, not dependency order. Validate
+      // every foreign key before commit after all parent rows are restored.
+      _database.execute('PRAGMA defer_foreign_keys = ON');
       for (final table in expectedTables.reversed) {
         _database.execute('DELETE FROM "$table"');
       }
@@ -676,6 +680,123 @@ class AppDatabase {
         );
       ''');
       _database.execute('PRAGMA user_version = 16');
+    }
+    if (current < 17 && target >= 17) {
+      _addColumnIfMissing('transactions', 'category_id',
+          'TEXT REFERENCES finance_categories(id) ON DELETE SET NULL');
+      _addColumnIfMissing('transactions', 'subcategory_id',
+          'TEXT REFERENCES finance_subcategories(id) ON DELETE SET NULL');
+      _addColumnIfMissing('budgets', 'category_id',
+          'TEXT REFERENCES finance_categories(id) ON DELETE SET NULL');
+      _addColumnIfMissing('subscriptions', 'category_id',
+          'TEXT REFERENCES finance_categories(id) ON DELETE SET NULL');
+      _addColumnIfMissing('finance_categories', 'archived_at', 'TEXT');
+      _addColumnIfMissing('financial_goals', 'goal_category_name',
+          'TEXT REFERENCES goal_categories(name) ON UPDATE CASCADE ON DELETE RESTRICT');
+      _database.execute('''
+        CREATE INDEX IF NOT EXISTS idx_transactions_category_date
+          ON transactions(category_id, occurred_on);
+        CREATE INDEX IF NOT EXISTS idx_transactions_subcategory_date
+          ON transactions(subcategory_id, occurred_on);
+        CREATE INDEX IF NOT EXISTS idx_budgets_category_id_period
+          ON budgets(category_id, year, month);
+        CREATE INDEX IF NOT EXISTS idx_subscriptions_category
+          ON subscriptions(category_id);
+      ''');
+      _backfillCategoryIds();
+      _database.execute('PRAGMA user_version = 17');
+    }
+  }
+
+  void _addColumnIfMissing(String table, String column, String definition) {
+    if (!_tableColumns(table).contains(column)) {
+      _database
+          .execute('ALTER TABLE "$table" ADD COLUMN "$column" $definition');
+    }
+  }
+
+  void _backfillCategoryIds() {
+    const uuid = Uuid();
+    final categories = <String, String>{};
+    for (final row
+        in _database.select('SELECT id, name, type FROM finance_categories')) {
+      categories[
+              '${row['type']}:${(row['name'] as String).trim().toLowerCase()}'] =
+          row['id'] as String;
+    }
+    String categoryId(String raw, String type) {
+      final name = raw.trim().isEmpty ? 'Outros' : raw.trim();
+      final key = '$type:${name.toLowerCase()}';
+      final existing = categories[key];
+      if (existing != null) return existing;
+      final id = uuid.v4();
+      _database.execute(
+          'INSERT INTO finance_categories(id, name, type, is_system, created_at) '
+          'VALUES (?, ?, ?, 0, ?)',
+          [id, name, type, DateTime.utc(1970).toIso8601String()]);
+      categories[key] = id;
+      return id;
+    }
+
+    final subcategories = <String, String>{};
+    for (final row in _database
+        .select('SELECT id, category_id, name FROM finance_subcategories')) {
+      subcategories[
+              '${row['category_id']}:${(row['name'] as String).trim().toLowerCase()}'] =
+          row['id'] as String;
+    }
+    String subcategoryId(String raw, String parentId) {
+      final name = raw.trim().isEmpty ? 'Geral' : raw.trim();
+      final key = '$parentId:${name.toLowerCase()}';
+      final existing = subcategories[key];
+      if (existing != null) return existing;
+      final id = uuid.v4();
+      _database.execute(
+          'INSERT INTO finance_subcategories(id, category_id, name, is_system, created_at) '
+          'VALUES (?, ?, ?, 0, ?)',
+          [id, parentId, name, DateTime.utc(1970).toIso8601String()]);
+      subcategories[key] = id;
+      return id;
+    }
+
+    for (final row in _database.select(
+        "SELECT id, type, category, subcategory FROM transactions WHERE type IN ('income', 'expense')")) {
+      final parent =
+          categoryId(row['category'] as String, row['type'] as String);
+      final child = subcategoryId(row['subcategory'] as String, parent);
+      _database.execute(
+          'UPDATE transactions SET category_id = ?, subcategory_id = ? WHERE id = ?',
+          [parent, child, row['id']]);
+    }
+    for (final row in _database.select('SELECT id, category FROM budgets')) {
+      _database.execute('UPDATE budgets SET category_id = ? WHERE id = ?',
+          [categoryId(row['category'] as String, 'expense'), row['id']]);
+    }
+    for (final row
+        in _database.select('SELECT id, category FROM subscriptions')) {
+      _database.execute('UPDATE subscriptions SET category_id = ? WHERE id = ?',
+          [categoryId(row['category'] as String, 'expense'), row['id']]);
+    }
+    final goals = <String, String>{};
+    for (final row in _database.select('SELECT name FROM goal_categories')) {
+      final name = row['name'] as String;
+      goals[name.trim().toLowerCase()] = name;
+    }
+    for (final row
+        in _database.select('SELECT id, category FROM financial_goals')) {
+      final raw = (row['category'] as String).trim();
+      final name = raw.isEmpty ? 'Outros' : raw;
+      final key = name.toLowerCase();
+      var canonical = goals[key];
+      if (canonical == null) {
+        canonical = name;
+        _database
+            .execute('INSERT INTO goal_categories(name) VALUES (?)', [name]);
+        goals[key] = name;
+      }
+      _database.execute(
+          'UPDATE financial_goals SET goal_category_name = ? WHERE id = ?',
+          [canonical, row['id']]);
     }
   }
 

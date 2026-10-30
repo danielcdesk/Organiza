@@ -10,6 +10,7 @@
 - A configuração de SQLite3MultipleCiphers/SQLCipher será verificada na documentação da versão instalada antes da Fase 4.
 - Manter sqlite3 e ChangeNotifier. Drift e troca de estado são opcionais e não foram aprovados; não são pré-requisitos das melhorias obrigatórias.
 - A senha de backup automático pode ficar no cofre do sistema, conforme autorização do dono do produto. Windows usa DPAPI e Android usa Android Keystore. O plugin `flutter_secure_storage` foi retirado porque a versão compatível exigia ATL ausente no ambiente Windows; as APIs do sistema não adicionam rede nem persistem a senha em SQLite.
+- O plano V3 sugere usar `finance_categories` também em `financial_goals`, mas o código real usa `goal_categories`, com vocabulário próprio (`Reserva`, `Casa`, `Viagem` etc.) e sem tipo receita/despesa. O schema 17 preservará essa distinção e ligará metas a `goal_categories(name)` por FK com atualização em cascata. O nome `goal_category_name` explicita a chave existente; não será criado um vínculo financeiro fictício.
 
 ### Correções factuais do plano fornecido
 
