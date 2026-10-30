@@ -12,6 +12,7 @@ class AppDatabase {
   AppDatabase._(this._database, {this.filePath});
 
   final Database _database;
+  int _transactionDepth = 0;
   final String? filePath;
   static int get currentSchemaVersion => _schemaVersion;
   static const _schemaVersion = 17;
@@ -989,8 +990,16 @@ class AppDatabase {
       .toList();
 
   List<TransactionRecord> loadTransactions() => _database
-      .select(
-          'SELECT * FROM transactions ORDER BY occurred_on DESC, created_at DESC')
+      .select(schemaVersion < 17
+          ? '''SELECT *, category AS resolved_category, subcategory AS resolved_subcategory,
+             NULL AS category_id, NULL AS subcategory_id
+             FROM transactions ORDER BY occurred_on DESC, created_at DESC'''
+          : '''SELECT t.*, COALESCE(c.name, t.category) AS resolved_category,
+             COALESCE(sc.name, t.subcategory) AS resolved_subcategory
+             FROM transactions t
+             LEFT JOIN finance_categories c ON c.id = t.category_id
+             LEFT JOIN finance_subcategories sc ON sc.id = t.subcategory_id
+             ORDER BY t.occurred_on DESC, t.created_at DESC''')
       .map((row) => TransactionRecord(
             id: row['id'] as String,
             accountId: row['account_id'] as String,
@@ -998,8 +1007,10 @@ class AppDatabase {
             type: TransactionType.values.byName(row['type'] as String),
             amountInCents: row['amount_cents'] as int,
             description: row['description'] as String,
-            category: row['category'] as String? ?? 'Outros',
-            subcategory: row['subcategory'] as String? ?? 'Geral',
+            category: row['resolved_category'] as String? ?? 'Outros',
+            subcategory: row['resolved_subcategory'] as String? ?? 'Geral',
+            categoryId: row['category_id'] as String?,
+            subcategoryId: row['subcategory_id'] as String?,
             scheduleType: TransactionScheduleType.values
                 .byName(row['schedule_type'] as String),
             seriesId: row['series_id'] as String?,
@@ -1110,11 +1121,16 @@ class AppDatabase {
       .toList();
 
   List<Budget> loadBudgets() => _database
-      .select(
-          'SELECT * FROM budgets ORDER BY year DESC, month DESC, created_at DESC')
+      .select(schemaVersion < 17
+          ? '''SELECT *, category AS resolved_category, NULL AS category_id
+             FROM budgets ORDER BY year DESC, month DESC, created_at DESC'''
+          : '''SELECT b.*, COALESCE(c.name, b.category) AS resolved_category
+             FROM budgets b LEFT JOIN finance_categories c ON c.id = b.category_id
+             ORDER BY b.year DESC, b.month DESC, b.created_at DESC''')
       .map((row) => Budget(
             id: row['id'] as String,
-            category: row['category'] as String,
+            category: row['resolved_category'] as String,
+            categoryId: row['category_id'] as String?,
             limitInCents: row['limit_cents'] as int,
             year: row['year'] as int,
             month: row['month'] as int,
@@ -1123,14 +1139,19 @@ class AppDatabase {
       .toList();
 
   List<Subscription> loadSubscriptions() => _database
-      .select(
-          'SELECT * FROM subscriptions ORDER BY is_active DESC, billing_day ASC, created_at DESC')
+      .select(schemaVersion < 17
+          ? '''SELECT *, category AS resolved_category, NULL AS category_id
+             FROM subscriptions ORDER BY is_active DESC, billing_day ASC, created_at DESC'''
+          : '''SELECT s.*, COALESCE(c.name, s.category) AS resolved_category
+             FROM subscriptions s LEFT JOIN finance_categories c ON c.id = s.category_id
+             ORDER BY s.is_active DESC, s.billing_day ASC, s.created_at DESC''')
       .map((row) => Subscription(
             id: row['id'] as String,
             name: row['name'] as String,
             amountInCents: row['amount_cents'] as int,
             billingDay: row['billing_day'] as int,
-            category: row['category'] as String,
+            category: row['resolved_category'] as String,
+            categoryId: row['category_id'] as String?,
             isActive: (row['is_active'] as int) == 1,
             createdAt: DateTime.parse(row['created_at'] as String),
           ))
@@ -1240,7 +1261,10 @@ class AppDatabase {
       _database.execute('INSERT INTO goal_categories(name) VALUES (?)', [name]);
 
   List<FinanceCategory> loadFinanceCategories() => _database
-      .select('SELECT * FROM finance_categories ORDER BY is_system DESC, name')
+      .select(schemaVersion < 17
+          ? 'SELECT * FROM finance_categories ORDER BY is_system DESC, name'
+          : 'SELECT * FROM finance_categories WHERE archived_at IS NULL '
+              'ORDER BY is_system DESC, name')
       .map((row) => FinanceCategory(
             id: row['id'] as String,
             name: row['name'] as String,
@@ -1296,30 +1320,160 @@ class AppDatabase {
       'UPDATE accounts SET opening_balance_cents = ? WHERE id = ?',
       [cents, id]);
 
-  void insertTransaction(TransactionRecord item) => _database.execute(
-        '''INSERT INTO transactions(
+  (String, String) _resolveCategory(String raw, String type, DateTime createdAt,
+      {String? preferredId, bool allowArchived = false}) {
+    if (preferredId != null) {
+      final rows = _database.select(
+          'SELECT id, name, type, archived_at FROM finance_categories WHERE id = ?',
+          [preferredId]);
+      if (rows.length != 1 || rows.single['type'] != type) {
+        throw ArgumentError('Categoria incompatível com o lançamento.');
+      }
+      if (rows.single['archived_at'] != null && !allowArchived) {
+        throw ArgumentError('A categoria está arquivada.');
+      }
+      return (preferredId, rows.single['name'] as String);
+    }
+    final name = raw.trim().isEmpty ? 'Outros' : raw.trim();
+    final matches = _database.select(
+        'SELECT id, name, archived_at FROM finance_categories WHERE type = ?',
+        [type]);
+    for (final row in matches) {
+      if ((row['name'] as String).trim().toLowerCase() == name.toLowerCase()) {
+        if (row['archived_at'] != null) {
+          throw ArgumentError('A categoria está arquivada.');
+        }
+        return (row['id'] as String, row['name'] as String);
+      }
+    }
+    final id = const Uuid().v4();
+    _database.execute(
+        'INSERT INTO finance_categories(id, name, type, is_system, created_at) '
+        'VALUES (?, ?, ?, 0, ?)',
+        [id, name, type, createdAt.toIso8601String()]);
+    return (id, name);
+  }
+
+  (String, String) _resolveSubcategory(
+      String raw, String parentId, DateTime createdAt,
+      {String? preferredId}) {
+    if (preferredId != null) {
+      final rows = _database.select(
+          'SELECT id, name, category_id FROM finance_subcategories WHERE id = ?',
+          [preferredId]);
+      if (rows.length != 1 || rows.single['category_id'] != parentId) {
+        throw ArgumentError('Subcategoria incompatível com a categoria.');
+      }
+      return (preferredId, rows.single['name'] as String);
+    }
+    final name = raw.trim().isEmpty ? 'Geral' : raw.trim();
+    final matches = _database.select(
+        'SELECT id, name FROM finance_subcategories WHERE category_id = ?',
+        [parentId]);
+    for (final row in matches) {
+      if ((row['name'] as String).trim().toLowerCase() == name.toLowerCase()) {
+        return (row['id'] as String, row['name'] as String);
+      }
+    }
+    final id = const Uuid().v4();
+    _database.execute(
+        'INSERT INTO finance_subcategories(id, category_id, name, is_system, created_at) '
+        'VALUES (?, ?, ?, 0, ?)',
+        [id, parentId, name, createdAt.toIso8601String()]);
+    return (id, name);
+  }
+
+  void renameFinanceCategory(String id, String newName) {
+    final clean = newName.trim();
+    if (clean.isEmpty) throw ArgumentError('Informe o nome da categoria.');
+    transaction(() {
+      final rows = _database
+          .select('SELECT id FROM finance_categories WHERE id = ?', [id]);
+      if (rows.isEmpty) throw ArgumentError('Categoria não encontrada.');
+      _database.execute(
+          'UPDATE finance_categories SET name = ? WHERE id = ?', [clean, id]);
+      _database.execute(
+          'UPDATE transactions SET category = ? WHERE category_id = ?',
+          [clean, id]);
+      _database.execute(
+          'UPDATE budgets SET category = ? WHERE category_id = ?', [clean, id]);
+      _database.execute(
+          'UPDATE subscriptions SET category = ? WHERE category_id = ?',
+          [clean, id]);
+    });
+  }
+
+  void archiveFinanceCategory(String id, {DateTime? at}) {
+    _database.execute(
+        'UPDATE finance_categories SET archived_at = ? '
+        'WHERE id = ? AND is_system = 0 AND archived_at IS NULL',
+        [(at ?? DateTime.now()).toUtc().toIso8601String(), id]);
+  }
+
+  void insertTransaction(TransactionRecord item) => transaction(() {
+        if (schemaVersion < 17) {
+          _database.execute(
+              '''INSERT INTO transactions(id, account_id, destination_account_id,
+              type, amount_cents, description, category, subcategory, occurred_on,
+              created_at, schedule_type, series_id, installment_number,
+              installment_count, is_settled)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+              [
+                item.id,
+                item.accountId,
+                item.destinationAccountId,
+                item.type.name,
+                item.amountInCents,
+                item.description,
+                item.category,
+                item.subcategory,
+                item.occurredOn.toIso8601String(),
+                item.createdAt.toIso8601String(),
+                item.scheduleType.name,
+                item.seriesId,
+                item.installmentNumber,
+                item.installmentCount,
+                item.isSettled ? 1 : 0,
+              ]);
+          return;
+        }
+        final category = item.type == TransactionType.transfer
+            ? (null, item.category)
+            : _resolveCategory(item.category, item.type.name, item.createdAt,
+                preferredId: item.categoryId);
+        final subcategory = category.$1 == null
+            ? (null, item.subcategory)
+            : _resolveSubcategory(
+                item.subcategory, category.$1!, item.createdAt,
+                preferredId: item.subcategoryId);
+        _database.execute(
+          '''INSERT INTO transactions(
           id, account_id, destination_account_id, type, amount_cents,
           description, category, subcategory, occurred_on, created_at,
-          schedule_type, series_id, installment_number, installment_count, is_settled
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-        [
-          item.id,
-          item.accountId,
-          item.destinationAccountId,
-          item.type.name,
-          item.amountInCents,
-          item.description,
-          item.category,
-          item.subcategory,
-          item.occurredOn.toIso8601String(),
-          item.createdAt.toIso8601String(),
-          item.scheduleType.name,
-          item.seriesId,
-          item.installmentNumber,
-          item.installmentCount,
-          item.isSettled ? 1 : 0,
-        ],
-      );
+          schedule_type, series_id, installment_number, installment_count, is_settled,
+          category_id, subcategory_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+          [
+            item.id,
+            item.accountId,
+            item.destinationAccountId,
+            item.type.name,
+            item.amountInCents,
+            item.description,
+            category.$2,
+            subcategory.$2,
+            item.occurredOn.toIso8601String(),
+            item.createdAt.toIso8601String(),
+            item.scheduleType.name,
+            item.seriesId,
+            item.installmentNumber,
+            item.installmentCount,
+            item.isSettled ? 1 : 0,
+            category.$1,
+            subcategory.$1,
+          ],
+        );
+      });
 
   void insertTask(TaskItem item) => _database.execute(
         'INSERT INTO tasks(id, title, due_on, is_done, created_at) VALUES (?, ?, ?, ?, ?)',
@@ -1538,69 +1692,171 @@ class AppDatabase {
           'UPDATE transactions SET amount_cents = ?, description = ? WHERE id = ?',
           [cents, description, id]);
 
-  void updateTransaction(TransactionRecord item) => _database.execute(
-        '''UPDATE transactions SET
+  void updateTransaction(TransactionRecord item) => transaction(() {
+        if (schemaVersion < 17) {
+          _database.execute(
+              '''UPDATE transactions SET account_id = ?, destination_account_id = ?,
+              type = ?, amount_cents = ?, description = ?, occurred_on = ?,
+              category = ?, subcategory = ?, schedule_type = ?, series_id = ?,
+              installment_number = ?, installment_count = ?, is_settled = ?
+              WHERE id = ?''',
+              [
+                item.accountId,
+                item.destinationAccountId,
+                item.type.name,
+                item.amountInCents,
+                item.description,
+                item.occurredOn.toIso8601String(),
+                item.category,
+                item.subcategory,
+                item.scheduleType.name,
+                item.seriesId,
+                item.installmentNumber,
+                item.installmentCount,
+                item.isSettled ? 1 : 0,
+                item.id,
+              ]);
+          return;
+        }
+        final existing = _database.select(
+            'SELECT category_id FROM transactions WHERE id = ?', [item.id]);
+        final keepsCategory = existing.isNotEmpty &&
+            existing.single['category_id'] == item.categoryId;
+        final category = item.type == TransactionType.transfer
+            ? (null, item.category)
+            : _resolveCategory(item.category, item.type.name, item.createdAt,
+                preferredId: item.categoryId, allowArchived: keepsCategory);
+        final subcategory = category.$1 == null
+            ? (null, item.subcategory)
+            : _resolveSubcategory(
+                item.subcategory, category.$1!, item.createdAt,
+                preferredId: item.subcategoryId);
+        _database.execute(
+          '''UPDATE transactions SET
           account_id = ?, destination_account_id = ?, type = ?, amount_cents = ?,
           description = ?, occurred_on = ?, category = ?, subcategory = ?,
           schedule_type = ?, series_id = ?, installment_number = ?,
-          installment_count = ?, is_settled = ?
+          installment_count = ?, is_settled = ?, category_id = ?, subcategory_id = ?
         WHERE id = ?''',
-        [
-          item.accountId,
-          item.destinationAccountId,
-          item.type.name,
-          item.amountInCents,
-          item.description,
-          item.occurredOn.toIso8601String(),
-          item.category,
-          item.subcategory,
-          item.scheduleType.name,
-          item.seriesId,
-          item.installmentNumber,
-          item.installmentCount,
-          item.isSettled ? 1 : 0,
-          item.id,
-        ],
-      );
-
-  void insertBudget(Budget budget) => _database.execute(
-        '''INSERT INTO budgets(id, category, limit_cents, year, month, created_at)
-        VALUES (?, ?, ?, ?, ?, ?)''',
-        [
-          budget.id,
-          budget.category,
-          budget.limitInCents,
-          budget.year,
-          budget.month,
-          budget.createdAt.toIso8601String(),
-        ],
-      );
-
-  void insertSubscription(Subscription subscription) => _database.execute(
-        '''INSERT INTO subscriptions(id, name, amount_cents, billing_day, category, is_active, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?)''',
-        [
-          subscription.id,
-          subscription.name,
-          subscription.amountInCents,
-          subscription.billingDay,
-          subscription.category,
-          subscription.isActive ? 1 : 0,
-          subscription.createdAt.toIso8601String(),
-        ],
-      );
-
-  void updateSubscription(Subscription item) => _database.execute(
-          '''UPDATE subscriptions SET name = ?, amount_cents = ?, billing_day = ?,
-      category = ?, is_active = ? WHERE id = ?''',
           [
+            item.accountId,
+            item.destinationAccountId,
+            item.type.name,
+            item.amountInCents,
+            item.description,
+            item.occurredOn.toIso8601String(),
+            category.$2,
+            subcategory.$2,
+            item.scheduleType.name,
+            item.seriesId,
+            item.installmentNumber,
+            item.installmentCount,
+            item.isSettled ? 1 : 0,
+            category.$1,
+            subcategory.$1,
+            item.id,
+          ],
+        );
+      });
+
+  void insertBudget(Budget budget) => transaction(() {
+        if (schemaVersion < 17) {
+          _database.execute(
+              '''INSERT INTO budgets(id, category, limit_cents, year, month, created_at)
+              VALUES (?, ?, ?, ?, ?, ?)''',
+              [
+                budget.id,
+                budget.category,
+                budget.limitInCents,
+                budget.year,
+                budget.month,
+                budget.createdAt.toIso8601String(),
+              ]);
+          return;
+        }
+        final category = _resolveCategory(
+            budget.category, 'expense', budget.createdAt,
+            preferredId: budget.categoryId);
+        _database.execute(
+          '''INSERT INTO budgets(id, category, limit_cents, year, month, created_at, category_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?)''',
+          [
+            budget.id,
+            category.$2,
+            budget.limitInCents,
+            budget.year,
+            budget.month,
+            budget.createdAt.toIso8601String(),
+            category.$1,
+          ],
+        );
+      });
+
+  void insertSubscription(Subscription subscription) => transaction(() {
+        if (schemaVersion < 17) {
+          _database.execute(
+              '''INSERT INTO subscriptions(id, name, amount_cents, billing_day,
+              category, is_active, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)''',
+              [
+                subscription.id,
+                subscription.name,
+                subscription.amountInCents,
+                subscription.billingDay,
+                subscription.category,
+                subscription.isActive ? 1 : 0,
+                subscription.createdAt.toIso8601String(),
+              ]);
+          return;
+        }
+        final category = _resolveCategory(
+            subscription.category, 'expense', subscription.createdAt,
+            preferredId: subscription.categoryId);
+        _database.execute(
+          '''INSERT INTO subscriptions(id, name, amount_cents, billing_day, category, is_active, created_at, category_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
+          [
+            subscription.id,
+            subscription.name,
+            subscription.amountInCents,
+            subscription.billingDay,
+            category.$2,
+            subscription.isActive ? 1 : 0,
+            subscription.createdAt.toIso8601String(),
+            category.$1,
+          ],
+        );
+      });
+
+  void updateSubscription(Subscription item) => transaction(() {
+        if (schemaVersion < 17) {
+          _database
+              .execute('''UPDATE subscriptions SET name = ?, amount_cents = ?,
+              billing_day = ?, category = ?, is_active = ? WHERE id = ?''', [
             item.name,
             item.amountInCents,
             item.billingDay,
             item.category,
             item.isActive ? 1 : 0,
-            item.id
+            item.id,
           ]);
+          return;
+        }
+        final category = _resolveCategory(
+            item.category, 'expense', item.createdAt,
+            preferredId: item.categoryId);
+        _database.execute(
+            '''UPDATE subscriptions SET name = ?, amount_cents = ?, billing_day = ?,
+      category = ?, is_active = ?, category_id = ? WHERE id = ?''',
+            [
+              item.name,
+              item.amountInCents,
+              item.billingDay,
+              category.$2,
+              item.isActive ? 1 : 0,
+              category.$1,
+              item.id
+            ]);
+      });
 
   void setSubscriptionActive(String id, bool active) => _database.execute(
       'UPDATE subscriptions SET is_active = ? WHERE id = ?',
@@ -1654,13 +1910,23 @@ class AppDatabase {
       );
 
   void transaction(void Function() operation) {
-    _database.execute('BEGIN IMMEDIATE');
+    final outermost = _transactionDepth == 0;
+    final savepoint = 'organiza_nested_$_transactionDepth';
+    _database.execute(outermost ? 'BEGIN IMMEDIATE' : 'SAVEPOINT $savepoint');
+    _transactionDepth++;
     try {
       operation();
-      _database.execute('COMMIT');
+      _database.execute(outermost ? 'COMMIT' : 'RELEASE SAVEPOINT $savepoint');
     } catch (_) {
-      _database.execute('ROLLBACK');
+      if (outermost) {
+        _database.execute('ROLLBACK');
+      } else {
+        _database.execute('ROLLBACK TO SAVEPOINT $savepoint');
+        _database.execute('RELEASE SAVEPOINT $savepoint');
+      }
       rethrow;
+    } finally {
+      _transactionDepth--;
     }
   }
 

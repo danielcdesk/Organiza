@@ -47,10 +47,10 @@
 
 **Interfaces:** Add optional `categoryId` and `subcategoryId` to `TransactionRecord`, optional `categoryId` to `Budget` and `Subscription`. Database insert/update resolves IDs and canonical names in one transaction, including nested calls from installment/recurrence writes. `loadTransactions`, `loadBudgets` and `loadSubscriptions` join category names, falling back to text for null IDs. Add `renameFinanceCategory(id, newName)` and `archiveFinanceCategory(id)` through repository/store.
 
-- [ ] Write failing tests for new writes, historical rename, case/accent matching, nested transaction rollback and archive behavior.
-- [ ] Observe RED and implement one category resolution path for all writes. Do not put SQL or finance rules in widgets.
-- [ ] Make nested transactions safe with SQLite savepoints if existing store callers already own a transaction; test rollback at both levels.
-- [ ] Run focused tests and full analysis/suite; commit separately.
+- [x] Write failing tests for new writes, historical rename, nested transaction rollback and archive behavior.
+- [x] Observe RED and implement one category resolution path for all writes. Do not put SQL or finance rules in widgets.
+- [x] Make nested transactions safe with SQLite savepoints if existing store callers already own a transaction; test rollback at both levels.
+- [x] Run focused tests and full analysis/suite (157 passed); commit separately.
 
 ### Task 3: Category management UI and goal category integrity
 

@@ -563,7 +563,13 @@ class OrganizaStore extends ChangeNotifier {
   }
 
   void _saveSalaryAllocationBuckets() {
-    final payload = salaryAllocationBuckets
+    _repository.savePreference('salary_allocation_buckets',
+        _salaryBucketJson(salaryAllocationBuckets));
+    notifyListeners();
+  }
+
+  String _salaryBucketJson(List<SalaryAllocationBucket> buckets) {
+    final payload = buckets
         .map((item) => {
               'id': item.id,
               'name': item.name,
@@ -575,9 +581,7 @@ class OrganizaStore extends ChangeNotifier {
               'isSystem': item.isSystem,
             })
         .toList();
-    _repository.savePreference(
-        'salary_allocation_buckets', jsonEncode(payload));
-    notifyListeners();
+    return jsonEncode(payload);
   }
 
   void _materializeDueSalaries() {
@@ -1383,6 +1387,36 @@ class OrganizaStore extends ChangeNotifier {
     reload();
     return financeCategories.firstWhere((item) =>
         item.type == type && item.name.toLowerCase() == clean.toLowerCase());
+  }
+
+  void renameFinanceCategory(String id, String newName) {
+    final original = financeCategories.where((item) => item.id == id).firstOrNull;
+    if (original == null) throw ArgumentError('Categoria não encontrada.');
+    final clean = newName.trim();
+    if (clean.isEmpty) throw ArgumentError('Informe o nome da categoria.');
+    final updatedBuckets = salaryAllocationBuckets.map((bucket) =>
+        bucket.copyWith(
+          linkedCategories: bucket.linkedCategories
+              .map((name) => name.toLowerCase() == original.name.toLowerCase()
+                  ? clean
+                  : name)
+              .toList(),
+        )).toList();
+    _repository.transaction(() {
+      _repository.renameFinanceCategory(id, clean);
+      _repository.savePreference(
+          'salary_allocation_buckets', _salaryBucketJson(updatedBuckets));
+    });
+    reload();
+  }
+
+  void archiveFinanceCategory(String id) {
+    final category = financeCategories.where((item) => item.id == id).firstOrNull;
+    if (category == null || category.isSystem) {
+      throw ArgumentError('Somente categorias personalizadas podem ser arquivadas.');
+    }
+    _repository.archiveFinanceCategory(id, at: _now);
+    reload();
   }
 
   FinanceSubcategory addFinanceSubcategory(

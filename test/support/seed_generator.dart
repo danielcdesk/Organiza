@@ -177,6 +177,47 @@ class SeedData {
       for (final card in creditCards) {
         database.insertCreditCard(card);
       }
+      // Prepare stable category IDs before the repository resolves transaction
+      // names. Otherwise newly created subcategories get random UUIDs and two
+      // fixtures generated with the same seed have different snapshots.
+      if (database.schemaVersion >= 17) {
+        final categories = database.loadFinanceCategories();
+        final subcategories = database.loadFinanceSubcategories();
+        var nextCategory = 0;
+        var nextSubcategory = 0;
+        for (final item in transactions) {
+          if (item.type == TransactionType.transfer) continue;
+          var category = categories
+              .where((entry) =>
+                  entry.type == item.type && entry.name == item.category)
+              .firstOrNull;
+          if (category == null) {
+            category = FinanceCategory(
+              id: 'fixture-category-${nextCategory++}',
+              name: item.category,
+              type: item.type,
+              isSystem: false,
+              createdAt: item.createdAt,
+            );
+            database.insertFinanceCategory(category);
+            categories.add(category);
+          }
+          if (subcategories.any((entry) =>
+              entry.categoryId == category!.id &&
+              entry.name == item.subcategory)) {
+            continue;
+          }
+          final subcategory = FinanceSubcategory(
+            id: 'fixture-subcategory-${nextSubcategory++}',
+            categoryId: category.id,
+            name: item.subcategory,
+            isSystem: false,
+            createdAt: item.createdAt,
+          );
+          database.insertFinanceSubcategory(subcategory);
+          subcategories.add(subcategory);
+        }
+      }
       for (final transaction in transactions) {
         database.insertTransaction(transaction);
       }
