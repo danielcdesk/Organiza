@@ -55,4 +55,6 @@ Status por fase e limitações: [progresso V3](implementation/PROGRESSO_V3.md). 
 | Pizza interativa de despesas por categoria | Sim | Sim | Sim | Sim | 2026-09-16 |
 | Pagamento e histórico de faturas | Não | Não | Não | Não | — |
 | Backup atual criptografado e snapshot | Sim, formato v1 | Sim | Não nesta execução | Sim, autenticação/restauração/rollback | 2026-10-29 |
+| Backup v2 com banco consistente, imagens e prévia | Sim, em desenvolvimento | Sim | Teste coordenador Windows | Sim, unidade e integração de serviços | 2026-10-30 |
+| Backup automático e rotação em pasta escolhida | Sim, em desenvolvimento | Sim | Windows; Android sem dispositivo de teste | Parcial, pasta Windows e agendamento | 2026-10-30 |
 | Build Windows | Sim | — | Sim | Sim | 2026-09-14 |

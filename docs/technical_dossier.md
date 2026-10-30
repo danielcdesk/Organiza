@@ -518,3 +518,11 @@ docs/                                   regras, arquitetura, releases e evidênc
 ## 16. Conclusão para a avaliação
 
 O Organiza já é um produto funcional local-first com uma base de domínio consistente e uma suíte de testes útil. A próxima etapa de engenharia deve se concentrar em escalabilidade de manutenção, segurança de dados locais, backup/restauração, atomicidade das gravações e atualização da documentação. A revisão do especialista deve preservar as regras financeiras atuais enquanto decide se o produto continuará local e manual ou se passará a ter sincronização e integrações externas.
+
+## 17. Backup v2 em implementação (2026-10-30)
+
+O schema permanece em 16. `AppDatabase.createConsistentCopy` usa a API de backup SQLite para incluir dados em WAL. O contêiner `.organizabak` traz `manifest.json`, `organiza.db` e `images/`, com hash SHA-256 e contagens. O ZIP inteiro é protegido por AES-256-GCM com chave derivada via Argon2id. A leitura do JSON v1, cifrado ou não, permanece disponível. O leitor recusa caminhos relativos perigosos, links, entradas duplicadas e arquivos acima dos limites antes da extração.
+
+`BackupCoordinator.prepare` valida o formato, as contagens, o schema, integridade e chaves estrangeiras em uma cópia temporária; migra backups mais antigos antes da prévia. `confirm` cria `organiza.db.pre-restore.bak`, copia imagens sem sobrescrever conteúdo diferente e substitui o arquivo SQLite em uma operação no mesmo volume (`MoveFileExW` no Windows, `rename` no Android). A senha do agendamento fica no Windows DPAPI ou no Android Keystore, nunca no SQLite ou no arquivo exportado. A pasta Android usa a permissão persistente do Storage Access Framework.
+
+O agendamento é verificado ao abrir e periodicamente enquanto o app está ativo. No Windows, o fechamento aguarda o backup solicitado; no Android, a tentativa ocorre quando o app é colocado em segundo plano. O sistema pode matar o processo Android sem chamar esse evento. A UI exibe a data de sucesso e a última falha. Runtime Android em dispositivo ainda precisa de verificação; o build por si só não comprova a seleção da pasta.

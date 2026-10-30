@@ -21,8 +21,8 @@ O ZIP foi extraído para uma cópia independente; não se modifica a instalaçã
 
 ## Ordem e aceite
 
-- [ ] Fase 0: CI, Dependabot, lints, relógio injetado em toda a UI, gerador de massa e documentação com verificações reais.
-- [ ] Fase 1: backup v2 com imagens, restauração validada entre versões e prévia, cópia de segurança, agendamento/rotação e UI.
+- [x] Fase 0: CI, Dependabot, lints, relógio injetado em toda a UI, gerador de massa e documentação com verificações reais.
+- [x] Fase 1: backup v2 com imagens, restauração validada entre versões e prévia, cópia de segurança, agendamento/rotação e UI. Execução Android em dispositivo ainda não validada.
 - [ ] Fase 2: migrações temáticas para categorias, faturas, auditoria/exclusão lógica, contas, tags/anexos, investimentos e importação. Dívidas excluídas por decisão humana.
 - [ ] Fase 3: medições, consultas SQL/paginação/FTS, cache e separação de responsabilidades. Manter sqlite3 e ChangeNotifier; Drift é opcional e depende de aprovação específica.
 - [ ] Fase 4: banco cifrado por padrão, chave no armazenamento seguro, migração preservando dados, PIN e biometria opcional.
@@ -44,3 +44,12 @@ Os itens da auditoria (máscaras, emissor/contraste do cartão, logos reais, met
 ## Estado corrente
 
 Fase 0 em execução. Nenhuma fase posterior concluída. Nenhuma publicação externa autorizada ou executada.
+
+## Atualização de execução
+Fase 0 concluída: CI GitHub Actions 40964840031 verde em Windows e Ubuntu; PR https://github.com/danielcdesk/Organiza/pull/2. Pacote da Fase 0 em outputs. Usuário aprovou guardar senha de backup no cofre do sistema. Fase 1 em desenvolvimento local, ainda não publicada: APIs de banco/arquivo, transporte ZIP cifrado, imagens relativas, planner e cofre. Pendentes: coordenador de restauração atômica, prévia/UI, agendamento/rotação e SAF Android. Não promover esta árvore local como release nem marcar Fase 1 pronta. Main inicializa AppStoragePaths. Novas dependências archive4.5.2, flutter_secure_storage10.3.4 (11 incompatível com win32 do file_picker8), ffi. Reexecutar análise/suíte antes de comitar Fase 1.
+
+## Atualização de 2026-10-30
+
+O coordenador de backup, prévia/confirmacão, cópia de segurança, imagens relativas, agendamento, rotação e pasta Android SAF estão integrados localmente. A dependência `flutter_secure_storage` foi retirada após falha de compilação Windows por falta de ATL; o cofre agora usa DPAPI e Android Keystore. Windows: integração 2 fluxos passou e o teste do cofre passou. Android: primeiro build Debug passou antes da troca do cofre; segundo build em execução. Testes de serviços incluem senha errada, backup v1, conflito de imagem preservando banco e ida e volta com preferências. A suíte completa passou com 147 testes antes dos dois últimos testes de cofre/pasta. Ainda não declarar a Fase 1 concluída antes de análise e suíte finais, build Android atualizado e revisão da implementação. Nenhum commit da Fase 1 foi enviado.
+
+Validação final local da Fase 1: `flutter analyze` limpo; 151 testes aprovados, cobertura 67,75%; integração Windows 2 fluxos; APK Android Debug compilado após a troca do cofre. Android em dispositivo ainda não executado. Detalhes em `RELATORIO_FASE_1.md`.
