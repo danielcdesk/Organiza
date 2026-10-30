@@ -8,9 +8,11 @@ import '../domain/models.dart';
 
 /// Owns schema migrations and keeps user data on the local machine only.
 class AppDatabase {
-  AppDatabase._(this._database);
+  AppDatabase._(this._database, {this.filePath});
 
   final Database _database;
+  final String? filePath;
+  static int get currentSchemaVersion => _schemaVersion;
   static const _schemaVersion = 16;
   static const _backupTables = <String>[
     'accounts',
@@ -37,11 +39,22 @@ class AppDatabase {
     final folder = Directory(path.join(appDirectory.path, 'Organiza'));
     if (!folder.existsSync()) folder.createSync(recursive: true);
     await _copyLegacyDatabaseIfNeeded(folder);
-    final database = sqlite3.open(path.join(folder.path, 'organiza.db'));
-    _configure(database, persistent: true);
-    final instance = AppDatabase._(database);
-    instance._migrate();
-    return instance;
+    return openFile(File(path.join(folder.path, 'organiza.db')));
+  }
+
+  /// Opens a private database or a staged restore, optionally without upgrading it.
+  static AppDatabase openFile(File file, {bool migrate = true}) {
+    file.parent.createSync(recursive: true);
+    final database = sqlite3.open(file.absolute.path);
+    try {
+      _configure(database, persistent: true);
+      final instance = AppDatabase._(database, filePath: file.absolute.path);
+      if (migrate) instance._migrate();
+      return instance;
+    } catch (_) {
+      database.close();
+      rethrow;
+    }
   }
 
   static AppDatabase openInMemory() {
@@ -89,56 +102,198 @@ class AppDatabase {
   }
 
   static AppDatabase openInMemoryFromVersion15ForTest() {
-    final database = sqlite3.openInMemory();
-    _configure(database, persistent: false);
-    database.execute('''
-      CREATE TABLE credit_cards (
-        id TEXT PRIMARY KEY NOT NULL,
-        name TEXT NOT NULL,
-        brand TEXT NOT NULL,
-        last_four TEXT NOT NULL CHECK(length(last_four) = 4),
-        limit_cents INTEGER NOT NULL CHECK(limit_cents > 0),
-        closing_day INTEGER NOT NULL CHECK(closing_day BETWEEN 1 AND 28),
-        due_day INTEGER NOT NULL CHECK(due_day BETWEEN 1 AND 28),
-        color_value INTEGER NOT NULL,
-        created_at TEXT NOT NULL
-      );
-      CREATE TABLE card_purchases (
-        id TEXT PRIMARY KEY NOT NULL,
-        card_id TEXT NOT NULL REFERENCES credit_cards(id) ON DELETE RESTRICT,
-        description TEXT NOT NULL,
-        amount_cents INTEGER NOT NULL CHECK(amount_cents > 0),
-        purchased_on TEXT NOT NULL,
-        installments INTEGER NOT NULL DEFAULT 1 CHECK(installments BETWEEN 1 AND 48),
-        created_at TEXT NOT NULL
-      );
+    final instance = _emptyAtVersion(15);
+    instance._database.execute('''
       INSERT INTO credit_cards VALUES
         ('card-v15', 'Principal', 'visa', '4242', 500000, 10, 17, 4285658943, '2026-09-10T00:00:00.000');
       INSERT INTO card_purchases VALUES
         ('purchase-v15', 'card-v15', 'Notebook', 120000, '2026-09-10T00:00:00.000', 3, '2026-09-10T00:00:00.000');
-      PRAGMA user_version = 15;
     ''');
-    final instance = AppDatabase._(database);
     instance._migrate();
     return instance;
+  }
+
+  static AppDatabase openInMemoryAtVersionForTest(int version) =>
+      _emptyAtVersion(version);
+
+  static AppDatabase _emptyAtVersion(int version) {
+    if (version < 1 || version > _schemaVersion) {
+      throw const FormatException('Versão de schema não suportada.');
+    }
+    final database = sqlite3.openInMemory();
+    _configure(database, persistent: false);
+    final instance = AppDatabase._(database);
+    try {
+      instance.transaction(() => instance._applyMigrations(0, version));
+      return instance;
+    } catch (_) {
+      database.close();
+      rethrow;
+    }
   }
 
   int get schemaVersion =>
       _database.select('PRAGMA user_version').first['user_version'] as int;
 
+  static List<String> _tablesForVersion(int version) => _backupTables
+      .where((table) =>
+          version >=
+          switch (table) {
+            'accounts' || 'transactions' || 'tasks' => 1,
+            'credit_cards' || 'card_purchases' => 2,
+            'investments' => 3,
+            'budgets' => 4,
+            'subscriptions' => 5,
+            'salary_allocation' => 6,
+            'financial_goals' => 7,
+            'finance_categories' || 'finance_subcategories' => 8,
+            'shopping_items' => 9,
+            'salary_schedules' || 'app_settings' || 'goal_categories' => 11,
+            'card_installment_payments' => 16,
+            _ => throw StateError('Tabela sem versão conhecida.'),
+          })
+      .toList(growable: false);
+
+  Map<String, int> get tableCounts => Map.unmodifiable({
+        for (final table in _tablesForVersion(schemaVersion))
+          table: _database
+              .select('SELECT COUNT(*) AS total FROM "$table"')
+              .single['total'] as int,
+      });
+
+  /// Copies committed SQLite state, including data currently in a WAL file.
+  Future<void> createConsistentCopy(File destination) async {
+    if (destination.existsSync() ||
+        (filePath != null &&
+            path.equals(destination.absolute.path, filePath!))) {
+      throw ArgumentError('O destino da cópia deve ser um arquivo novo.');
+    }
+    destination.parent.createSync(recursive: true);
+    final copy = sqlite3.open(destination.absolute.path);
+    try {
+      await _database.backup(copy, nPage: -1).drain<void>();
+      AppDatabase._(copy).validateIntegrity();
+    } catch (_) {
+      copy.close();
+      if (destination.existsSync()) destination.deleteSync();
+      rethrow;
+    }
+    copy.close();
+  }
+
+  /// Rejects unexpected user tables, columns and executable schema objects.
+  void validateIntegrity() {
+    final version = schemaVersion;
+    if (version < 1 || version > _schemaVersion) {
+      throw const FormatException('Versão de schema não suportada.');
+    }
+    final objects = _database.select(
+      "SELECT type, name FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'",
+    );
+    if (objects
+        .any((row) => row['type'] == 'trigger' || row['type'] == 'view')) {
+      throw const FormatException('O banco contém objetos não reconhecidos.');
+    }
+    final expectedTables = _tablesForVersion(version).toSet();
+    final actualTables = objects
+        .where((row) => row['type'] == 'table')
+        .map((row) => row['name'] as String)
+        .toSet();
+    if (actualTables.length != expectedTables.length ||
+        !actualTables.containsAll(expectedTables)) {
+      throw const FormatException('O banco contém tabelas incompatíveis.');
+    }
+    final expected = _emptyAtVersion(version);
+    try {
+      for (final table in expectedTables) {
+        final columns = _tableColumns(table);
+        final expectedColumns = expected._tableColumns(table);
+        if (columns.length != expectedColumns.length ||
+            !columns.containsAll(expectedColumns)) {
+          throw FormatException('Colunas incompatíveis na tabela $table.');
+        }
+      }
+    } finally {
+      expected.close();
+    }
+    final foreignKeys = _database.select('PRAGMA foreign_key_check');
+    if (foreignKeys.isNotEmpty) {
+      throw const FormatException('O banco viola integridade referencial.');
+    }
+    final integrity = _database.select('PRAGMA integrity_check');
+    if (integrity.length != 1 || integrity.single.values.single != 'ok') {
+      throw const FormatException(
+          'O banco falhou na verificação de integridade.');
+    }
+  }
+
+  /// Converts only existing references, committing profile and shopping together.
+  void rewriteImagePaths(Map<String, String> replacements) {
+    if (replacements.isEmpty) return;
+    final cases = List.filled(replacements.length, 'WHEN ? THEN ?').join(' ');
+    final placeholders = List.filled(replacements.length, '?').join(', ');
+    final parameters = <Object?>[
+      for (final entry in replacements.entries) ...[entry.key, entry.value],
+      ...replacements.keys,
+    ];
+    transaction(() {
+      _database.execute(
+        'UPDATE app_settings SET value = CASE value $cases ELSE value END '
+        "WHERE key = 'profile_photo_path' AND value IN ($placeholders)",
+        parameters,
+      );
+      _database.execute(
+        'UPDATE shopping_items SET image_path = CASE image_path $cases ELSE image_path END '
+        'WHERE image_path IN ($placeholders)',
+        parameters,
+      );
+    });
+  }
+
+  void _createPreMigrationCopy() {
+    final backup = File('$filePath.pre-v$_schemaVersion.bak');
+    if (backup.existsSync()) {
+      backup.renameSync(
+        '$filePath.pre-v$_schemaVersion.${DateTime.now().microsecondsSinceEpoch}.bak',
+      );
+    }
+    _database.execute('VACUUM INTO ?', [backup.path]);
+    final copied = sqlite3.open(backup.path, mode: OpenMode.readOnly);
+    try {
+      AppDatabase._(copied).validateIntegrity();
+    } finally {
+      copied.close();
+    }
+  }
+
+  void _pruneMigrationCopies() {
+    final file = File(filePath!);
+    final pattern = RegExp(
+      '^${RegExp.escape(path.basename(file.path))}\\.pre-v[0-9]+(?:\\.[0-9]+)?\\.bak\$',
+    );
+    final copies = file.parent
+        .listSync(followLinks: false)
+        .whereType<File>()
+        .where((copy) => pattern.hasMatch(path.basename(copy.path)))
+        .toList()
+      ..sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
+    for (final old in copies.skip(3)) {
+      old.deleteSync();
+    }
+  }
+
   /// Exports every user table as a versioned, JSON-compatible snapshot.
   ///
-  /// The snapshot is intentionally separate from the SQLite file so it can be
-  /// encrypted and validated before a restore. It is only accepted for the
-  /// current schema version; older database files must first pass the normal
-  /// SQLite migration path.
+  /// Historical snapshots retain their original schema and are upgraded in a
+  /// separate database before any live row is replaced.
   Map<String, Object?> exportSnapshot() {
     _database.execute('BEGIN IMMEDIATE');
     try {
       final snapshot = <String, Object?>{
         'schemaVersion': schemaVersion,
         'tables': <String, Object?>{
-          for (final table in _backupTables) table: _rows(table),
+          for (final table in _tablesForVersion(schemaVersion))
+            table: _rows(table),
         },
       };
       _database.execute('COMMIT');
@@ -152,16 +307,36 @@ class AppDatabase {
   /// Replaces all user tables atomically after validating the snapshot.
   void restoreSnapshot(Map<String, dynamic> snapshot) {
     final version = snapshot['schemaVersion'];
-    if (version != schemaVersion) {
-      throw FormatException(
-          'Backup usa o schema $version; esta instalação usa $schemaVersion.');
+    if (version is! int || version < 1 || version > schemaVersion) {
+      throw const FormatException('Versão de schema do backup incompatível.');
     }
+    if (version < schemaVersion) {
+      final staged = _emptyAtVersion(version);
+      try {
+        staged._restoreMatchingSnapshot(snapshot);
+        staged._migrate();
+        _restoreMatchingSnapshot(
+          Map<String, dynamic>.from(staged.exportSnapshot()),
+        );
+      } finally {
+        staged.close();
+      }
+      return;
+    }
+    _restoreMatchingSnapshot(snapshot);
+  }
+
+  void _restoreMatchingSnapshot(Map<String, dynamic> snapshot) {
     final rawTables = snapshot['tables'];
     if (rawTables is! Map) {
       throw const FormatException('Backup sem a seção de tabelas.');
     }
+    final expectedTables = _tablesForVersion(schemaVersion);
+    if (rawTables.keys.any((key) => !expectedTables.contains(key))) {
+      throw const FormatException('Backup contém tabela desconhecida.');
+    }
     final tables = <String, List<Map<String, dynamic>>>{};
-    for (final table in _backupTables) {
+    for (final table in expectedTables) {
       final rawRows = rawTables[table];
       if (rawRows is! List) {
         throw FormatException('Backup sem a tabela $table.');
@@ -176,10 +351,10 @@ class AppDatabase {
 
     _database.execute('BEGIN IMMEDIATE');
     try {
-      for (final table in _backupTables.reversed) {
+      for (final table in expectedTables.reversed) {
         _database.execute('DELETE FROM "$table"');
       }
-      for (final table in _backupTables) {
+      for (final table in expectedTables) {
         final columns = _tableColumns(table);
         for (final row in tables[table]!) {
           if (row.keys.any((key) => !columns.contains(key))) {
@@ -194,15 +369,7 @@ class AppDatabase {
           );
         }
       }
-      final foreignKeys = _database.select('PRAGMA foreign_key_check');
-      if (foreignKeys.isNotEmpty) {
-        throw const FormatException('Backup viola integridade referencial.');
-      }
-      final integrity = _database.select('PRAGMA integrity_check').first.values;
-      if (integrity.isEmpty || integrity.first != 'ok') {
-        throw const FormatException(
-            'Backup falhou na verificação de integridade.');
-      }
+      validateIntegrity();
       _database.execute('COMMIT');
     } catch (_) {
       _database.execute('ROLLBACK');
@@ -223,13 +390,26 @@ class AppDatabase {
       .toSet();
 
   void _migrate() {
-    final current =
-        _database.select('PRAGMA user_version').first['user_version'] as int;
+    final current = schemaVersion;
     if (current > _schemaVersion) {
       throw StateError(
           'O banco foi criado por uma versão mais recente do Organiza.');
     }
-    if (current < 1) {
+    if (current == _schemaVersion) {
+      validateIntegrity();
+      return;
+    }
+    if (current > 0) validateIntegrity();
+    if (current > 0 && filePath != null) _createPreMigrationCopy();
+    transaction(() {
+      _applyMigrations(current, _schemaVersion);
+      validateIntegrity();
+    });
+    if (filePath != null) _pruneMigrationCopies();
+  }
+
+  void _applyMigrations(int current, int target) {
+    if (current < 1 && target >= 1) {
       _database.execute('''
         CREATE TABLE accounts (
           id TEXT PRIMARY KEY NOT NULL,
@@ -259,7 +439,7 @@ class AppDatabase {
       ''');
       _database.execute('PRAGMA user_version = 1');
     }
-    if (current < 2) {
+    if (current < 2 && target >= 2) {
       _database.execute('''
         CREATE TABLE credit_cards (
           id TEXT PRIMARY KEY NOT NULL,
@@ -286,7 +466,7 @@ class AppDatabase {
       ''');
       _database.execute('PRAGMA user_version = 2');
     }
-    if (current < 3) {
+    if (current < 3 && target >= 3) {
       _database.execute('''
         ALTER TABLE accounts
           ADD COLUMN institution TEXT NOT NULL DEFAULT 'generic';
@@ -303,7 +483,7 @@ class AppDatabase {
       ''');
       _database.execute('PRAGMA user_version = 3');
     }
-    if (current < 4) {
+    if (current < 4 && target >= 4) {
       _database.execute('''
         ALTER TABLE transactions
           ADD COLUMN category TEXT NOT NULL DEFAULT 'Outros';
@@ -320,7 +500,7 @@ class AppDatabase {
       ''');
       _database.execute('PRAGMA user_version = 4');
     }
-    if (current < 5) {
+    if (current < 5 && target >= 5) {
       _database.execute('''
         ALTER TABLE transactions
           ADD COLUMN subcategory TEXT NOT NULL DEFAULT 'Geral';
@@ -337,7 +517,7 @@ class AppDatabase {
       ''');
       _database.execute('PRAGMA user_version = 5');
     }
-    if (current < 6) {
+    if (current < 6 && target >= 6) {
       _database.execute('''
         CREATE TABLE salary_allocation (
           id INTEGER PRIMARY KEY NOT NULL CHECK(id = 1),
@@ -351,7 +531,7 @@ class AppDatabase {
       ''');
       _database.execute('PRAGMA user_version = 6');
     }
-    if (current < 7) {
+    if (current < 7 && target >= 7) {
       _database.execute('''
         CREATE TABLE financial_goals (
           id TEXT PRIMARY KEY NOT NULL,
@@ -367,7 +547,7 @@ class AppDatabase {
       ''');
       _database.execute('PRAGMA user_version = 7');
     }
-    if (current < 8) {
+    if (current < 8 && target >= 8) {
       _database.execute('''
         ALTER TABLE transactions
           ADD COLUMN schedule_type TEXT NOT NULL DEFAULT 'single';
@@ -403,7 +583,7 @@ class AppDatabase {
       _seedDefaultCategories();
       _database.execute('PRAGMA user_version = 8');
     }
-    if (current < 9) {
+    if (current < 9 && target >= 9) {
       _database.execute('''
         CREATE TABLE shopping_items (
           id TEXT PRIMARY KEY NOT NULL,
@@ -419,7 +599,7 @@ class AppDatabase {
       ''');
       _database.execute('PRAGMA user_version = 9');
     }
-    if (current < 10) {
+    if (current < 10 && target >= 10) {
       _database.execute('''
         ALTER TABLE investments ADD COLUMN quoted_rate_bps INTEGER
           CHECK(quoted_rate_bps BETWEEN -10000 AND 100000);
@@ -428,7 +608,7 @@ class AppDatabase {
       ''');
       _database.execute('PRAGMA user_version = 10');
     }
-    if (current < 11) {
+    if (current < 11 && target >= 11) {
       _database.execute('''
         ALTER TABLE investments ADD COLUMN yield_payment_day INTEGER
           CHECK(yield_payment_day BETWEEN 1 AND 31);
@@ -452,24 +632,24 @@ class AppDatabase {
       _seedDefaultCategories();
       _database.execute('PRAGMA user_version = 11');
     }
-    if (current < 12) {
+    if (current < 12 && target >= 12) {
       _database
           .execute('ALTER TABLE shopping_items ADD COLUMN image_path TEXT');
       _database.execute('PRAGMA user_version = 12');
     }
-    if (current < 13) {
+    if (current < 13 && target >= 13) {
       _database.execute('''
         ALTER TABLE accounts ADD COLUMN custom_institution_name TEXT;
         ALTER TABLE accounts ADD COLUMN custom_icon_key TEXT;
       ''');
       _database.execute('PRAGMA user_version = 13');
     }
-    if (current < 14) {
+    if (current < 14 && target >= 14) {
       _database.execute(
           "ALTER TABLE shopping_items ADD COLUMN description TEXT NOT NULL DEFAULT ''");
       _database.execute('PRAGMA user_version = 14');
     }
-    if (current < 15) {
+    if (current < 15 && target >= 15) {
       _database.execute('''
         DELETE FROM transactions
         WHERE series_id IS NOT NULL
@@ -485,7 +665,7 @@ class AppDatabase {
       ''');
       _database.execute('PRAGMA user_version = 15');
     }
-    if (current < 16) {
+    if (current < 16 && target >= 16) {
       _database.execute('''
         CREATE TABLE card_installment_payments (
           purchase_id TEXT NOT NULL

@@ -10,6 +10,13 @@ import '../data/local_repository.dart';
 import '../domain/financial_rules.dart';
 import '../domain/models.dart';
 import '../services/backup_service.dart';
+import '../services/backup_coordinator.dart';
+import '../services/app_storage_paths.dart';
+import '../services/local_image_service.dart';
+import '../services/backup_folder_service.dart';
+import '../services/secret_vault.dart';
+import '../domain/backup_schedule.dart';
+import 'package:path/path.dart' as path;
 
 class OrganizaStore extends ChangeNotifier {
   OrganizaStore._(this._repository, Clock? clock)
@@ -19,6 +26,12 @@ class OrganizaStore extends ChangeNotifier {
   final Clock _clock;
   final _uuid = const Uuid();
   Timer? _salaryRefreshTimer;
+  Timer? _backupTimer;
+  bool _backupRunning = false;
+  Completer<void>? _backupFinished;
+  static const _backupFolder = BackupFolderService();
+  static const _vault = SystemSecretVault();
+  static const _backupPasswordKey = 'organiza.backup.password';
 
   DateTime get _now => _clock.now();
   Clock get clock => _clock;
@@ -64,6 +77,117 @@ class OrganizaStore extends ChangeNotifier {
   String? get profilePhotoPath {
     final value = _repository.loadPreference('profile_photo_path');
     return value == null || value.isEmpty ? null : value;
+  }
+
+  bool get automaticBackupEnabled =>
+      _repository.loadPreference('backup_enabled') == 'true';
+  bool get backupOnClose =>
+      _repository.loadPreference('backup_on_close') == 'true';
+  int get backupIntervalDays =>
+      int.tryParse(_repository.loadPreference('backup_interval_days') ?? '') ??
+      7;
+  int get backupRetention =>
+      int.tryParse(_repository.loadPreference('backup_retention') ?? '') ?? 3;
+  String? get lastBackupAt => _repository.loadPreference('backup_last_success');
+  String? get backupError => _repository.loadPreference('backup_last_error');
+  String? get _desktopBackupFolder =>
+      _repository.loadPreference('backup_desktop_folder');
+
+  Future<bool> chooseAutomaticBackupFolder() async {
+    final selected = await _backupFolder.choose();
+    if (selected == null) return false;
+    if (!Platform.isAndroid) {
+      _repository.savePreference('backup_desktop_folder', selected);
+    }
+    notifyListeners();
+    return true;
+  }
+
+  Future<void> configureAutomaticBackup({
+    required bool enabled,
+    required int intervalDays,
+    required int retention,
+    required bool onClose,
+    String? password,
+  }) async {
+    if (intervalDays < 1 ||
+        intervalDays > 365 ||
+        retention < 1 ||
+        retention > 30) {
+      throw ArgumentError('Intervalo ou retenção fora dos limites.');
+    }
+    if (enabled) {
+      if (!await _backupFolder.configured(_desktopBackupFolder)) {
+        throw StateError('Escolha primeiro a pasta dos backups.');
+      }
+      if (password != null) {
+        if (password.length < 8) throw ArgumentError('Senha muito curta.');
+        await _vault.write(_backupPasswordKey, password);
+      } else if (await _vault.read(_backupPasswordKey) == null) {
+        throw StateError('Informe a senha do backup.');
+      }
+    }
+    _repository.savePreference('backup_enabled', '$enabled');
+    _repository.savePreference('backup_interval_days', '$intervalDays');
+    _repository.savePreference('backup_retention', '$retention');
+    _repository.savePreference('backup_on_close', '$onClose');
+    if (!enabled) await _vault.delete(_backupPasswordKey);
+    notifyListeners();
+    if (enabled) unawaited(runAutomaticBackup());
+  }
+
+  Future<void> runAutomaticBackup(
+      {bool closing = false, bool force = false}) async {
+    if (_backupRunning) {
+      if (closing) await _backupFinished?.future;
+      return;
+    }
+    if (!automaticBackupEnabled) return;
+    final last = DateTime.tryParse(lastBackupAt ?? '');
+    if (!force &&
+        !BackupSchedule.isDue(_now,
+            enabled: true,
+            intervalDays: backupIntervalDays,
+            lastSuccess: last,
+            closing: closing,
+            backupOnClose: backupOnClose)) {
+      return;
+    }
+    _backupRunning = true;
+    _backupFinished = Completer<void>();
+    File? temporary;
+    try {
+      final password = await _vault.read(_backupPasswordKey);
+      if (password == null) {
+        throw StateError('Senha do backup não está no cofre seguro.');
+      }
+      if (!await _backupFolder.configured(_desktopBackupFolder)) {
+        throw StateError('Pasta de backup indisponível.');
+      }
+      final name =
+          'organiza-auto-${_now.toUtc().toIso8601String().replaceAll(':', '-')}-${_uuid.v4()}.organizabak';
+      temporary = await exportEncryptedBackup(password,
+          destination: File(path.join(AppStoragePaths.rootDirectory.path,
+              'backup-pending.organizabak')));
+      await _backupFolder.save(temporary, name, _desktopBackupFolder);
+      _repository.savePreference('backup_last_success', _now.toIso8601String());
+      _repository.savePreference('backup_last_error', '');
+      final existing = await _backupFolder.list(_desktopBackupFolder)
+        ..sort();
+      for (final old in existing.reversed.skip(backupRetention)) {
+        await _backupFolder.delete(old, _desktopBackupFolder);
+      }
+    } on Object catch (error) {
+      _repository.savePreference('backup_last_error', '$error');
+    } finally {
+      if (temporary != null && await temporary.exists()) {
+        await temporary.delete();
+      }
+      _backupRunning = false;
+      _backupFinished?.complete();
+      _backupFinished = null;
+      notifyListeners();
+    }
   }
 
   void saveThemePreference(String value) {
@@ -117,8 +241,22 @@ class OrganizaStore extends ChangeNotifier {
 
   static Future<OrganizaStore> create({Clock? clock}) async {
     final store = OrganizaStore._(await LocalRepository.open(), clock);
+    await AppStoragePaths.initialize();
+    final oldPaths = <String>{
+      if (store.profilePhotoPath != null) store.profilePhotoPath!,
+      ...store._repository
+          .loadShoppingItems()
+          .map((item) => item.imagePath)
+          .whereType<String>(),
+    };
+    store._repository.rewriteImagePaths(
+        await LocalImageService.importLegacyImages(oldPaths));
     store.reload();
     store._scheduleNextDayRefresh();
+    store._backupTimer = Timer.periodic(const Duration(hours: 1), (_) {
+      unawaited(store.runAutomaticBackup());
+    });
+    unawaited(store.runAutomaticBackup());
     return store;
   }
 
@@ -128,10 +266,41 @@ class OrganizaStore extends ChangeNotifier {
     return store;
   }
 
-  Future<File> exportEncryptedBackup(String password) => const BackupService()
-      .exportEncrypted(_repository.exportSnapshot(), password);
+  Future<File> exportEncryptedBackup(String password,
+      {File? destination}) async {
+    if (_repository.filePath == null) {
+      return const BackupService()
+          .exportEncrypted(_repository.exportSnapshot(), password);
+    }
+    await AppStoragePaths.initialize();
+    final file = destination ??
+        File(path.join(AppStoragePaths.rootDirectory.path, 'backups',
+            'organiza-${_now.toUtc().toIso8601String().replaceAll(':', '-')}.organizabak'));
+    return BackupCoordinator(_repository).export(password, file);
+  }
+
+  Future<BackupPreview> prepareBackup(File file, String password) =>
+      BackupCoordinator(_repository).prepare(file, password);
+
+  Future<File> confirmBackup(BackupPreview preview) async {
+    if (_backupRunning) {
+      await preview.dispose();
+      throw StateError('Aguarde o backup automático terminar.');
+    }
+    final safety = await BackupCoordinator(_repository).confirm(preview);
+    // Folder permissions and the vault secret belong to this installation.
+    // A restored preference must never silently run a scheduled backup elsewhere.
+    _repository.savePreference('backup_enabled', 'false');
+    _repository.savePreference('backup_desktop_folder', '');
+    reload();
+    return safety;
+  }
 
   Future<File> restoreEncryptedBackup(File file, String password) async {
+    if (_repository.filePath != null) {
+      final preview = await prepareBackup(file, password);
+      return confirmBackup(preview);
+    }
     final snapshot =
         await const BackupService().decryptEncrypted(file, password);
     final safetyCopy = await exportEncryptedBackup(password);
@@ -1293,6 +1462,7 @@ class OrganizaStore extends ChangeNotifier {
   @override
   void dispose() {
     _salaryRefreshTimer?.cancel();
+    _backupTimer?.cancel();
     _repository.close();
     super.dispose();
   }
