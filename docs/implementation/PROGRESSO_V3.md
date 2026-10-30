@@ -59,3 +59,7 @@ Validação final local da Fase 1: `flutter analyze` limpo; 151 testes aprovados
 Schema 17 implementado em commits temáticos: migração com preenchimento dos IDs, leitura/gravação por ID e interface de renomeação/arquivamento. Metas mantêm `goal_categories` como tabela separada, decisão documentada em `docs/DECISIONS.md`. Análise limpa, 161 testes aprovados com 69,13% de cobertura, incluindo migração v1/v16→v17 com saldo preservado. Dois fluxos de integração Windows passaram e três problemas importantes encontrados na revisão foram corrigidos. CI do PR é o gate restante. Relatório: `RELATORIO_FASE_2_1.md`. A Fase 2 completa continua pendente.
 
 O PR #4 da Fase 2.1 passou no CI Windows/Ubuntu (`Qualidade Flutter`, run 41079612624). A Fase 2.2 segue em branch isolada com schema 18; a Fase 2 completa continua pendente.
+
+## Fase 2.2 — faturas e pagamentos de cartão
+
+Schema 18, compra com categoria/data, regras de ciclo e parcelas, pagamentos parciais idempotentes com estorno, projeção de obrigações, relatórios/orçamentos e UI estão implementados localmente. Análise limpa; 175 testes passaram com 72,58% de cobertura; integração Windows passou com 2 fluxos. A compilação APK local não pôde iniciar porque o Android SDK não está instalado/configurado. Relatório em `RELATORIO_FASE_2_2.md`. Revisão, PR draft e CI são os gates restantes antes de avançar.

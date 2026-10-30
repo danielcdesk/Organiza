@@ -72,11 +72,16 @@ class _BalanceProjectionCardState extends State<BalanceProjectionCard> {
   Widget build(BuildContext context) {
     final hasData = widget.store.accounts.isNotEmpty ||
         widget.store.transactions.isNotEmpty ||
-        widget.store.salarySchedules.isNotEmpty;
+        widget.store.salarySchedules.isNotEmpty ||
+        widget.store.cardPurchases.isNotEmpty;
     final projection = BalanceProjection.calculate(
       accounts: widget.store.accounts,
       transactions: widget.store.transactions,
       salaries: widget.store.salarySchedules,
+      creditCards: widget.store.creditCards,
+      cardPurchases: widget.store.cardPurchases,
+      cardInvoices: widget.store.cardInvoices,
+      cardInvoicePayments: widget.store.cardInvoicePayments,
       clock: widget.store.clock,
       horizonDays: _horizonDays,
     );
@@ -857,10 +862,12 @@ class BudgetWatch extends StatelessWidget {
         .where((b) =>
             b.year == now.year && b.month == now.month && b.limitInCents > 0)
         .toList()
-      ..sort((a, b) =>
-          (FinancialRules.budgetSpent(b, store.transactions) / b.limitInCents)
-              .compareTo(FinancialRules.budgetSpent(a, store.transactions) /
-                  a.limitInCents));
+      ..sort((a, b) => (FinancialRules.budgetSpent(
+                  b, store.transactions, store.cardPurchases) /
+              b.limitInCents)
+          .compareTo(FinancialRules.budgetSpent(
+                  a, store.transactions, store.cardPurchases) /
+              a.limitInCents));
     if (budgets.isEmpty) return const SizedBox.shrink();
     return Padding(
         padding: const EdgeInsets.only(bottom: 16),
@@ -871,8 +878,8 @@ class BudgetWatch extends StatelessWidget {
               TextButton(onPressed: onOpen, child: const Text('Planejar')),
           child: Column(
               children: budgets.take(3).map((budget) {
-            final spent =
-                FinancialRules.budgetSpent(budget, store.transactions);
+            final spent = FinancialRules.budgetSpent(
+                budget, store.transactions, store.cardPurchases);
             final ratio = spent / budget.limitInCents;
             final color = ratio >= 1
                 ? Theme.of(context).colorScheme.error

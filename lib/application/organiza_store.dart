@@ -9,6 +9,7 @@ import 'package:uuid/uuid.dart';
 import '../data/local_repository.dart';
 import '../domain/financial_rules.dart';
 import '../domain/card_invoice_rules.dart';
+import '../domain/credit_card_rules.dart';
 import '../domain/models.dart';
 import '../services/backup_service.dart';
 import '../services/backup_coordinator.dart';
@@ -968,6 +969,10 @@ class OrganizaStore extends ChangeNotifier {
     required String description,
     required int amountInCents,
     required int installments,
+    String category = 'Outros',
+    String subcategory = 'Geral',
+    DateTime? purchasedOn,
+    bool allowClosedInvoiceChange = false,
   }) {
     if (creditCards.every((card) => card.id != cardId)) {
       throw ArgumentError('Cartão não encontrado.');
@@ -981,14 +986,29 @@ class OrganizaStore extends ChangeNotifier {
     if (installments < 1 || installments > 48) {
       throw ArgumentError('O número de parcelas deve estar entre 1 e 48.');
     }
+    final card = creditCards.firstWhere((item) => item.id == cardId);
+    final purchaseDate = purchasedOn ?? _now;
+    final firstClosing =
+        CreditCardRules.currentCycleClosingDate(card, purchaseDate);
+    final today = DateTime(_now.year, _now.month, _now.day);
+    if (!allowClosedInvoiceChange &&
+        List.generate(
+            installments,
+            (index) => DateTime(firstClosing.year, firstClosing.month + index,
+                card.closingDay)).any((closing) => closing.isBefore(today))) {
+      throw ArgumentError(
+          'Esta compra altera faturas já fechadas. Confirme para continuar.');
+    }
     _repository.insertCardPurchase(CardPurchase(
       id: _id(),
       cardId: cardId,
       description: description.trim(),
       amountInCents: amountInCents,
-      purchasedOn: _now,
+      purchasedOn: purchaseDate,
       installments: installments,
       createdAt: _now,
+      category: category,
+      subcategory: subcategory,
     ));
     reload();
   }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../application/organiza_store.dart';
 import '../domain/credit_card_rules.dart';
+import '../domain/card_invoice_rules.dart';
 import '../domain/financial_rules.dart';
 import '../domain/models.dart';
 import 'shared_widgets.dart';
@@ -14,6 +15,8 @@ class CardsPage extends StatefulWidget {
     required this.onAddCard,
     required this.onAddPurchase,
     required this.onManageInstallments,
+    this.onPayInvoice,
+    this.onReverseInvoicePayment,
   });
 
   final OrganizaStore store;
@@ -21,6 +24,8 @@ class CardsPage extends StatefulWidget {
   final VoidCallback onAddCard;
   final ValueChanged<String?> onAddPurchase;
   final ValueChanged<CardPurchase> onManageInstallments;
+  final void Function(CreditCard card, int year, int month)? onPayInvoice;
+  final ValueChanged<String>? onReverseInvoicePayment;
 
   @override
   State<CardsPage> createState() => _CardsPageState();
@@ -184,6 +189,14 @@ class _CardsPageState extends State<CardsPage> {
             },
           ),
           const SizedBox(height: 14),
+          _InvoicesPanel(
+            card: card,
+            store: widget.store,
+            hideValues: widget.hideValues,
+            onPay: widget.onPayInvoice,
+            onReverse: widget.onReverseInvoicePayment,
+          ),
+          const SizedBox(height: 14),
           _PurchasesPanel(
             card: card,
             referenceDate: referenceDate,
@@ -196,6 +209,112 @@ class _CardsPageState extends State<CardsPage> {
                 setState(() => _showAllPurchases = value),
           ),
         ],
+      ],
+    );
+  }
+}
+
+class _InvoicesPanel extends StatelessWidget {
+  const _InvoicesPanel({
+    required this.card,
+    required this.store,
+    required this.hideValues,
+    required this.onPay,
+    required this.onReverse,
+  });
+
+  final CreditCard card;
+  final OrganizaStore store;
+  final bool hideValues;
+  final void Function(CreditCard card, int year, int month)? onPay;
+  final ValueChanged<String>? onReverse;
+
+  @override
+  Widget build(BuildContext context) {
+    final periods = <DateTime>{};
+    for (final purchase
+        in store.cardPurchases.where((item) => item.cardId == card.id)) {
+      final first =
+          CreditCardRules.currentCycleClosingDate(card, purchase.purchasedOn);
+      for (var index = 0; index < purchase.installments; index++) {
+        periods.add(DateTime(first.year, first.month + index));
+      }
+    }
+    final ordered = periods.toList()..sort((a, b) => b.compareTo(a));
+    String money(int cents) =>
+        hideValues ? '••••••' : FinancialRules.formatBrl(cents);
+    return Panel(
+      title: 'Faturas',
+      subtitle: 'Parcelas por vencimento; pagamentos reduzem o saldo da conta.',
+      child: ordered.isEmpty
+          ? const Text('Nenhuma fatura com compras registradas.')
+          : Column(children: [
+              for (final period in ordered)
+                _invoiceTile(context, period, money),
+            ]),
+    );
+  }
+
+  Widget _invoiceTile(
+      BuildContext context, DateTime period, String Function(int) money) {
+    final cycle = CardInvoiceRules.cycle(card, period.year, period.month);
+    final total = CardInvoiceRules.totalInCents(
+        card, store.cardPurchases, period.year, period.month);
+    final invoice = store.cardInvoices
+        .where((item) =>
+            item.cardId == card.id &&
+            item.referenceYear == period.year &&
+            item.referenceMonth == period.month)
+        .firstOrNull;
+    final payments = invoice == null
+        ? <CardInvoicePayment>[]
+        : store.cardInvoicePayments
+            .where((item) => item.invoiceId == invoice.id)
+            .toList();
+    final paid = payments.fold<int>(0, (sum, item) => sum + item.amountInCents);
+    final remaining = CardInvoiceRules.remainingInCents(total, paid);
+    final status = CardInvoiceRules.status(
+        total, paid, store.clock.now(), cycle.closingOn);
+    final label = switch (status) {
+      CardInvoiceStatus.open => 'Aberta',
+      CardInvoiceStatus.closed => 'Fechada',
+      CardInvoiceStatus.partiallyPaid => 'Parcialmente paga',
+      CardInvoiceStatus.paid => 'Paga',
+    };
+    final periodLabel =
+        '${period.month.toString().padLeft(2, '0')}/${period.year}';
+    return ExpansionTile(
+      key: ValueKey('invoice-${card.id}-$periodLabel'),
+      title: Text('Fatura $periodLabel'),
+      subtitle: Text('$label · vence ${shortDate(cycle.dueOn)}'),
+      trailing: Text(money(remaining)),
+      children: [
+        ListTile(
+          title: Text('Total: ${money(total)}'),
+          subtitle: Text(
+              'Pago: ${money(paid)} · fecha ${shortDate(cycle.closingOn)}'),
+        ),
+        if (remaining > 0)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: onPay == null
+                  ? null
+                  : () => onPay!(card, period.year, period.month),
+              icon: const Icon(Icons.payments_outlined),
+              label: const Text('Pagar fatura'),
+            ),
+          ),
+        for (final payment in payments)
+          ListTile(
+            title: Text('Pago em ${shortDate(payment.paidOn)}'),
+            subtitle: Text(money(payment.amountInCents)),
+            trailing: TextButton(
+              onPressed:
+                  onReverse == null ? null : () => onReverse!(payment.id),
+              child: const Text('Estornar'),
+            ),
+          ),
       ],
     );
   }
@@ -550,7 +669,7 @@ class _CardSummary extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Lançamentos manuais · pagamento de fatura em breve',
+                  'Pague suas faturas na seção acima.',
                   style: TextStyle(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontSize: 12.5,

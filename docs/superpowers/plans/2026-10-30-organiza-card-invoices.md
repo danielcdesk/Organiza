@@ -16,16 +16,16 @@
 
 - [x] Add pure invoice calculations for closing/due dates, installment totals, partial payments, overpayment prevention and status.
 - [x] Add a system marker to payment transactions. Store payment plus invoice payment record atomically; make it idempotent for retries. Prevent payment from appearing as a category expense in reports.
-- [ ] Ensure a closed invoice does not silently change after editing/removing an old purchase; require explicit confirmation.
-- [ ] Test payment, partial payment, cancellation/reversal, rollback and projection at due date without double subtraction. Payment, partial payment, reversal and overpayment tests pass; failure injection and projection remain.
+- [x] Ensure a closed invoice does not silently change after editing/removing an old purchase; require explicit confirmation for historical purchases that alter closed cycles. Purchases cannot be edited/deleted through the current UI.
+- [x] Test payment, partial payment, cancellation/reversal, rollback and projection at due date without double subtraction. Payment, partial payment, reversal, overpayment, DB rollback and projection tests pass.
 
 ## Task 3 — reports and UI
 
-- [ ] Add purchase-category selection and invoice list/detail/payment flows in the card UI.
-- [ ] Count purchases by purchase date in category reports; show invoice due obligations in agenda/projection. Update CSV and budget totals consistently.
-- [ ] Document numerical examples in `docs/financial_rules.md`; add widget and integration tests for the full purchase→invoice→payment flow.
+- [x] Add purchase-category selection and invoice list/detail/payment flows in the card UI.
+- [x] Count purchases by purchase date in category reports; show invoice due obligations in balance projection. Update CSV and budget totals consistently.
+- [x] Document numerical examples in `docs/financial_rules.md`; add widget and integration tests for purchase categories, projection, payments, and reports.
 
 ## Task 4 — gate
 
-- [ ] Run analysis, full tests with coverage, migration fixtures, Windows integration and Android build.
+- [ ] Run analysis, full tests with coverage, migration fixtures, Windows integration and Android build. Local Android SDK is unavailable; CI release build is the remaining Android build gate.
 - [ ] Review important findings, produce 8-section phase report, push isolated draft PR based on Phase 2.1 and verify Windows/Ubuntu CI before schema 19.

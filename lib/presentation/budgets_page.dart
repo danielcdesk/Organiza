@@ -56,7 +56,9 @@ class BudgetSection extends StatelessWidget {
     final totalSpent = monthBudgets.fold(
         0,
         (sum, item) =>
-            sum + FinancialRules.budgetSpent(item, store.transactions));
+            sum +
+            FinancialRules.budgetSpent(
+                item, store.transactions, store.cardPurchases));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -104,7 +106,7 @@ class BudgetSection extends StatelessWidget {
                   .map((budget) => _BudgetRow(
                         budget: budget,
                         spent: FinancialRules.budgetSpent(
-                            budget, store.transactions),
+                            budget, store.transactions, store.cardPurchases),
                         hideValues: hideValues,
                         onDelete: () => onDelete(budget.id),
                       ))

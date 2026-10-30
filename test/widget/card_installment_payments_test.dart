@@ -72,6 +72,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('0 pagas · 3 restantes'), findsOneWidget);
+    expect(find.text('Pague suas faturas na seção acima.'), findsOneWidget);
     await tester.tap(find.text('Gerenciar parcelas'));
     await tester.pumpAndSettle();
     expect(find.text('Parcela 1/3'), findsOneWidget);

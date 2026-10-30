@@ -1,6 +1,8 @@
 import 'package:clock/clock.dart';
 
 import 'models.dart';
+import 'card_invoice_rules.dart';
+import 'credit_card_rules.dart';
 
 /// A daily consolidated balance, with the corresponding per-account balances.
 class BalanceProjectionPoint {
@@ -8,11 +10,15 @@ class BalanceProjectionPoint {
     required this.date,
     required this.balanceInCents,
     required this.accountBalancesInCents,
+    required this.cardObligationsInCents,
   });
 
   final DateTime date;
   final int balanceInCents;
   final Map<String, int> accountBalancesInCents;
+
+  /// Card dues have no account assignment until the user chooses one to pay.
+  final int cardObligationsInCents;
 }
 
 class BalanceProjectionResult {
@@ -45,6 +51,10 @@ class BalanceProjection {
     required Iterable<Account> accounts,
     required Iterable<TransactionRecord> transactions,
     required Iterable<SalarySchedule> salaries,
+    Iterable<CreditCard> creditCards = const [],
+    Iterable<CardPurchase> cardPurchases = const [],
+    Iterable<CardInvoice> cardInvoices = const [],
+    Iterable<CardInvoicePayment> cardInvoicePayments = const [],
     required Clock clock,
     int horizonDays = 90,
   }) {
@@ -76,6 +86,15 @@ class BalanceProjection {
     _addMissingSeriesOccurrences(
       events,
       transactionList,
+      today: today,
+      lastDay: lastDay,
+    );
+
+    final cardDues = _cardDuesByDate(
+      cards: creditCards,
+      purchases: cardPurchases,
+      invoices: cardInvoices,
+      payments: cardInvoicePayments,
       today: today,
       lastDay: lastDay,
     );
@@ -118,16 +137,20 @@ class BalanceProjection {
     final points = <BalanceProjectionPoint>[];
     DateTime? firstNegativeDate;
     int? firstNegativeBalance;
+    var cumulativeCardObligations = 0;
     for (var offset = 0; offset < horizonDays; offset++) {
       final date = DateTime(today.year, today.month, today.day + offset);
+      cumulativeCardObligations += cardDues[date] ?? 0;
       for (final event in eventsByDate[date] ?? const <_ProjectionEvent>[]) {
         _applyEvent(balances, event);
       }
-      final total = balances.values.fold<int>(0, (sum, value) => sum + value);
+      final total = balances.values.fold<int>(0, (sum, value) => sum + value) -
+          cumulativeCardObligations;
       final point = BalanceProjectionPoint(
         date: date,
         balanceInCents: total,
         accountBalancesInCents: Map.unmodifiable(balances),
+        cardObligationsInCents: cumulativeCardObligations,
       );
       points.add(point);
       if (firstNegativeDate == null && total < 0) {
@@ -157,6 +180,58 @@ class BalanceProjection {
       nextSalaryDate: nextSalaryDate,
       canSpendPerDayInCents: canSpendPerDay,
     );
+  }
+
+  static Map<DateTime, int> _cardDuesByDate({
+    required Iterable<CreditCard> cards,
+    required Iterable<CardPurchase> purchases,
+    required Iterable<CardInvoice> invoices,
+    required Iterable<CardInvoicePayment> payments,
+    required DateTime today,
+    required DateTime lastDay,
+  }) {
+    final cardById = {for (final card in cards) card.id: card};
+    final totals = <(String, int, int), int>{};
+    for (final purchase in purchases) {
+      final card = cardById[purchase.cardId];
+      if (card == null) continue;
+      final firstClosing =
+          CreditCardRules.currentCycleClosingDate(card, purchase.purchasedOn);
+      for (var index = 1; index <= purchase.installments; index++) {
+        final month =
+            DateTime(firstClosing.year, firstClosing.month + index - 1);
+        final key = (card.id, month.year, month.month);
+        totals[key] = (totals[key] ?? 0) +
+            CreditCardRules.installmentAmount(purchase, index);
+      }
+    }
+    final invoiceById = {
+      for (final invoice in invoices)
+        invoice.id: (
+          invoice.cardId,
+          invoice.referenceYear,
+          invoice.referenceMonth
+        )
+    };
+    final paid = <(String, int, int), int>{};
+    for (final payment in payments) {
+      final key = invoiceById[payment.invoiceId];
+      if (key == null) continue;
+      paid[key] = (paid[key] ?? 0) + payment.amountInCents;
+    }
+    final dues = <DateTime, int>{};
+    for (final entry in totals.entries) {
+      final card = cardById[entry.key.$1]!;
+      final remaining =
+          CardInvoiceRules.remainingInCents(entry.value, paid[entry.key] ?? 0);
+      if (remaining == 0) continue;
+      final due =
+          CardInvoiceRules.cycle(card, entry.key.$2, entry.key.$3).dueOn;
+      final effective = _effectiveDate(due, today);
+      if (effective.isAfter(lastDay)) continue;
+      dues[effective] = (dues[effective] ?? 0) + remaining;
+    }
+    return dues;
   }
 
   static int _confirmedAccountBalance(

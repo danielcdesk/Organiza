@@ -1881,7 +1881,9 @@ _BudgetSummary? _budgetSummary(OrganizaStore store, DateTime month) {
   final spent = budgets.fold(
     0,
     (total, item) =>
-        total + FinancialRules.budgetSpent(item, store.transactions),
+        total +
+        FinancialRules.budgetSpent(
+            item, store.transactions, store.cardPurchases),
   );
   final remaining = limit - spent;
   return _BudgetSummary(

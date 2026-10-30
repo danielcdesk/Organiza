@@ -1343,21 +1343,33 @@ class CardPurchaseInput {
     required this.description,
     required this.amountInCents,
     required this.installments,
+    required this.category,
+    required this.subcategory,
+    required this.purchasedOn,
   });
   final String cardId;
   final String description;
   final int amountInCents;
   final int installments;
+  final String category;
+  final String subcategory;
+  final DateTime purchasedOn;
 }
 
 class CardPurchaseDialog extends StatefulWidget {
   const CardPurchaseDialog({
     super.key,
     required this.cards,
+    required this.categories,
+    required this.subcategories,
+    required this.clock,
     this.initialCardId,
   });
 
   final List<CreditCard> cards;
+  final List<FinanceCategory> categories;
+  final List<FinanceSubcategory> subcategories;
+  final Clock clock;
   final String? initialCardId;
 
   @override
@@ -1369,12 +1381,22 @@ class _CardPurchaseDialogState extends State<CardPurchaseDialog> {
   final _description = TextEditingController();
   final _amount = TextEditingController();
   final _installments = TextEditingController(text: '1');
+  late String _category;
+  late String _subcategory;
+  late DateTime _purchasedOn;
   String? _error;
 
   @override
   void initState() {
     super.initState();
     _cardId = widget.initialCardId ?? widget.cards.first.id;
+    final names = widget.categories
+        .where((item) => item.type == TransactionType.expense)
+        .map((item) => item.name)
+        .toList();
+    _category = names.contains('Outros') ? 'Outros' : names.first;
+    _subcategory = _subcategoriesFor(_category).first;
+    _purchasedOn = widget.clock.now();
   }
 
   @override
@@ -1390,7 +1412,8 @@ class _CardPurchaseDialogState extends State<CardPurchaseDialog> {
         title: const Text('Registrar compra'),
         content: SizedBox(
           width: 440,
-          child: Column(
+          child: SingleChildScrollView(
+              child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               DropdownButtonFormField<String>(
@@ -1408,6 +1431,42 @@ class _CardPurchaseDialogState extends State<CardPurchaseDialog> {
                   controller: _description,
                   autofocus: true,
                   decoration: const InputDecoration(labelText: 'Descrição')),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                isExpanded: true,
+                initialValue: _category,
+                decoration:
+                    const InputDecoration(labelText: 'Categoria da compra'),
+                items: widget.categories
+                    .where((item) => item.type == TransactionType.expense)
+                    .map((item) => DropdownMenuItem(
+                        value: item.name, child: Text(item.name)))
+                    .toList(),
+                onChanged: (value) => setState(() {
+                  _category = value!;
+                  _subcategory = _subcategoriesFor(_category).first;
+                }),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                key: ValueKey(_category),
+                isExpanded: true,
+                initialValue: _subcategory,
+                decoration: const InputDecoration(labelText: 'Subcategoria'),
+                items: _subcategoriesFor(_category)
+                    .map((name) =>
+                        DropdownMenuItem(value: name, child: Text(name)))
+                    .toList(),
+                onChanged: (value) => setState(() => _subcategory = value!),
+              ),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: _pickPurchaseDate,
+                  icon: const Icon(Icons.calendar_today_outlined),
+                  label: Text('Data da compra: ${shortDate(_purchasedOn)}'),
+                ),
+              ),
               const SizedBox(height: 12),
               Row(
                 children: [
@@ -1434,7 +1493,7 @@ class _CardPurchaseDialogState extends State<CardPurchaseDialog> {
               ),
               _DialogError(_error),
             ],
-          ),
+          )),
         ),
         actions: [
           TextButton(
@@ -1464,8 +1523,35 @@ class _CardPurchaseDialogState extends State<CardPurchaseDialog> {
         description: _description.text,
         amountInCents: cents,
         installments: installments,
+        category: _category,
+        subcategory: _subcategory,
+        purchasedOn: _purchasedOn,
       ),
     );
+  }
+
+  List<String> _subcategoriesFor(String categoryName) {
+    final categoryId = widget.categories
+        .where((item) =>
+            item.type == TransactionType.expense && item.name == categoryName)
+        .map((item) => item.id)
+        .firstOrNull;
+    final names = widget.subcategories
+        .where((item) => item.categoryId == categoryId)
+        .map((item) => item.name)
+        .toList();
+    return names.isEmpty ? const ['Geral'] : names;
+  }
+
+  Future<void> _pickPurchaseDate() async {
+    final now = widget.clock.now();
+    final value = await showDatePicker(
+      context: context,
+      initialDate: _purchasedOn,
+      firstDate: DateTime(2000),
+      lastDate: now,
+    );
+    if (value != null && mounted) setState(() => _purchasedOn = value);
   }
 }
 

@@ -28,7 +28,7 @@
 ## Faturas do cartão — decisão de competência e caixa (schema 18)
 
 - A compra inteira entra nas despesas por categoria na **data da compra**, mesmo se parcelada. Exemplo: compra de R$ 300,00 em 3 parcelas no dia 5 de janeiro aparece como R$ 300,00 na categoria de janeiro.
-- As faturas distribuem o desembolso em 3 parcelas de R$ 100,00. Se o cartão fecha dia 10 e vence dia 17, a primeira parcela vence em janeiro; as próximas, em fevereiro e março. A projeção da conta deve usar esses vencimentos enquanto não houver pagamento confirmado (integração ainda pendente nesta fase).
+- As faturas distribuem o desembolso em 3 parcelas de R$ 100,00. Se o cartão fecha dia 10 e vence dia 17, a primeira parcela vence em janeiro; as próximas, em fevereiro e março. A projeção consolidada desconta cada obrigação não paga na data de vencimento, sem atribuí-la antecipadamente a uma conta. Pagamentos confirmados já reduzem o saldo da conta e diminuem o valor ainda projetado, evitando dupla subtração.
 - Pagar R$ 60,00 da fatura de janeiro reduz a conta em R$ 60,00 e deixa R$ 40,00 pendentes. Esse lançamento tem marcador de sistema `card_payment` e **não entra novamente** no total de despesa por categoria, orçamento ou ranking de gastos.
 - O estorno remove juntos o pagamento da fatura e o lançamento na conta, restaurando o saldo e o valor pendente.
 - Marcações manuais antigas de parcelas pagas não identificavam conta nem valor; continuam separadas dos pagamentos reais de fatura e não são convertidas automaticamente.

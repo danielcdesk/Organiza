@@ -82,4 +82,39 @@ void main() {
     expect(store.balance, before - 4000);
     expect(store.cardInvoicePayments, hasLength(1));
   });
+
+  test('compra antiga exige confirmação para alterar fatura fechada', () {
+    final store =
+        OrganizaStore.inMemory(clock: Clock.fixed(DateTime(2026, 2, 5, 12)));
+    addTearDown(store.dispose);
+    store.addCreditCard(
+      name: 'Cartão',
+      brand: CardBrand.visa,
+      lastFour: '1234',
+      limitInCents: 100000,
+      closingDay: 10,
+      dueDay: 17,
+      colorValue: 0xff000000,
+    );
+    final cardId = store.creditCards.single.id;
+    expect(
+        () => store.addCardPurchase(
+              cardId: cardId,
+              description: 'Compra antiga',
+              amountInCents: 1000,
+              installments: 1,
+              purchasedOn: DateTime(2026, 1, 5),
+            ),
+        throwsArgumentError);
+    expect(store.cardPurchases, isEmpty);
+    store.addCardPurchase(
+      cardId: cardId,
+      description: 'Compra antiga',
+      amountInCents: 1000,
+      installments: 1,
+      purchasedOn: DateTime(2026, 1, 5),
+      allowClosedInvoiceChange: true,
+    );
+    expect(store.cardPurchases.single.purchasedOn, DateTime(2026, 1, 5));
+  });
 }
