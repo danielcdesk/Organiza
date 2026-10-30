@@ -81,6 +81,14 @@ void main() {
       occurredOn: DateTime(2026, 1, 2),
       createdAt: DateTime(2026, 1, 2),
     ));
+    database.insertSubscription(Subscription(
+      id: 'historical-subscription',
+      name: 'Clube',
+      amountInCents: 200,
+      billingDay: 10,
+      category: 'Lazer especial',
+      createdAt: DateTime(2026, 1, 1),
+    ));
     database.archiveFinanceCategory('archived');
     expect(
         database.loadFinanceCategories().any((item) => item.id == 'archived'),
@@ -101,6 +109,17 @@ void main() {
       createdAt: historical.createdAt,
     ));
     expect(database.loadTransactions().single.description, 'Cinema revisto');
+    final subscription = database.loadSubscriptions().single;
+    database.updateSubscription(Subscription(
+      id: subscription.id,
+      name: 'Clube revisto',
+      amountInCents: subscription.amountInCents,
+      billingDay: subscription.billingDay,
+      category: subscription.category,
+      categoryId: subscription.categoryId,
+      createdAt: subscription.createdAt,
+    ));
+    expect(database.loadSubscriptions().single.name, 'Clube revisto');
     expect(
       () => database.insertTransaction(TransactionRecord(
         id: 'new',

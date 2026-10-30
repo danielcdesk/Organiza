@@ -1168,8 +1168,11 @@ class AppDatabase {
   }
 
   List<FinancialGoal> loadFinancialGoals() => _database
-      .select(
-          'SELECT * FROM financial_goals ORDER BY deadline IS NULL, deadline ASC, created_at DESC')
+      .select(schemaVersion < 17
+          ? '''SELECT *, category AS resolved_category FROM financial_goals
+             ORDER BY deadline IS NULL, deadline ASC, created_at DESC'''
+          : '''SELECT *, COALESCE(goal_category_name, category) AS resolved_category
+             FROM financial_goals ORDER BY deadline IS NULL, deadline ASC, created_at DESC''')
       .map((row) => FinancialGoal(
             id: row['id'] as String,
             name: row['name'] as String,
@@ -1179,7 +1182,7 @@ class AppDatabase {
                 ? null
                 : DateTime.parse(row['deadline'] as String),
             iconKey: row['icon_key'] as String,
-            category: row['category'] as String,
+            category: row['resolved_category'] as String,
             createdAt: DateTime.parse(row['created_at'] as String),
           ))
       .toList();
@@ -1259,6 +1262,18 @@ class AppDatabase {
 
   void insertGoalCategory(String name) =>
       _database.execute('INSERT INTO goal_categories(name) VALUES (?)', [name]);
+
+  void renameGoalCategory(String oldName, String newName) {
+    final clean = newName.trim();
+    if (clean.isEmpty) throw ArgumentError('Informe o nome da categoria.');
+    transaction(() {
+      _database.execute('UPDATE goal_categories SET name = ? WHERE name = ?',
+          [clean, oldName]);
+      _database.execute(
+          'UPDATE financial_goals SET category = ? WHERE category = ?',
+          [clean, oldName]);
+    });
+  }
 
   List<FinanceCategory> loadFinanceCategories() => _database
       .select(schemaVersion < 17
@@ -1656,17 +1671,32 @@ class AppDatabase {
         ],
       );
 
-  void insertFinanceCategory(FinanceCategory category) => _database.execute(
-        '''INSERT INTO finance_categories(id, name, type, is_system, created_at)
+  void insertFinanceCategory(FinanceCategory category) {
+    if (schemaVersion >= 17) {
+      final existing = _database.select(
+          'SELECT name, archived_at FROM finance_categories WHERE type = ?',
+          [category.type.name]);
+      for (final row in existing) {
+        if ((row['name'] as String).toLowerCase() ==
+            category.name.toLowerCase()) {
+          throw ArgumentError(row['archived_at'] == null
+              ? 'Essa categoria já existe.'
+              : 'Essa categoria está arquivada; escolha outro nome.');
+        }
+      }
+    }
+    _database.execute(
+      '''INSERT INTO finance_categories(id, name, type, is_system, created_at)
         VALUES (?, ?, ?, ?, ?)''',
-        [
-          category.id,
-          category.name,
-          category.type.name,
-          category.isSystem ? 1 : 0,
-          category.createdAt.toIso8601String(),
-        ],
-      );
+      [
+        category.id,
+        category.name,
+        category.type.name,
+        category.isSystem ? 1 : 0,
+        category.createdAt.toIso8601String(),
+      ],
+    );
+  }
 
   void insertFinanceSubcategory(FinanceSubcategory subcategory) =>
       _database.execute(
@@ -1841,9 +1871,13 @@ class AppDatabase {
           ]);
           return;
         }
+        final existing = _database.select(
+            'SELECT category_id FROM subscriptions WHERE id = ?', [item.id]);
+        final keepsCategory = existing.isNotEmpty &&
+            existing.single['category_id'] == item.categoryId;
         final category = _resolveCategory(
             item.category, 'expense', item.createdAt,
-            preferredId: item.categoryId);
+            preferredId: item.categoryId, allowArchived: keepsCategory);
         _database.execute(
             '''UPDATE subscriptions SET name = ?, amount_cents = ?, billing_day = ?,
       category = ?, is_active = ?, category_id = ? WHERE id = ?''',
@@ -1862,21 +1896,42 @@ class AppDatabase {
       'UPDATE subscriptions SET is_active = ? WHERE id = ?',
       [active ? 1 : 0, id]);
 
-  void insertFinancialGoal(FinancialGoal goal) => _database.execute(
-        '''INSERT INTO financial_goals(
-          id, name, target_cents, saved_cents, deadline, icon_key, created_at, category
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
-        [
-          goal.id,
-          goal.name,
-          goal.targetInCents,
-          goal.savedInCents,
-          goal.deadline?.toIso8601String(),
-          goal.iconKey,
-          goal.createdAt.toIso8601String(),
-          goal.category,
-        ],
-      );
+  void insertFinancialGoal(FinancialGoal goal) => transaction(() {
+        var category = goal.category;
+        if (schemaVersion >= 17) {
+          final existing = _database.select('SELECT name FROM goal_categories');
+          final match = existing.where((row) =>
+              (row['name'] as String).toLowerCase() ==
+              goal.category.trim().toLowerCase());
+          if (match.isNotEmpty) {
+            category = match.first['name'] as String;
+          } else {
+            category = goal.category.trim();
+            if (category.isEmpty) category = 'Outros';
+            insertGoalCategory(category);
+          }
+        }
+        _database.execute(
+          schemaVersion < 17
+              ? '''INSERT INTO financial_goals(id, name, target_cents,
+                   saved_cents, deadline, icon_key, created_at, category)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)'''
+              : '''INSERT INTO financial_goals(id, name, target_cents,
+                   saved_cents, deadline, icon_key, created_at, category,
+                   goal_category_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+          [
+            goal.id,
+            goal.name,
+            goal.targetInCents,
+            goal.savedInCents,
+            goal.deadline?.toIso8601String(),
+            goal.iconKey,
+            goal.createdAt.toIso8601String(),
+            category,
+            if (schemaVersion >= 17) category,
+          ],
+        );
+      });
 
   void updateFinancialGoalSaved(String id, int savedInCents) =>
       _database.execute(

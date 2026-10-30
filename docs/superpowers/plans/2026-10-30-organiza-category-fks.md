@@ -58,14 +58,14 @@
 
 **Interfaces:** Settings allows rename/archive of finance categories; archived categories are hidden from new-entry pickers but preserved in historical joins. `financial_goals.goal_category_name` is written with the existing goal category selected and loaded through that FK. Goal category rename (if offered) updates the distinct `goal_categories` table with `ON UPDATE CASCADE`.
 
-- [ ] Write failing widget/data tests for a finance category rename reflected in old transaction and budget, archive hiding it from a new form, and a goal remaining linked to its distinct goal category.
-- [ ] Implement compact management UI with pt-BR labels and confirmation for archive; keep text/ID resolution in data layer.
-- [ ] Run focused tests, full analysis/suite and Windows integration; commit separately.
+- [x] Write failing widget/data tests for a finance category rename reflected in old transaction and budget, archive hiding it from a new form, and a goal remaining linked to its distinct goal category.
+- [x] Implement compact management UI with pt-BR labels and confirmation for archive; keep text/ID resolution in data layer.
+- [x] Run focused tests, full analysis/suite (161 passed, 69.13% coverage) and Windows integration; commit separately.
 
 ### Task 4: Phase 2.1 gate
 
 **Files:** Update `docs/feature_matrix.md`, `docs/technical_dossier.md`, `docs/implementation/PROGRESSO_V3.md`.
 
-- [ ] Record the code-vs-spec goal-category divergence and migration counts in docs.
-- [ ] Run `flutter analyze`, `flutter test --coverage` and migration tests on v1/v16 fixtures; verify unchanged balance and `git diff --check`.
-- [ ] Request code review, fix Important findings, then push to an isolated branch/PR and verify Windows/Ubuntu CI before the next schema theme.
+- [x] Record the code-vs-spec goal-category divergence and migration counts in docs.
+- [x] Run `flutter analyze`, `flutter test --coverage` and migration tests on v1/v16 fixtures; verify unchanged balance and `git diff --check`.
+- [ ] Request code review, fix Important findings, then push to an isolated branch/PR and verify Windows/Ubuntu CI before the next schema theme. Review and fixes done; PR/CI pending.

@@ -1240,6 +1240,15 @@ class OrganizaStore extends ChangeNotifier {
           subcategory: updated.type == TransactionType.transfer
               ? 'Entre contas'
               : updated.subcategory,
+          categoryId:
+              updated.type == item.type && updated.category == item.category
+                  ? item.categoryId
+                  : null,
+          subcategoryId: updated.type == item.type &&
+                  updated.category == item.category &&
+                  updated.subcategory == item.subcategory
+              ? item.subcategoryId
+              : null,
           scheduleType: item.scheduleType,
           seriesId: item.seriesId,
           installmentNumber: item.installmentNumber,
@@ -1333,6 +1342,7 @@ class OrganizaStore extends ChangeNotifier {
         amountInCents: amountInCents,
         billingDay: billingDay,
         category: category,
+        categoryId: category == previous.category ? previous.categoryId : null,
         createdAt: previous.createdAt,
         isActive: previous.isActive));
     reload();
@@ -1390,18 +1400,23 @@ class OrganizaStore extends ChangeNotifier {
   }
 
   void renameFinanceCategory(String id, String newName) {
-    final original = financeCategories.where((item) => item.id == id).firstOrNull;
+    final original =
+        financeCategories.where((item) => item.id == id).firstOrNull;
     if (original == null) throw ArgumentError('Categoria não encontrada.');
     final clean = newName.trim();
     if (clean.isEmpty) throw ArgumentError('Informe o nome da categoria.');
-    final updatedBuckets = salaryAllocationBuckets.map((bucket) =>
-        bucket.copyWith(
-          linkedCategories: bucket.linkedCategories
-              .map((name) => name.toLowerCase() == original.name.toLowerCase()
-                  ? clean
-                  : name)
-              .toList(),
-        )).toList();
+    final updatedBuckets = original.type == TransactionType.expense
+        ? salaryAllocationBuckets
+            .map((bucket) => bucket.copyWith(
+                  linkedCategories: bucket.linkedCategories
+                      .map((name) =>
+                          name.toLowerCase() == original.name.toLowerCase()
+                              ? clean
+                              : name)
+                      .toList(),
+                ))
+            .toList()
+        : salaryAllocationBuckets;
     _repository.transaction(() {
       _repository.renameFinanceCategory(id, clean);
       _repository.savePreference(
@@ -1411,9 +1426,11 @@ class OrganizaStore extends ChangeNotifier {
   }
 
   void archiveFinanceCategory(String id) {
-    final category = financeCategories.where((item) => item.id == id).firstOrNull;
+    final category =
+        financeCategories.where((item) => item.id == id).firstOrNull;
     if (category == null || category.isSystem) {
-      throw ArgumentError('Somente categorias personalizadas podem ser arquivadas.');
+      throw ArgumentError(
+          'Somente categorias personalizadas podem ser arquivadas.');
     }
     _repository.archiveFinanceCategory(id, at: _now);
     reload();
