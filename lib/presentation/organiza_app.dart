@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
@@ -10,6 +11,7 @@ import 'package:window_manager/window_manager.dart';
 import '../application/organiza_store.dart';
 import '../domain/models.dart';
 import '../domain/financial_rules.dart';
+import '../services/local_image_service.dart';
 import 'basic_pages.dart';
 import 'cards_page.dart';
 import 'subscriptions_page.dart';
@@ -98,7 +100,8 @@ class OrganizaShell extends StatefulWidget {
   State<OrganizaShell> createState() => _OrganizaShellState();
 }
 
-class _OrganizaShellState extends State<OrganizaShell> {
+class _OrganizaShellState extends State<OrganizaShell>
+    with WindowListener, WidgetsBindingObserver {
   var _page = 0;
   var _collapsed = false;
   var _hideValues = false;
@@ -125,6 +128,47 @@ class _OrganizaShellState extends State<OrganizaShell> {
     super.initState();
     _hideValues = widget.store.hideValuesPreference;
     widget.store.addListener(_refresh);
+    WidgetsBinding.instance.addObserver(this);
+    if (Platform.isWindows) windowManager.addListener(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (Platform.isAndroid && state == AppLifecycleState.paused) {
+      unawaited(widget.store.runAutomaticBackup(closing: true));
+    }
+  }
+
+  @override
+  void onWindowClose() {
+    unawaited(_closeWindow());
+  }
+
+  Future<void> _closeWindow() async {
+    if (widget.store.automaticBackupEnabled && widget.store.backupOnClose) {
+      await widget.store.runAutomaticBackup(closing: true);
+      if (widget.store.backupError?.isNotEmpty == true && mounted) {
+        final closeAnyway = await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('Backup não concluído'),
+            content: Text(widget.store.backupError!),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(dialogContext, false),
+                  child: const Text('Continuar no app')),
+              FilledButton(
+                  onPressed: () => Navigator.pop(dialogContext, true),
+                  child: const Text('Fechar mesmo assim')),
+            ],
+          ),
+        );
+        if (closeAnyway != true) return;
+      }
+    }
+    windowManager.removeListener(this);
+    await windowManager.setPreventClose(false);
+    await windowManager.close();
   }
 
   void _toggleValues() {
@@ -134,6 +178,8 @@ class _OrganizaShellState extends State<OrganizaShell> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    if (Platform.isWindows) windowManager.removeListener(this);
     widget.store.removeListener(_refresh);
     super.dispose();
   }
@@ -313,12 +359,13 @@ class _OrganizaShellState extends State<OrganizaShell> {
                   ListTile(
                     leading: CircleAvatar(
                       radius: 22,
-                      backgroundImage: widget.store.profilePhotoPath != null &&
-                              File(widget.store.profilePhotoPath!).existsSync()
-                          ? FileImage(File(widget.store.profilePhotoPath!))
+                      backgroundImage: LocalImageService.exists(
+                              widget.store.profilePhotoPath)
+                          ? FileImage(LocalImageService.fileFor(
+                              widget.store.profilePhotoPath!))
                           : null,
-                      child: widget.store.profilePhotoPath == null ||
-                              !File(widget.store.profilePhotoPath!).existsSync()
+                      child: !LocalImageService.exists(
+                              widget.store.profilePhotoPath)
                           ? const Icon(Icons.person_outline_rounded)
                           : null,
                     ),
@@ -555,7 +602,14 @@ class _OrganizaShellState extends State<OrganizaShell> {
             profilePhotoPath: widget.store.profilePhotoPath,
             onEditProfile: _openProfileDialog,
             onExportBackup: _exportEncryptedBackup,
-            onRestoreBackup: _restoreEncryptedBackup),
+            onRestoreBackup: _restoreEncryptedBackup,
+            automaticBackupEnabled: widget.store.automaticBackupEnabled,
+            lastBackupAt: widget.store.lastBackupAt,
+            backupError: widget.store.backupError,
+            backupOverdue: widget.store.backupOverdue,
+            onConfigureAutomaticBackup: _configureAutomaticBackup,
+            onDisableAutomaticBackup: _disableAutomaticBackup,
+            onRunAutomaticBackup: _runAutomaticBackup),
         10 => SubscriptionsPage(
             store: widget.store,
             hideValues: _hideValues,
@@ -1166,6 +1220,115 @@ class _OrganizaShellState extends State<OrganizaShell> {
     }
   }
 
+  Future<void> _configureAutomaticBackup() async {
+    String? selected;
+    try {
+      selected = await widget.store.chooseAutomaticBackupFolder();
+      if (selected == null) return;
+      if (!mounted) {
+        await widget.store.discardAutomaticBackupFolder(selected);
+        return;
+      }
+      final password = await _backupPasswordDialog(
+        title: 'Senha para backups automáticos',
+        confirm: true,
+      );
+      if (password == null || !mounted) {
+        await widget.store.discardAutomaticBackupFolder(selected);
+        return;
+      }
+      var interval = widget.store.backupIntervalDays;
+      var retention = widget.store.backupRetention;
+      var onClose = widget.store.backupOnClose;
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => StatefulBuilder(
+          builder: (context, change) => AlertDialog(
+            title: const Text('Backup automático'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<int>(
+                  initialValue:
+                      [1, 3, 7, 14, 30].contains(interval) ? interval : 7,
+                  decoration:
+                      const InputDecoration(labelText: 'Intervalo em dias'),
+                  items: [1, 3, 7, 14, 30]
+                      .map((days) => DropdownMenuItem(
+                          value: days, child: Text('$days dia(s)')))
+                      .toList(),
+                  onChanged: (value) => change(() => interval = value ?? 7),
+                ),
+                DropdownButtonFormField<int>(
+                  initialValue:
+                      [1, 3, 5, 10].contains(retention) ? retention : 3,
+                  decoration:
+                      const InputDecoration(labelText: 'Cópias mantidas'),
+                  items: [1, 3, 5, 10]
+                      .map((count) =>
+                          DropdownMenuItem(value: count, child: Text('$count')))
+                      .toList(),
+                  onChanged: (value) => change(() => retention = value ?? 3),
+                ),
+                SwitchListTile(
+                  value: onClose,
+                  title: const Text('Também ao fechar'),
+                  subtitle: const Text(
+                      'No Android, o sistema pode encerrar o app sem aviso.'),
+                  onChanged: (value) => change(() => onClose = value),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Cancelar'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('Ativar'),
+              ),
+            ],
+          ),
+        ),
+      );
+      if (confirmed != true) {
+        await widget.store.discardAutomaticBackupFolder(selected);
+        return;
+      }
+      await widget.store.configureAutomaticBackup(
+          enabled: true,
+          intervalDays: interval,
+          retention: retention,
+          onClose: onClose,
+          password: password,
+          selectedFolder: selected);
+      if (mounted) _showError('Backup automático ativado.');
+    } on Object catch (error) {
+      if (selected != null) {
+        await widget.store.discardAutomaticBackupFolder(selected);
+      }
+      if (mounted) _showError('Não foi possível configurar o backup: $error');
+    }
+  }
+
+  Future<void> _disableAutomaticBackup() async {
+    await widget.store.configureAutomaticBackup(
+        enabled: false,
+        intervalDays: widget.store.backupIntervalDays,
+        retention: widget.store.backupRetention,
+        onClose: widget.store.backupOnClose);
+  }
+
+  Future<void> _runAutomaticBackup() async {
+    await widget.store.runAutomaticBackup(force: true);
+    if (mounted) {
+      _showError(widget.store.backupError?.isNotEmpty == true
+          ? 'Falha no backup: ${widget.store.backupError}'
+          : 'Backup automático salvo.');
+    }
+  }
+
   Future<void> _exportEncryptedBackup() async {
     final password = await _backupPasswordDialog(
       title: 'Criar backup protegido',
@@ -1173,8 +1336,28 @@ class _OrganizaShellState extends State<OrganizaShell> {
     );
     if (password == null) return;
     try {
-      final file = await widget.store.exportEncryptedBackup(password);
-      if (mounted) _showError('Backup salvo em ${file.path}');
+      if (Platform.isAndroid) {
+        final file = await widget.store.exportEncryptedBackup(password);
+        final saved = await FilePicker.platform.saveFile(
+          dialogTitle: 'Salvar backup do Organiza',
+          fileName: file.uri.pathSegments.last,
+          type: FileType.custom,
+          allowedExtensions: ['organizabak'],
+          bytes: await file.readAsBytes(),
+        );
+        if (mounted && saved != null) _showError('Backup exportado.');
+      } else {
+        final selected = await FilePicker.platform.saveFile(
+          dialogTitle: 'Salvar backup do Organiza',
+          fileName: 'organiza.organizabak',
+          type: FileType.custom,
+          allowedExtensions: ['organizabak'],
+        );
+        if (selected == null) return;
+        final file = await widget.store
+            .exportEncryptedBackup(password, destination: File(selected));
+        if (mounted) _showError('Backup salvo em ${file.path}');
+      }
     } on Object catch (error) {
       if (mounted) _showError('Não foi possível criar o backup: $error');
     }
@@ -1183,7 +1366,7 @@ class _OrganizaShellState extends State<OrganizaShell> {
   Future<void> _restoreEncryptedBackup() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
-      allowedExtensions: ['backup'],
+      allowedExtensions: ['organizabak', 'backup', 'json'],
       withData: false,
     );
     final selectedPath = result?.files.single.path;
@@ -1193,10 +1376,41 @@ class _OrganizaShellState extends State<OrganizaShell> {
     );
     if (password == null) return;
     try {
-      final safetyCopy = await widget.store.restoreEncryptedBackup(
-        File(selectedPath),
-        password,
+      final preview =
+          await widget.store.prepareBackup(File(selectedPath), password);
+      if (!mounted) {
+        await preview.dispose();
+        return;
+      }
+      final counts = preview.counts;
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Confirmar restauração'),
+          content: Text(
+            'Backup de ${preview.createdAt ?? 'data desconhecida'} '
+            '(schema ${preview.schemaVersion}).\n'
+            '${counts['accounts'] ?? 0} contas, '
+            '${counts['transactions'] ?? 0} transações e '
+            '${counts['credit_cards'] ?? 0} cartões.\n\n'
+            '${preview.isLegacy ? 'Formato antigo: imagens não acompanham este arquivo.\n\n' : ''}'
+            'Os dados atuais serão substituídos. Uma cópia de segurança será mantida.',
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Cancelar')),
+            FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('Restaurar')),
+          ],
+        ),
       );
+      if (confirmed != true) {
+        await preview.dispose();
+        return;
+      }
+      final safetyCopy = await widget.store.confirmBackup(preview);
       if (mounted) {
         _showError(
             'Backup restaurado. Uma cópia do estado anterior foi salva em ${safetyCopy.path}.');
@@ -1430,12 +1644,12 @@ class _Sidebar extends StatelessWidget {
                               backgroundColor: dark
                                   ? const Color(0xFF3B473F)
                                   : const Color(0xFFD8D9E5),
-                              backgroundImage: profilePhotoPath != null &&
-                                      File(profilePhotoPath!).existsSync()
-                                  ? FileImage(File(profilePhotoPath!))
-                                  : null,
-                              child: profilePhotoPath == null ||
-                                      !File(profilePhotoPath!).existsSync()
+                              backgroundImage:
+                                  LocalImageService.exists(profilePhotoPath)
+                                      ? FileImage(LocalImageService.fileFor(
+                                          profilePhotoPath!))
+                                      : null,
+                              child: !LocalImageService.exists(profilePhotoPath)
                                   ? Icon(Icons.person_outline_rounded,
                                       size: 16, color: sidebarText)
                                   : null,

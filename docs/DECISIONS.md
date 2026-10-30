@@ -9,6 +9,7 @@
 - Importação OFX/CSV é a alternativa local-first. Não ativar Open Finance nem rede no produto.
 - A configuração de SQLite3MultipleCiphers/SQLCipher será verificada na documentação da versão instalada antes da Fase 4.
 - Manter sqlite3 e ChangeNotifier. Drift e troca de estado são opcionais e não foram aprovados; não são pré-requisitos das melhorias obrigatórias.
+- A senha de backup automático pode ficar no cofre do sistema, conforme autorização do dono do produto. Windows usa DPAPI e Android usa Android Keystore. O plugin `flutter_secure_storage` foi retirado porque a versão compatível exigia ATL ausente no ambiente Windows; as APIs do sistema não adicionam rede nem persistem a senha em SQLite.
 
 ### Correções factuais do plano fornecido
 

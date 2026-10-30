@@ -6,12 +6,14 @@ import 'package:path_provider/path_provider.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'application/organiza_store.dart';
+import 'services/app_storage_paths.dart';
 import 'presentation/organiza_app.dart';
 
 RandomAccessFile? _instanceLock;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await AppStoragePaths.initialize();
   if (Platform.isWindows) {
     if (!await _acquireWindowsInstanceLock()) return;
     assert(_instanceLock != null);
@@ -28,6 +30,7 @@ Future<void> main() async {
     });
   }
   final store = await OrganizaStore.create();
+  if (Platform.isWindows) await windowManager.setPreventClose(true);
   runApp(OrganizaApp(store: store));
 }
 

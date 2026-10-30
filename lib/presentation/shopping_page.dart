@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -353,7 +351,8 @@ class _WishlistCardState extends State<_WishlistCard> {
                   fit: StackFit.expand,
                   children: [
                     if (hasImage)
-                      Image.file(File(item.imagePath!), fit: BoxFit.cover)
+                      Image.file(LocalImageService.fileFor(item.imagePath!),
+                          fit: BoxFit.cover)
                     else
                       DecoratedBox(
                         decoration: BoxDecoration(
@@ -552,7 +551,7 @@ class _ShoppingRow extends StatelessWidget {
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(9),
                     child: Image.file(
-                      File(item.imagePath!),
+                      LocalImageService.fileFor(item.imagePath!),
                       width: 42,
                       height: 42,
                       fit: BoxFit.cover,

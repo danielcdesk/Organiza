@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
 import 'package:path/path.dart' as path;
@@ -9,6 +10,106 @@ import 'package:path_provider/path_provider.dart';
 /// JSON backup transport. Import confirmation and integrity checks belong to UI flows.
 class BackupService {
   const BackupService();
+
+  static const maxPayloadBytes = 128 * 1024 * 1024;
+  static const maxEnvelopeBytes = 180 * 1024 * 1024;
+
+  /// Encrypts ZIP bytes. The entire versioned header is authenticated as AAD.
+  Future<Map<String, dynamic>> encryptBytes(
+    Uint8List content,
+    String password,
+  ) async {
+    _validatePassword(password);
+    if (content.length > maxPayloadBytes) {
+      throw ArgumentError('O backup excede o limite de tamanho.');
+    }
+    final random = Random.secure();
+    final salt = List<int>.generate(16, (_) => random.nextInt(256));
+    final metadata = <String, dynamic>{
+      'format': _encryptedFormat,
+      'version': 2,
+      'contentType': 'application/zip',
+      'exportedAt': DateTime.now().toUtc().toIso8601String(),
+      'kdf': 'Argon2id',
+      'kdfMemory': _kdfMemory,
+      'kdfIterations': _kdfIterations,
+      'kdfParallelism': _kdfParallelism,
+      'cipher': 'AES-256-GCM',
+      'salt': base64Encode(salt),
+      'payloadSize': content.length,
+    };
+    final box = await AesGcm.with256bits().encrypt(
+      content,
+      secretKey: await _deriveKey(password, salt),
+      aad: utf8.encode(jsonEncode(metadata)),
+    );
+    return {...metadata, 'box': base64Encode(box.concatenation())};
+  }
+
+  Future<Uint8List> decryptBytes(
+    Map<String, dynamic> envelope,
+    String password,
+  ) async {
+    _validatePassword(password);
+    const keys = [
+      'format',
+      'version',
+      'contentType',
+      'exportedAt',
+      'kdf',
+      'kdfMemory',
+      'kdfIterations',
+      'kdfParallelism',
+      'cipher',
+      'salt',
+      'payloadSize',
+    ];
+    final size = envelope['payloadSize'];
+    final stamp = envelope['exportedAt'];
+    if (envelope.length != keys.length + 1 ||
+        !keys.every(envelope.containsKey) ||
+        envelope['format'] != _encryptedFormat ||
+        envelope['version'] != 2 ||
+        envelope['contentType'] != 'application/zip' ||
+        envelope['kdf'] != 'Argon2id' ||
+        envelope['cipher'] != 'AES-256-GCM' ||
+        envelope['kdfMemory'] != _kdfMemory ||
+        envelope['kdfIterations'] != _kdfIterations ||
+        envelope['kdfParallelism'] != _kdfParallelism ||
+        size is! int ||
+        size < 0 ||
+        size > maxPayloadBytes ||
+        stamp is! String ||
+        stamp.length > 40 ||
+        DateTime.tryParse(stamp) == null) {
+      throw const FormatException(
+          'Cabeçalho do backup inválido ou incompatível.');
+    }
+    final salt = _decodeBase64(envelope['salt'], 'salt', maxBytes: 16);
+    final boxBytes =
+        _decodeBase64(envelope['box'], 'box', maxBytes: maxPayloadBytes + 28);
+    if (salt.length != 16 || boxBytes.length != size + 28) {
+      throw const FormatException('Tamanho do backup inválido.');
+    }
+    final metadata = <String, dynamic>{
+      for (final key in keys) key: envelope[key]
+    };
+    final cipher = AesGcm.with256bits();
+    final box = SecretBox.fromConcatenation(boxBytes,
+        nonceLength: cipher.nonceLength,
+        macLength: cipher.macAlgorithm.macLength);
+    try {
+      final payload = await cipher.decrypt(box,
+          secretKey: await _deriveKey(password, salt),
+          aad: utf8.encode(jsonEncode(metadata)));
+      if (payload.length != size) {
+        throw const FormatException('Tamanho do backup inválido.');
+      }
+      return Uint8List.fromList(payload);
+    } on SecretBoxAuthenticationError {
+      throw const FormatException('Senha incorreta ou backup adulterado.');
+    }
+  }
 
   static const _encryptedFormat = 'organiza.encrypted-backup';
   static const _encryptedVersion = 1;
@@ -33,6 +134,7 @@ class BackupService {
   }
 
   Future<Map<String, dynamic>> validateJson(File file) async {
+    await _validateFileSize(file);
     final parsed = jsonDecode(await file.readAsString());
     if (parsed is! Map<String, dynamic> ||
         parsed['format'] != 'organiza.json' ||
@@ -92,6 +194,7 @@ class BackupService {
     File file,
     String password,
   ) async {
+    await _validateFileSize(file);
     final parsed = jsonDecode(await file.readAsString());
     if (parsed is! Map<String, dynamic>) {
       throw const FormatException('Backup criptografado inválido.');
@@ -109,12 +212,19 @@ class BackupService {
     if (envelope['format'] != _encryptedFormat ||
         envelope['version'] != _encryptedVersion ||
         envelope['kdf'] != 'Argon2id' ||
+        envelope['kdfMemory'] != _kdfMemory ||
+        envelope['kdfIterations'] != _kdfIterations ||
+        envelope['kdfParallelism'] != _kdfParallelism ||
         envelope['cipher'] != 'AES-256-GCM') {
       throw const FormatException(
           'Formato de backup criptografado incompatível.');
     }
-    final salt = _decodeBase64(envelope['salt'], 'salt');
-    final boxBytes = _decodeBase64(envelope['box'], 'box');
+    final salt = _decodeBase64(envelope['salt'], 'salt', maxBytes: 16);
+    final boxBytes =
+        _decodeBase64(envelope['box'], 'box', maxBytes: maxPayloadBytes + 28);
+    if (salt.length != 16 || boxBytes.length < 28) {
+      throw const FormatException('Tamanho do backup inválido.');
+    }
     final cipher = AesGcm.with256bits();
     final secretBox = SecretBox.fromConcatenation(
       boxBytes,
@@ -150,12 +260,26 @@ class BackupService {
         folder.path, 'organiza-$stamp.${encrypted ? 'backup' : 'json'}'));
   }
 
-  static List<int> _decodeBase64(Object? value, String field) {
+  static Future<void> _validateFileSize(File file) async {
+    if (await file.length() > maxEnvelopeBytes) {
+      throw const FormatException('O backup excede o limite de tamanho.');
+    }
+  }
+
+  static List<int> _decodeBase64(Object? value, String field,
+      {required int maxBytes}) {
     if (value is! String || value.isEmpty) {
       throw FormatException('Campo $field ausente no backup.');
     }
+    if (value.length > ((maxBytes + 2) ~/ 3) * 4) {
+      throw const FormatException('O backup excede o limite de tamanho.');
+    }
     try {
-      return base64Decode(value);
+      final bytes = base64Decode(value);
+      if (bytes.length > maxBytes) {
+        throw const FormatException('O backup excede o limite de tamanho.');
+      }
+      return bytes;
     } on FormatException {
       throw FormatException('Campo $field não é Base64 válido.');
     }

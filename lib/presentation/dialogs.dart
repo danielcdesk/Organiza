@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -2494,7 +2492,7 @@ class _ProfileDialogState extends State<ProfileDialog> {
             backgroundColor:
                 Theme.of(context).colorScheme.primary.withValues(alpha: .16),
             backgroundImage: LocalImageService.exists(_photoPath)
-                ? FileImage(File(_photoPath!))
+                ? FileImage(LocalImageService.fileFor(_photoPath!))
                 : null,
             child: LocalImageService.exists(_photoPath)
                 ? null

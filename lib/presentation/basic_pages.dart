@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 
 import '../application/organiza_store.dart';
@@ -1535,7 +1533,14 @@ class SettingsPage extends StatelessWidget {
       this.profilePhotoPath,
       required this.onEditProfile,
       required this.onExportBackup,
-      required this.onRestoreBackup});
+      required this.onRestoreBackup,
+      this.automaticBackupEnabled = false,
+      this.lastBackupAt,
+      this.backupError,
+      this.backupOverdue = false,
+      required this.onConfigureAutomaticBackup,
+      required this.onDisableAutomaticBackup,
+      required this.onRunAutomaticBackup});
 
   final ValueChanged<ThemeMode> onThemeChanged;
   final bool hideValues;
@@ -1550,6 +1555,13 @@ class SettingsPage extends StatelessWidget {
   final VoidCallback onEditProfile;
   final Future<void> Function() onExportBackup;
   final Future<void> Function() onRestoreBackup;
+  final bool automaticBackupEnabled;
+  final String? lastBackupAt;
+  final String? backupError;
+  final bool backupOverdue;
+  final Future<void> Function() onConfigureAutomaticBackup;
+  final Future<void> Function() onDisableAutomaticBackup;
+  final Future<void> Function() onRunAutomaticBackup;
   static const _quickLabels = <int, String>{
     0: 'Início',
     1: 'Finanças',
@@ -1587,7 +1599,8 @@ class SettingsPage extends StatelessWidget {
                           .withValues(alpha: .15),
                       backgroundImage:
                           LocalImageService.exists(profilePhotoPath)
-                              ? FileImage(File(profilePhotoPath!))
+                              ? FileImage(
+                                  LocalImageService.fileFor(profilePhotoPath!))
                               : null,
                       child: LocalImageService.exists(profilePhotoPath)
                           ? null
@@ -1755,7 +1768,7 @@ class SettingsPage extends StatelessWidget {
             Panel(
               title: 'Backup local',
               subtitle:
-                  'Crie um arquivo protegido por senha para recuperar seus dados em outro dispositivo.',
+                  'Crie um arquivo protegido por senha para recuperar seus dados em outro dispositivo. A senha não pode ser recuperada.',
               child: Wrap(
                 spacing: 9,
                 runSpacing: 9,
@@ -1770,6 +1783,31 @@ class SettingsPage extends StatelessWidget {
                     icon: const Icon(Icons.restore_rounded),
                     label: const Text('Restaurar backup'),
                   ),
+                  OutlinedButton.icon(
+                    onPressed: () => onConfigureAutomaticBackup(),
+                    icon: const Icon(Icons.schedule_rounded),
+                    label: Text(automaticBackupEnabled
+                        ? 'Alterar backup automático'
+                        : 'Configurar backup automático'),
+                  ),
+                  if (automaticBackupEnabled) ...[
+                    OutlinedButton.icon(
+                      onPressed: () => onRunAutomaticBackup(),
+                      icon: const Icon(Icons.save_outlined),
+                      label: const Text('Fazer backup agora'),
+                    ),
+                    TextButton(
+                      onPressed: () => onDisableAutomaticBackup(),
+                      child: const Text('Desativar backup automático'),
+                    ),
+                  ],
+                  if (lastBackupAt != null && lastBackupAt!.isNotEmpty)
+                    Text('Último backup automático: $lastBackupAt'),
+                  if (backupError != null && backupError!.isNotEmpty)
+                    Text('Falha no último backup: $backupError'),
+                  if (backupOverdue)
+                    const Text(
+                        'Backup atrasado: confira a pasta e faça uma cópia agora.'),
                 ],
               ),
             ),

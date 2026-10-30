@@ -1,16 +1,48 @@
+import 'dart:io';
+
 import '../database/app_database.dart';
 import '../domain/models.dart';
 
 /// Data boundary used by application services; UI and domain never import SQLite.
 class LocalRepository {
-  LocalRepository._(this._database);
-  final AppDatabase _database;
+  LocalRepository._(this._database) : _filePath = _database.filePath;
+  AppDatabase _database;
+  final String? _filePath;
+  bool _closed = false;
 
   static Future<LocalRepository> open() async =>
       LocalRepository._(await AppDatabase.open());
 
+  static LocalRepository openAtFile(File file) =>
+      LocalRepository._(AppDatabase.openFile(file));
+
   static LocalRepository inMemory() =>
       LocalRepository._(AppDatabase.openInMemory());
+
+  String? get filePath => _filePath;
+  Map<String, int> get tableCounts => _database.tableCounts;
+  Future<void> createConsistentCopy(File destination) =>
+      _database.createConsistentCopy(destination);
+  void validateIntegrity() => _database.validateIntegrity();
+  void rewriteImagePaths(Map<String, String> replacements) =>
+      _database.rewriteImagePaths(replacements);
+
+  void closeForReplacement() {
+    if (_filePath == null) {
+      throw StateError(
+          'O banco em memória não pode ser substituído por arquivo.');
+    }
+    close();
+  }
+
+  void reopenAfterReplacement() {
+    if (_filePath == null || !_closed) {
+      throw StateError('Feche o banco persistente antes de reabri-lo.');
+    }
+    final reopened = AppDatabase.openFile(File(_filePath));
+    _database = reopened;
+    _closed = false;
+  }
 
   List<Account> loadAccounts() => _database.loadAccounts();
   List<TransactionRecord> loadTransactions() => _database.loadTransactions();
@@ -121,5 +153,9 @@ class LocalRepository {
       _database.saveSalaryAllocation(item);
   void transaction(void Function() operation) =>
       _database.transaction(operation);
-  void close() => _database.close();
+  void close() {
+    if (_closed) return;
+    _database.close();
+    _closed = true;
+  }
 }
