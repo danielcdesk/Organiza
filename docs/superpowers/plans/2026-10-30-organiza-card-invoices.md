@@ -10,14 +10,14 @@
 
 - [x] Add card purchase category/subcategory FKs, `card_invoices`, `card_invoice_payments`, and indexes in one guarded migration with a pre-v18 copy.
 - [x] Backfill purchase categories without changing purchase amounts, legacy manual paid-installment flags, or account balances. Document how historical manual flags remain distinct from real payments.
-- [ ] Test v1/v17→v18, second open, snapshot backup/restore, row counts, balances, integrity and FK checks. v1/v17 migration, second open, empty invoice tables, balances and integrity pass; populated invoice snapshot awaits Task 2.
+- [x] Test v1/v17→v18, second open, snapshot backup/restore, row counts, balances, integrity and FK checks. Populated invoice snapshot and payment linkage pass.
 
 ## Task 2 — invoice rules and payments
 
-- [ ] Add pure invoice calculations for closing/due dates, installment totals, partial payments, overpayment prevention and status.
-- [ ] Add a system marker to payment transactions. Store payment plus invoice payment record atomically; make it idempotent for retries. Prevent payment from appearing as a category expense in reports.
+- [x] Add pure invoice calculations for closing/due dates, installment totals, partial payments, overpayment prevention and status.
+- [x] Add a system marker to payment transactions. Store payment plus invoice payment record atomically; make it idempotent for retries. Prevent payment from appearing as a category expense in reports.
 - [ ] Ensure a closed invoice does not silently change after editing/removing an old purchase; require explicit confirmation.
-- [ ] Test payment, partial payment, cancellation/reversal, rollback and projection at due date without double subtraction.
+- [ ] Test payment, partial payment, cancellation/reversal, rollback and projection at due date without double subtraction. Payment, partial payment, reversal and overpayment tests pass; failure injection and projection remain.
 
 ## Task 3 — reports and UI
 

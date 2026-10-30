@@ -1,8 +1,6 @@
 import 'credit_card_rules.dart';
 import 'models.dart';
 
-enum CardInvoiceStatus { open, closed, partiallyPaid, paid }
-
 class CardInvoiceCycle {
   const CardInvoiceCycle({required this.closingOn, required this.dueOn});
 

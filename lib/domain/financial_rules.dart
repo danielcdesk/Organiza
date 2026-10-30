@@ -44,6 +44,7 @@ class FinancialRules {
       items
           .where((item) =>
               item.type == type &&
+              item.systemType == null &&
               item.isSettled &&
               item.occurredOn.year == month.year &&
               item.occurredOn.month == month.month)
@@ -55,6 +56,7 @@ class FinancialRules {
     return transactions
         .where((item) =>
             item.type == TransactionType.expense &&
+            item.systemType == null &&
             item.isSettled &&
             item.category.toLowerCase() == budget.category.toLowerCase() &&
             item.occurredOn.year == budget.year &&

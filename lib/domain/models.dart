@@ -1,5 +1,9 @@
 enum TransactionType { income, expense, transfer }
 
+enum TransactionSystemType { cardPayment }
+
+enum CardInvoiceStatus { open, closed, partiallyPaid, paid }
+
 enum AccountInstitution {
   generic,
   nubank,
@@ -61,6 +65,7 @@ class TransactionRecord {
     this.installmentNumber = 1,
     this.installmentCount = 1,
     this.isSettled = true,
+    this.systemType,
   });
 
   final String id;
@@ -80,6 +85,7 @@ class TransactionRecord {
   final int installmentNumber;
   final int installmentCount;
   final bool isSettled;
+  final TransactionSystemType? systemType;
 }
 
 enum TransactionScheduleType { single, recurring, installment }
@@ -187,6 +193,50 @@ class CardPurchase {
   int get remainingInstallmentCount => installments - paidInstallments.length;
   double get installmentPaymentProgress =>
       installments == 0 ? 0 : paidInstallments.length / installments;
+}
+
+class CardInvoice {
+  const CardInvoice({
+    required this.id,
+    required this.cardId,
+    required this.referenceYear,
+    required this.referenceMonth,
+    required this.closingOn,
+    required this.dueOn,
+    required this.status,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  final String id;
+  final String cardId;
+  final int referenceYear;
+  final int referenceMonth;
+  final DateTime closingOn;
+  final DateTime dueOn;
+  final CardInvoiceStatus status;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+}
+
+class CardInvoicePayment {
+  const CardInvoicePayment({
+    required this.id,
+    required this.invoiceId,
+    required this.accountId,
+    required this.transactionId,
+    required this.amountInCents,
+    required this.paidOn,
+    required this.createdAt,
+  });
+
+  final String id;
+  final String invoiceId;
+  final String accountId;
+  final String? transactionId;
+  final int amountInCents;
+  final DateTime paidOn;
+  final DateTime createdAt;
 }
 
 enum InvestmentType { fixedIncome, stock, fund, etf, crypto, other }

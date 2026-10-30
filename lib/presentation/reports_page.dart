@@ -614,6 +614,7 @@ class _SpendingRoadmap extends StatelessWidget {
     final totals = <DateTime, int>{};
     for (final item in transactions.where((item) =>
         item.type == TransactionType.expense &&
+        item.systemType == null &&
         item.occurredOn.year == year &&
         (includePending || item.isSettled))) {
       final key = DateTime(
@@ -1124,8 +1125,10 @@ class _ExpenseRanking extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final totals = <String, int>{};
-    for (final item in transactions.where(
-        (item) => item.type == TransactionType.expense && item.isSettled)) {
+    for (final item in transactions.where((item) =>
+        item.type == TransactionType.expense &&
+        item.systemType == null &&
+        item.isSettled)) {
       totals.update(item.description, (value) => value + item.amountInCents,
           ifAbsent: () => item.amountInCents);
     }
@@ -1215,7 +1218,7 @@ int _typeTotal(
   TransactionType type,
 ) =>
     transactions
-        .where((item) => item.type == type)
+        .where((item) => item.type == type && item.systemType == null)
         .fold(0, (total, item) => total + item.amountInCents);
 
 String _longMonth(DateTime month) =>

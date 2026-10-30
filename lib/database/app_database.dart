@@ -711,6 +711,8 @@ class AppDatabase {
       _database.execute('PRAGMA user_version = 17');
     }
     if (current < 18 && target >= 18) {
+      _addColumnIfMissing('transactions', 'system_type',
+          "TEXT CHECK(system_type IS NULL OR system_type IN ('card_payment'))");
       _addColumnIfMissing('card_purchases', 'category_id',
           'TEXT REFERENCES finance_categories(id) ON DELETE SET NULL');
       _addColumnIfMissing('card_purchases', 'subcategory_id',
@@ -1043,9 +1045,11 @@ class AppDatabase {
   List<TransactionRecord> loadTransactions() => _database
       .select(schemaVersion < 17
           ? '''SELECT *, category AS resolved_category, subcategory AS resolved_subcategory,
-             NULL AS category_id, NULL AS subcategory_id
+              NULL AS category_id, NULL AS subcategory_id,
+              NULL AS system_type
              FROM transactions ORDER BY occurred_on DESC, created_at DESC'''
-          : '''SELECT t.*, COALESCE(c.name, t.category) AS resolved_category,
+          : '''SELECT t.*, ${schemaVersion < 18 ? 'NULL AS system_type,' : ''}
+              COALESCE(c.name, t.category) AS resolved_category,
              COALESCE(sc.name, t.subcategory) AS resolved_subcategory
              FROM transactions t
              LEFT JOIN finance_categories c ON c.id = t.category_id
@@ -1062,6 +1066,12 @@ class AppDatabase {
             subcategory: row['resolved_subcategory'] as String? ?? 'Geral',
             categoryId: row['category_id'] as String?,
             subcategoryId: row['subcategory_id'] as String?,
+            systemType: row['system_type'] == null
+                ? null
+                : TransactionSystemType.values.byName(
+                    row['system_type'] == 'card_payment'
+                        ? 'cardPayment'
+                        : row['system_type'] as String),
             scheduleType: TransactionScheduleType.values
                 .byName(row['schedule_type'] as String),
             seriesId: row['series_id'] as String?,
@@ -1157,6 +1167,41 @@ class AppDatabase {
             ))
         .toList();
   }
+
+  List<CardInvoice> loadCardInvoices() => _database
+      .select('SELECT * FROM card_invoices '
+          'ORDER BY reference_year DESC, reference_month DESC, card_id')
+      .map((row) => CardInvoice(
+            id: row['id'] as String,
+            cardId: row['card_id'] as String,
+            referenceYear: row['reference_year'] as int,
+            referenceMonth: row['reference_month'] as int,
+            closingOn: DateTime.parse(row['closing_on'] as String),
+            dueOn: DateTime.parse(row['due_on'] as String),
+            status: switch (row['status'] as String) {
+              'open' => CardInvoiceStatus.open,
+              'closed' => CardInvoiceStatus.closed,
+              'partially_paid' => CardInvoiceStatus.partiallyPaid,
+              'paid' => CardInvoiceStatus.paid,
+              _ => throw const FormatException('Status de fatura inválido.'),
+            },
+            createdAt: DateTime.parse(row['created_at'] as String),
+            updatedAt: DateTime.parse(row['updated_at'] as String),
+          ))
+      .toList();
+
+  List<CardInvoicePayment> loadCardInvoicePayments() => _database
+      .select('SELECT * FROM card_invoice_payments ORDER BY paid_on DESC')
+      .map((row) => CardInvoicePayment(
+            id: row['id'] as String,
+            invoiceId: row['invoice_id'] as String,
+            accountId: row['account_id'] as String,
+            transactionId: row['transaction_id'] as String?,
+            amountInCents: row['amount_cents'] as int,
+            paidOn: DateTime.parse(row['paid_on'] as String),
+            createdAt: DateTime.parse(row['created_at'] as String),
+          ))
+      .toList();
 
   List<InvestmentPosition> loadInvestments() => _database
       .select('SELECT * FROM investments ORDER BY created_at DESC')
@@ -1516,7 +1561,8 @@ class AppDatabase {
               ]);
           return;
         }
-        final category = item.type == TransactionType.transfer
+        final category = item.type == TransactionType.transfer ||
+                item.systemType == TransactionSystemType.cardPayment
             ? (null, item.category)
             : _resolveCategory(item.category, item.type.name, item.createdAt,
                 preferredId: item.categoryId);
@@ -1552,6 +1598,11 @@ class AppDatabase {
             subcategory.$1,
           ],
         );
+        if (schemaVersion >= 18 && item.systemType != null) {
+          _database.execute(
+              'UPDATE transactions SET system_type = ? WHERE id = ?',
+              ['card_payment', item.id]);
+        }
       });
 
   void insertTask(TaskItem item) => _database.execute(
@@ -1669,6 +1720,58 @@ class AppDatabase {
           ],
         );
       });
+
+  void insertCardInvoice(CardInvoice invoice) => _database.execute(
+        '''INSERT INTO card_invoices(id, card_id, reference_year,
+        reference_month, closing_on, due_on, status, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+        [
+          invoice.id,
+          invoice.cardId,
+          invoice.referenceYear,
+          invoice.referenceMonth,
+          invoice.closingOn.toIso8601String(),
+          invoice.dueOn.toIso8601String(),
+          switch (invoice.status) {
+            CardInvoiceStatus.partiallyPaid => 'partially_paid',
+            _ => invoice.status.name,
+          },
+          invoice.createdAt.toIso8601String(),
+          invoice.updatedAt.toIso8601String(),
+        ],
+      );
+
+  void updateCardInvoiceStatus(
+          String id, CardInvoiceStatus status, DateTime updatedAt) =>
+      _database.execute(
+        'UPDATE card_invoices SET status = ?, updated_at = ? WHERE id = ?',
+        [
+          status == CardInvoiceStatus.partiallyPaid
+              ? 'partially_paid'
+              : status.name,
+          updatedAt.toIso8601String(),
+          id,
+        ],
+      );
+
+  void insertCardInvoicePayment(CardInvoicePayment payment) =>
+      _database.execute(
+        '''INSERT INTO card_invoice_payments(id, invoice_id, account_id,
+        transaction_id, amount_cents, paid_on, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)''',
+        [
+          payment.id,
+          payment.invoiceId,
+          payment.accountId,
+          payment.transactionId,
+          payment.amountInCents,
+          payment.paidOn.toIso8601String(),
+          payment.createdAt.toIso8601String(),
+        ],
+      );
+
+  void deleteCardInvoicePayment(String id) =>
+      _database.execute('DELETE FROM card_invoice_payments WHERE id = ?', [id]);
 
   void setCardPurchaseInstallmentsPaid(
     String purchaseId,

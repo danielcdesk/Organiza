@@ -745,6 +745,10 @@ class _OrganizaShellState extends State<OrganizaShell>
     final transaction = widget.store.transactions
         .where((item) => item.id == transactionId)
         .firstOrNull;
+    if (transaction?.systemType == TransactionSystemType.cardPayment) {
+      _showError('Estorne o pagamento pela fatura.');
+      return;
+    }
     final recurringSalary = transaction?.category.toLowerCase() == 'salário' &&
         widget.store.salarySchedules
             .any((item) => item.id == transaction?.seriesId);
@@ -758,6 +762,10 @@ class _OrganizaShellState extends State<OrganizaShell>
   }
 
   Future<void> _editTransaction(TransactionRecord item) async {
+    if (item.systemType == TransactionSystemType.cardPayment) {
+      _showError('Estorne o pagamento pela fatura.');
+      return;
+    }
     final input = await showDialog<TransactionRecord>(
         context: context,
         builder: (_) => TransactionEditDialog(

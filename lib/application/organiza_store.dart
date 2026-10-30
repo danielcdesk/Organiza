@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 
 import '../data/local_repository.dart';
 import '../domain/financial_rules.dart';
+import '../domain/card_invoice_rules.dart';
 import '../domain/models.dart';
 import '../services/backup_service.dart';
 import '../services/backup_coordinator.dart';
@@ -52,6 +53,8 @@ class OrganizaStore extends ChangeNotifier {
   List<ShoppingItem> shoppingItems = [];
   List<CreditCard> creditCards = [];
   List<CardPurchase> cardPurchases = [];
+  List<CardInvoice> cardInvoices = [];
+  List<CardInvoicePayment> cardInvoicePayments = [];
   List<InvestmentPosition> investments = [];
   List<Budget> budgets = [];
   List<Subscription> subscriptions = [];
@@ -327,6 +330,9 @@ class OrganizaStore extends ChangeNotifier {
     shoppingItems = _repository.loadShoppingItems();
     creditCards = _repository.loadCreditCards();
     cardPurchases = _repository.loadCardPurchases();
+    cardInvoices = _repository.loadCardInvoices();
+    cardInvoicePayments = _repository.loadCardInvoicePayments();
+    _refreshCardInvoiceStatuses();
     investments = _repository.loadInvestments();
     budgets = _repository.loadBudgets();
     subscriptions = _repository.loadSubscriptions();
@@ -338,6 +344,26 @@ class OrganizaStore extends ChangeNotifier {
     goalCategories = _repository.loadGoalCategories();
     mobileQuickPages = _repository.loadMobileQuickPages();
     notifyListeners();
+  }
+
+  void _refreshCardInvoiceStatuses() {
+    var changed = false;
+    for (final invoice in cardInvoices) {
+      final card =
+          creditCards.where((item) => item.id == invoice.cardId).firstOrNull;
+      if (card == null) continue;
+      final total = CardInvoiceRules.totalInCents(
+          card, cardPurchases, invoice.referenceYear, invoice.referenceMonth);
+      final paid = cardInvoicePayments
+          .where((item) => item.invoiceId == invoice.id)
+          .fold<int>(0, (sum, item) => sum + item.amountInCents);
+      final next =
+          CardInvoiceRules.status(total, paid, _now, invoice.closingOn);
+      if (next == invoice.status) continue;
+      _repository.updateCardInvoiceStatus(invoice.id, next, _now);
+      changed = true;
+    }
+    if (changed) cardInvoices = _repository.loadCardInvoices();
   }
 
   int get balance => FinancialRules.currentBalance(accounts, transactions);
@@ -967,6 +993,128 @@ class OrganizaStore extends ChangeNotifier {
     reload();
   }
 
+  void payCardInvoice({
+    required String cardId,
+    required int referenceYear,
+    required int referenceMonth,
+    required String accountId,
+    required int amountInCents,
+    String? paymentId,
+  }) {
+    final card = creditCards.where((item) => item.id == cardId).firstOrNull;
+    if (card == null) throw ArgumentError('Cartão não encontrado.');
+    if (accounts.every((item) => item.id != accountId)) {
+      throw ArgumentError('Conta não encontrada.');
+    }
+    if (!FinancialRules.isValidAmount(amountInCents)) {
+      throw ArgumentError('Informe um pagamento válido.');
+    }
+    final cycle = CardInvoiceRules.cycle(card, referenceYear, referenceMonth);
+    final existing = cardInvoices
+        .where((item) =>
+            item.cardId == cardId &&
+            item.referenceYear == referenceYear &&
+            item.referenceMonth == referenceMonth)
+        .firstOrNull;
+    final invoiceId =
+        existing?.id ?? 'invoice-$cardId-$referenceYear-$referenceMonth';
+    final id = paymentId ?? _id();
+    final priorPayment =
+        cardInvoicePayments.where((item) => item.id == id).firstOrNull;
+    if (priorPayment != null) {
+      if (priorPayment.invoiceId == invoiceId &&
+          priorPayment.accountId == accountId &&
+          priorPayment.amountInCents == amountInCents) {
+        return;
+      }
+      throw ArgumentError('Identificador de pagamento já utilizado.');
+    }
+    final total = CardInvoiceRules.totalInCents(
+        card, cardPurchases, referenceYear, referenceMonth);
+    if (total == 0) throw ArgumentError('A fatura não possui compras.');
+    final paid = cardInvoicePayments
+        .where((item) => item.invoiceId == invoiceId)
+        .fold<int>(0, (sum, item) => sum + item.amountInCents);
+    final remaining = CardInvoiceRules.remainingInCents(total, paid);
+    if (amountInCents > remaining) {
+      throw ArgumentError('Pagamento acima do saldo da fatura.');
+    }
+    final now = _now;
+    final nextStatus = CardInvoiceRules.status(
+        total, paid + amountInCents, now, cycle.closingOn);
+    _repository.transaction(() {
+      if (existing == null) {
+        _repository.insertCardInvoice(CardInvoice(
+          id: invoiceId,
+          cardId: cardId,
+          referenceYear: referenceYear,
+          referenceMonth: referenceMonth,
+          closingOn: cycle.closingOn,
+          dueOn: cycle.dueOn,
+          status: CardInvoiceRules.status(total, 0, now, cycle.closingOn),
+          createdAt: now,
+          updatedAt: now,
+        ));
+      }
+      final transactionId = _id();
+      _repository.insertTransaction(TransactionRecord(
+        id: transactionId,
+        accountId: accountId,
+        type: TransactionType.expense,
+        amountInCents: amountInCents,
+        description: 'Pagamento da fatura ${card.name}',
+        category: 'Pagamento de cartão',
+        subcategory: 'Fatura',
+        occurredOn: now,
+        createdAt: now,
+        systemType: TransactionSystemType.cardPayment,
+      ));
+      _repository.insertCardInvoicePayment(CardInvoicePayment(
+        id: id,
+        invoiceId: invoiceId,
+        accountId: accountId,
+        transactionId: transactionId,
+        amountInCents: amountInCents,
+        paidOn: now,
+        createdAt: now,
+      ));
+      _repository.updateCardInvoiceStatus(invoiceId, nextStatus, now);
+    });
+    reload();
+  }
+
+  void reverseCardInvoicePayment(String paymentId) {
+    final payment =
+        cardInvoicePayments.where((item) => item.id == paymentId).firstOrNull;
+    if (payment == null) throw ArgumentError('Pagamento não encontrado.');
+    final invoice =
+        cardInvoices.where((item) => item.id == payment.invoiceId).firstOrNull;
+    if (invoice == null || payment.transactionId == null) {
+      throw StateError('Pagamento sem lançamento vinculado.');
+    }
+    final transaction = transactions
+        .where((item) => item.id == payment.transactionId)
+        .firstOrNull;
+    if (transaction?.systemType != TransactionSystemType.cardPayment) {
+      throw StateError('Lançamento do pagamento inválido.');
+    }
+    final card = creditCards.where((item) => item.id == invoice.cardId).first;
+    final total = CardInvoiceRules.totalInCents(
+        card, cardPurchases, invoice.referenceYear, invoice.referenceMonth);
+    final paidAfter = cardInvoicePayments
+        .where((item) => item.invoiceId == invoice.id && item.id != paymentId)
+        .fold<int>(0, (sum, item) => sum + item.amountInCents);
+    final now = _now;
+    final nextStatus =
+        CardInvoiceRules.status(total, paidAfter, now, invoice.closingOn);
+    _repository.transaction(() {
+      _repository.deleteCardInvoicePayment(paymentId);
+      _repository.deleteTransaction(payment.transactionId!);
+      _repository.updateCardInvoiceStatus(invoice.id, nextStatus, now);
+    });
+    reload();
+  }
+
   void setCardPurchaseInstallmentsPaid(
     String purchaseId,
     Set<int> paidInstallments,
@@ -1160,6 +1308,9 @@ class OrganizaStore extends ChangeNotifier {
 
   void deleteTransaction(String id) {
     final item = transactions.where((entry) => entry.id == id).firstOrNull;
+    if (item?.systemType == TransactionSystemType.cardPayment) {
+      throw ArgumentError('Estorne o pagamento pela fatura.');
+    }
     _repository.transaction(() {
       if (item?.category.toLowerCase() == 'salário' &&
           item?.seriesId != null &&
@@ -1182,6 +1333,9 @@ class OrganizaStore extends ChangeNotifier {
   void updateTransactionDetails(String id, int cents, String description) {
     final item = transactions.where((item) => item.id == id).firstOrNull;
     if (item == null) throw ArgumentError('Lançamento não encontrado.');
+    if (item.systemType == TransactionSystemType.cardPayment) {
+      throw ArgumentError('Estorne o pagamento pela fatura.');
+    }
     if (!FinancialRules.isValidAmount(cents)) {
       throw ArgumentError('Informe um valor válido.');
     }
@@ -1195,6 +1349,9 @@ class OrganizaStore extends ChangeNotifier {
     final previous =
         transactions.where((item) => item.id == updated.id).firstOrNull;
     if (previous == null) throw ArgumentError('Lançamento não encontrado.');
+    if (previous.systemType == TransactionSystemType.cardPayment) {
+      throw ArgumentError('Estorne o pagamento pela fatura.');
+    }
     if (!FinancialRules.isValidAmount(updated.amountInCents)) {
       throw ArgumentError('Informe um valor válido.');
     }
@@ -1468,6 +1625,11 @@ class OrganizaStore extends ChangeNotifier {
   }
 
   void setTransactionSettled(String id, bool value) {
+    if (transactions.any((item) =>
+        item.id == id &&
+        item.systemType == TransactionSystemType.cardPayment)) {
+      throw ArgumentError('Estorne o pagamento pela fatura.');
+    }
     _repository.setTransactionSettled(id, value);
     reload();
   }
