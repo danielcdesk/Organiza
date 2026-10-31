@@ -54,7 +54,11 @@ void main() {
     await backups.export('senha-segura', archive);
 
     repository.savePreference('profile_name', 'Depois');
-    repository.deleteTransaction('compra');
+    repository.softDelete(
+      SoftDeleteEntity.transaction,
+      'compra',
+      DateTime.utc(2026, 2, 3),
+    );
     await image.delete();
     final preview = await backups.prepare(archive, 'senha-segura');
     expect(preview.counts['app_settings'], greaterThan(0));
@@ -63,8 +67,10 @@ void main() {
 
     expect(await safety.exists(), isTrue);
     expect(repository.loadPreference('profile_name'), 'Antes');
-    expect(FinancialRules.currentBalance(
-        repository.loadAccounts(), repository.loadTransactions()), 87655);
+    expect(
+        FinancialRules.currentBalance(
+            repository.loadAccounts(), repository.loadTransactions()),
+        87655);
     expect(repository.loadPreference('profile_photo_path'), 'images/foto.png');
     expect(await image.readAsBytes(), [1, 2, 3]);
   });
@@ -81,7 +87,8 @@ void main() {
 
   test('falha de imagem antes da troca mantém o banco original', () async {
     repository.savePreference('profile_name', 'No backup');
-    final image = File(path.join(AppStoragePaths.imageDirectory.path, 'foto.png'));
+    final image =
+        File(path.join(AppStoragePaths.imageDirectory.path, 'foto.png'));
     await image.writeAsBytes([1, 2, 3]);
     final archive = File(path.join(sandbox.path, 'backup.organizabak'));
     await backups.export('senha-segura', archive);
@@ -93,14 +100,16 @@ void main() {
 
     expect(repository.loadPreference('profile_name'), 'Atual');
     expect(await image.readAsBytes(), [9, 9, 9]);
-    expect(await File('${repository.filePath}.pre-restore.bak').exists(), isTrue);
+    expect(
+        await File('${repository.filePath}.pre-restore.bak').exists(), isTrue);
   });
 
   test('lê e confirma backup criptografado legado v1', () async {
     repository.savePreference('profile_name', 'Legado');
     final archive = File(path.join(sandbox.path, 'antigo.backup'));
     await const BackupService().exportEncrypted(
-        repository.exportSnapshot(), 'senha-segura', destination: archive);
+        repository.exportSnapshot(), 'senha-segura',
+        destination: archive);
     repository.savePreference('profile_name', 'Atual');
 
     final preview = await backups.prepare(archive, 'senha-segura');

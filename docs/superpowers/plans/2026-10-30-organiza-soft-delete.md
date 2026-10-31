@@ -127,7 +127,7 @@ The selected approach follows the existing app structure. `deleted_at` is set as
 - [x] **Step 3: Convert existing store delete actions** (transaction, account, budget, subscription, goal, investment, task, shopping item) to the soft-delete primitive while preserving their current validation and financial-system protections.
 - [x] **Step 4: Preserve salary-series semantics**: when deleting a generated salary occurrence, cancel its schedule as today; return the schedule snapshot to the UI action so undo restores the transaction and schedule together in one transaction.
 - [x] **Step 5: Run focused store tests** for balances/report totals after delete, account constraints, card payment protection, recurrence cancellation, undo, and snapshot retention.
-- [ ] **Step 6: Commit** `Permita excluir logicamente e restaurar registros`.
+- [x] **Step 6: Commit** `Permita excluir logicamente e restaurar registros`.
 
 ### Task 5: Add undo snackbars to delete flows
 
@@ -141,7 +141,7 @@ The selected approach follows the existing app structure. `deleted_at` is set as
 - [x] **Step 1: Add failing widget tests** for deleting and undoing a transaction, task, and shopping item; assert the item disappears, the snackbar offers undo, and activation restores it.
 - [x] **Step 2: Add the same shared undo behavior** to existing transaction, account, budget, subscription, goal, investment, task, and shopping deletion handlers. Keep the snackbar duration short and consistent; do not add a permanent purge UI.
 - [x] **Step 3: Run focused widget tests** in a 390 px mobile-width viewport.
-- [ ] **Step 4: Commit** `Ofereça desfazer exclusões na interface`.
+- [x] **Step 4: Commit** `Ofereça desfazer exclusões na interface`.
 
 ### Task 6: Complete phase validation and report
 
@@ -154,10 +154,10 @@ The selected approach follows the existing app structure. `deleted_at` is set as
 - Modify: `docs/DECISIONS.md`
 - Modify: this plan
 
-- [ ] **Step 1: Run** `flutter analyze --no-pub`, full `flutter test --no-pub --coverage`, Windows integration tests, and `git diff --check`; record actual results and compare against the 184-test baseline.
-- [ ] **Step 2: Update docs** with schema 19, audit/undo behavior, actual validation, unsupported device checks, and unresolved risks.
-- [ ] **Step 3: Re-run focused and full validation** after documentation/fixture changes where relevant; ensure no tombstone has leaked into normal views or been omitted from backup.
-- [ ] **Step 4: Request an independent review** of the final diff; fix every important finding and document any minor deferral.
+- [x] **Step 1: Run** `flutter analyze --no-pub`, full `flutter test --no-pub --coverage`, Windows integration tests, and `git diff --check`; record actual results and compare against the 184-test baseline.
+- [x] **Step 2: Update docs** with schema 19, audit/undo behavior, actual validation, unsupported device checks, and unresolved risks.
+- [x] **Step 3: Re-run focused and full validation** after documentation/fixture changes where relevant; ensure no tombstone has leaked into normal views or been omitted from backup.
+- [x] **Step 4: Request an independent review** of the final diff; fix every important finding and document any minor deferral.
 - [ ] **Step 5: Create an isolated draft PR** based on the Phase 2.2 branch, then wait for Windows/Ubuntu CI green before the next schema.
 
 ## Acceptance

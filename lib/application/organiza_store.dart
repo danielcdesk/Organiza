@@ -1159,7 +1159,11 @@ class OrganizaStore extends ChangeNotifier {
     );
     _repository.transaction(() {
       _repository.deleteCardInvoicePayment(paymentId);
-      _repository.deleteTransaction(payment.transactionId!);
+      _repository.softDelete(
+        SoftDeleteEntity.transaction,
+        payment.transactionId!,
+        _now.toUtc(),
+      );
       _repository.updateCardInvoiceStatus(invoice.id, nextStatus, now);
     });
     reload();

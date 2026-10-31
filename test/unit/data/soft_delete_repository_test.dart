@@ -27,7 +27,11 @@ void main() {
       createdAt: createdAt,
     ));
 
-    database.deleteTransaction('transaction-delete');
+    database.softDelete(
+      SoftDeleteEntity.transaction,
+      'transaction-delete',
+      DateTime.utc(2026, 2, 3),
+    );
 
     final transactions = ((database.exportSnapshot()['tables']
             as Map<Object?, Object?>)['transactions'] as List)

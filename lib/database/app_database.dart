@@ -1713,9 +1713,6 @@ class AppDatabase {
         [value ? 1 : 0, id],
       );
 
-  void deleteTask(String id) =>
-      softDelete(SoftDeleteEntity.task, id, DateTime.now().toUtc());
-
   void insertShoppingItem(ShoppingItem item) => _database.execute(
         '''INSERT INTO shopping_items(
           id, name, quantity, estimated_unit_price_cents, priority, is_purchased,
@@ -1759,9 +1756,6 @@ class AppDatabase {
           item.id,
         ],
       );
-
-  void deleteShoppingItem(String id) =>
-      softDelete(SoftDeleteEntity.shoppingItem, id, DateTime.now().toUtc());
 
   void insertCreditCard(CreditCard card) => _database.execute(
         '''INSERT INTO credit_cards(
@@ -2252,20 +2246,6 @@ class AppDatabase {
     );
     return true;
   }
-
-  void deleteAccount(String id) =>
-      softDelete(SoftDeleteEntity.account, id, DateTime.now().toUtc());
-
-  void deleteTransaction(String id) =>
-      softDelete(SoftDeleteEntity.transaction, id, DateTime.now().toUtc());
-  void deleteBudget(String id) =>
-      softDelete(SoftDeleteEntity.budget, id, DateTime.now().toUtc());
-  void deleteSubscription(String id) =>
-      softDelete(SoftDeleteEntity.subscription, id, DateTime.now().toUtc());
-  void deleteFinancialGoal(String id) =>
-      softDelete(SoftDeleteEntity.financialGoal, id, DateTime.now().toUtc());
-  void deleteInvestment(String id) =>
-      softDelete(SoftDeleteEntity.investment, id, DateTime.now().toUtc());
 
   void saveSalaryAllocation(SalaryAllocation allocation) => _database.execute(
         '''UPDATE salary_allocation
