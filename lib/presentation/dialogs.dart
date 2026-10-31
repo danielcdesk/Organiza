@@ -369,34 +369,73 @@ class TagManagerDialog extends StatefulWidget {
 }
 
 class _TagManagerDialogState extends State<TagManagerDialog> {
+  static const _colors = <int?>[
+    null,
+    0xFFB45309,
+    0xFF0F766E,
+    0xFF4338CA,
+    0xFFBE185D,
+    0xFF374151,
+  ];
+
   Future<void> _edit([Tag? tag]) async {
     final controller = TextEditingController(text: tag?.name ?? '');
-    final name = await showDialog<String>(
-        context: context,
-        builder: (context) => AlertDialog(
-              title: Text(tag == null ? 'Nova tag' : 'Renomear tag'),
-              content: TextField(
-                  controller: controller,
-                  autofocus: true,
-                  maxLength: 80,
-                  decoration: const InputDecoration(labelText: 'Nome')),
-              actions: [
-                TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Cancelar')),
-                FilledButton(
-                    onPressed: () => Navigator.pop(context, controller.text),
-                    child: const Text('Salvar'))
-              ],
-            ));
+    var selectedColor = tag?.colorValue;
+    final result = await showDialog<(String, int?)>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(tag == null ? 'Nova tag' : 'Editar tag'),
+          content: Column(mainAxisSize: MainAxisSize.min, children: [
+            TextField(
+              controller: controller,
+              autofocus: true,
+              maxLength: 80,
+              decoration: const InputDecoration(labelText: 'Nome'),
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<int?>(
+              initialValue: selectedColor,
+              decoration: const InputDecoration(labelText: 'Cor'),
+              items: _colors
+                  .map((color) => DropdownMenuItem<int?>(
+                        value: color,
+                        child: Row(children: [
+                          CircleAvatar(
+                              radius: 8,
+                              backgroundColor: color == null
+                                  ? Colors.transparent
+                                  : Color(color)),
+                          const SizedBox(width: 8),
+                          Text(color == null
+                              ? 'Padrão'
+                              : 'Cor ${_colors.indexOf(color)}'),
+                        ]),
+                      ))
+                  .toList(),
+              onChanged: (value) => setDialogState(() => selectedColor = value),
+            ),
+          ]),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancelar')),
+            FilledButton(
+                onPressed: () =>
+                    Navigator.pop(context, (controller.text, selectedColor)),
+                child: const Text('Salvar')),
+          ],
+        ),
+      ),
+    );
     controller.dispose();
-    if (name == null || !mounted) return;
+    if (result == null || !mounted) return;
     try {
       if (tag == null) {
-        widget.store.createTag(name);
+        widget.store.createTag(result.$1, colorValue: result.$2);
       } else {
         widget.store
-            .updateTag(id: tag.id, name: name, colorValue: tag.colorValue);
+            .updateTag(id: tag.id, name: result.$1, colorValue: result.$2);
       }
       setState(() {});
     } on ArgumentError catch (e) {
@@ -482,6 +521,7 @@ class _AttachmentManagerDialogState extends State<AttachmentManagerDialog> {
                             relativePath: attachment.relativePath,
                             sizeBytes: attachment.sizeBytes,
                             sha256: attachment.sha256,
+                            mimeType: attachment.mimeType,
                           ),
                           builder: (context, snapshot) => snapshot.hasData
                               ? Image.memory(Uint8List.fromList(snapshot.data!),

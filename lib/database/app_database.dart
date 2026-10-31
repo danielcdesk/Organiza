@@ -1278,6 +1278,20 @@ class AppDatabase {
           ))
       .toList();
 
+  List<Attachment> loadAllAttachments() => _database
+      .select(
+          'SELECT * FROM attachments ORDER BY transaction_id, created_at, id')
+      .map((row) => Attachment(
+            id: row['id'] as String,
+            transactionId: row['transaction_id'] as String,
+            relativePath: row['relative_path'] as String,
+            mimeType: row['mime_type'] as String,
+            sizeBytes: row['size_bytes'] as int,
+            sha256: row['sha256'] as String,
+            createdAt: DateTime.parse(row['created_at'] as String),
+          ))
+      .toList();
+
   void insertAttachment(Attachment attachment) => _database.execute(
         '''INSERT INTO attachments(
           id, transaction_id, relative_path, mime_type, size_bytes, sha256, created_at

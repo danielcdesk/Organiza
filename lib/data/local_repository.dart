@@ -57,6 +57,7 @@ class LocalRepository {
       _database.setTransactionTags(transactionId, tagIds);
   List<Attachment> loadAttachments(String transactionId) =>
       _database.loadAttachments(transactionId);
+  List<Attachment> loadAllAttachments() => _database.loadAllAttachments();
   void insertAttachment(Attachment attachment) =>
       _database.insertAttachment(attachment);
   String? deleteAttachment(String id) => _database.deleteAttachment(id);

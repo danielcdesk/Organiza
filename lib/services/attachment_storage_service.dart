@@ -110,10 +110,21 @@ class AttachmentStorageService {
       AppStoragePaths.resolveAttachment(relativePath);
 
   Future<Uint8List> readVerified(
-      {required String relativePath,
-      required int sizeBytes,
-      required String sha256}) async {
-    final file = fileFor(relativePath);
+          {required String relativePath,
+          required int sizeBytes,
+          required String sha256,
+          String? mimeType}) async =>
+      verifyFile(
+        fileFor(relativePath),
+        sizeBytes: sizeBytes,
+        sha256: sha256,
+        mimeType: mimeType,
+      );
+
+  Future<Uint8List> verifyFile(File file,
+      {required int sizeBytes,
+      required String sha256,
+      String? mimeType}) async {
     if (await FileSystemEntity.type(file.path, followLinks: false) !=
             FileSystemEntityType.file ||
         await file.length() != sizeBytes ||
@@ -123,7 +134,10 @@ class AttachmentStorageService {
           'O anexo não está disponível ou foi alterado.');
     }
     final bytes = await file.readAsBytes();
-    if (await _digest(bytes) != sha256) {
+    if (await _digest(bytes) != sha256 ||
+        (mimeType != null &&
+            (_mimeFor(bytes) != mimeType ||
+                !_extensionMatchesMime(path.extension(file.path), mimeType)))) {
       throw const FormatException('A integridade do anexo não confere.');
     }
     return bytes;
@@ -164,6 +178,10 @@ class AttachmentStorageService {
         'application/pdf' => '.pdf',
         _ => null,
       };
+
+  static bool _extensionMatchesMime(String extension, String mime) =>
+      _extensionForMime(mime) == extension.toLowerCase() ||
+      (mime == 'image/jpeg' && extension.toLowerCase() == '.jpeg');
 
   static Future<String> _digest(List<int> bytes) async =>
       (await Sha256().hash(bytes))

@@ -840,9 +840,8 @@ class _OrganizaShellState extends State<OrganizaShell>
         if (scope == null || !mounted) return;
         applyToFuture = scope == 'future';
       }
-      widget.store
-          .updateTransaction(input.transaction, applyToFuture: applyToFuture);
-      widget.store.setTransactionTags(item.id, input.tagIds);
+      widget.store.updateTransaction(input.transaction,
+          applyToFuture: applyToFuture, tagIds: input.tagIds);
       ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Lançamento atualizado.')));
     } on ArgumentError catch (error) {

@@ -54,4 +54,49 @@ void main() {
     expect(() => store.setTransactionTags(id, {'desconhecida'}),
         throwsArgumentError);
   });
+
+  test('tags seguem o escopo ao aplicar edição às próximas ocorrências', () {
+    final store = OrganizaStore.inMemory();
+    addTearDown(store.dispose);
+    store.addAccount('Principal', 10000);
+    store.addTransaction(
+      accountId: store.accounts.single.id,
+      type: TransactionType.expense,
+      amountInCents: 1000,
+      description: 'Parcela',
+      scheduleType: TransactionScheduleType.recurring,
+      repeatCount: 3,
+    );
+    final occurrences = [...store.transactions]
+      ..sort((a, b) => a.occurredOn.compareTo(b.occurredOn));
+    final oldTag = store.createTag('Antiga');
+    final newTag = store.createTag('Nova');
+    for (final item in occurrences) {
+      store.setTransactionTags(item.id, {oldTag.id});
+    }
+    final first = occurrences.first;
+    store.updateTransaction(
+      TransactionRecord(
+        id: first.id,
+        accountId: first.accountId,
+        type: first.type,
+        amountInCents: first.amountInCents,
+        description: first.description,
+        occurredOn: first.occurredOn,
+        createdAt: first.createdAt,
+        category: first.category,
+        subcategory: first.subcategory,
+        scheduleType: first.scheduleType,
+        seriesId: first.seriesId,
+        installmentNumber: first.installmentNumber,
+        installmentCount: first.installmentCount,
+        isSettled: first.isSettled,
+      ),
+      applyToFuture: true,
+      tagIds: {newTag.id},
+    );
+    for (final item in store.transactions) {
+      expect(store.tagsForTransaction(item.id).single.id, newTag.id);
+    }
+  });
 }

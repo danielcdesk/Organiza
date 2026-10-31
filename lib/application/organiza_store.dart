@@ -1592,7 +1592,7 @@ class OrganizaStore extends ChangeNotifier {
   }
 
   void updateTransaction(TransactionRecord updated,
-      {bool applyToFuture = false}) {
+      {bool applyToFuture = false, Set<String>? tagIds}) {
     final previous =
         transactions.where((item) => item.id == updated.id).firstOrNull;
     if (previous == null) throw ArgumentError('Lançamento não encontrado.');
@@ -1615,6 +1615,10 @@ class OrganizaStore extends ChangeNotifier {
                 activeAccounts.every((account) =>
                     account.id != updated.destinationAccountId)))) {
       throw ArgumentError('Escolha uma conta de destino diferente.');
+    }
+    if (tagIds != null &&
+        tagIds.any((id) => tags.every((tag) => tag.id != id))) {
+      throw ArgumentError('Uma ou mais tags não existem.');
     }
     final description = updated.description.trim().isEmpty
         ? (updated.subcategory == 'Geral'
@@ -1664,6 +1668,7 @@ class OrganizaStore extends ChangeNotifier {
           isSettled:
               item.id == previous.id ? updated.isSettled : item.isSettled,
         ));
+        if (tagIds != null) _repository.setTransactionTags(item.id, tagIds);
       }
     });
     reload();
