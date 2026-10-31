@@ -39,7 +39,7 @@ class AttachmentStorageService {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: const ['jpg', 'jpeg', 'png', 'webp', 'gif', 'pdf'],
-      withData: true,
+      withData: false,
     );
     if (result == null || result.files.isEmpty) return null;
     final selected = result.files.single;
@@ -49,12 +49,9 @@ class AttachmentStorageService {
         selected.size > maxBytes) {
       return null;
     }
-    final bytes = selected.bytes ??
-        (selected.path == null
-            ? null
-            : await File(selected.path!).readAsBytes());
-    if (bytes == null) return null;
-    return storeBytes(bytes, ext);
+    if (selected.path != null) return storeFile(File(selected.path!));
+    if (selected.bytes != null) return storeBytes(selected.bytes!, ext);
+    return null;
   }
 
   Future<StoredAttachment> storeFile(File source) async {
