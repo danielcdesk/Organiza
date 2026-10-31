@@ -2,7 +2,7 @@
 
 ## Fase 2.5 — validação local (30/10/2026)
 
-Branch `codex/organiza-v3-fase-2-5`, sobre o head da Fase 2.4, schema 21. Análise limpa; suíte com 218 testes e cobertura 74,73% (9.035/12.090); integração Windows 2/2; revisão independente concluída com correções. CI e teste em Android físico continuam pendentes. Ver [relatório da Fase 2.5](implementation/RELATORIO_FASE_2_5.md).
+Branch `codex/organiza-v3-fase-2-5`, sobre o head da Fase 2.4, schema 21. Análise limpa; suíte com 218 testes e cobertura 74,73% (9.035/12.090); integração Windows 2/2; revisão independente concluída com correções. PR draft #8, CI run 41153807299 verde em Windows/Ubuntu/Android. Android físico não foi testado. Ver [relatório da Fase 2.5](implementation/RELATORIO_FASE_2_5.md).
 
 ## Fase 2.4 — validação local (30/10/2026)
 

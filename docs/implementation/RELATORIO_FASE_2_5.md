@@ -20,8 +20,9 @@ Data: 2026-10-30. Branch `codex/organiza-v3-fase-2-5`, baseada no branch da Fase
 - `flutter test --no-pub --coverage`: 218 testes aprovados; cobertura 74,73% (9.035/12.090 linhas).
 - `flutter test integration_test -d windows --no-pub`: 2 fluxos aprovados.
 - `git diff --check`: limpo.
+- PR draft #8: CI run 41153807299 aprovado em Windows, Ubuntu e build APK Android sem assinatura.
 - Testes específicos cobrem migrações/snapshot, unicidade/cascatas, assinaturas e limite dos arquivos, caminhos inválidos, backup v2 antigo e novo, hashes/contagem e restauração com anexos.
 
 ## Limites e próximos gates
 
-A revisão independente encontrou e corrigiu falhas de validação/rollback do backup e consistência de tags em séries; uma segunda leitura confirmou as correções. CI do draft PR em Windows, Ubuntu e Android ainda é o gate remoto. Não foi testado em dispositivo Android físico. A prévia embutida é para imagens; PDFs são identificados por nome/tipo/tamanho e não têm visualizador interno.
+A revisão independente encontrou e corrigiu falhas de validação/rollback do backup e consistência de tags em séries; uma segunda leitura confirmou as correções. CI remoto passou. Não foi testado em dispositivo Android físico. A prévia embutida é para imagens; PDFs são identificados por nome/tipo/tamanho e não têm visualizador interno.
