@@ -45,6 +45,21 @@ class LocalRepository {
   }
 
   List<Account> loadAccounts() => _database.loadAccounts();
+  List<Tag> loadTags() => _database.loadTags();
+  List<Tag> loadTransactionTags(String transactionId) =>
+      _database.loadTransactionTags(transactionId);
+  Map<String, List<Tag>> loadAllTransactionTags() =>
+      _database.loadAllTransactionTags();
+  void insertTag(Tag tag) => _database.insertTag(tag);
+  void updateTag(Tag tag) => _database.updateTag(tag);
+  bool deleteTag(String id) => _database.deleteTag(id);
+  void setTransactionTags(String transactionId, Set<String> tagIds) =>
+      _database.setTransactionTags(transactionId, tagIds);
+  List<Attachment> loadAttachments(String transactionId) =>
+      _database.loadAttachments(transactionId);
+  void insertAttachment(Attachment attachment) =>
+      _database.insertAttachment(attachment);
+  String? deleteAttachment(String id) => _database.deleteAttachment(id);
   List<TransactionRecord> loadTransactions() => _database.loadTransactions();
   List<TaskItem> loadTasks() => _database.loadTasks();
   List<ShoppingItem> loadShoppingItems() => _database.loadShoppingItems();
