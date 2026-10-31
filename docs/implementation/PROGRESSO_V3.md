@@ -63,3 +63,7 @@ O PR #4 da Fase 2.1 passou no CI Windows/Ubuntu (`Qualidade Flutter`, run 410796
 ## Fase 2.2 — faturas e pagamentos de cartão
 
 Schema 18, compra por categoria/data, pagamentos idempotentes com estorno, projeção de obrigações no dashboard, tratamento transparente de marcações antigas, limites/resumos de cartão e relatórios/orçamentos estão implementados localmente. Revisão independente encontrou quatro pontos importantes, corrigidos com testes; uma lacuna menor de injeção de falha na transação foi documentada. Análise limpa, 184 testes aprovados com 73,00% de cobertura; integração Windows 2/2 passou. O build Android release sem assinatura e os jobs de qualidade Windows/Ubuntu passaram no CI run 41144349736 (`8288b91`). PR draft #5 está aberto; Fase 2.2 validada. A Fase 2 completa continua pendente das demais entregas de dados. Relatório em `RELATORIO_FASE_2_2.md`.
+
+## Fase 2.3 — auditoria e exclusão lógica
+
+Schema 19, filtros de tombstones nas dez entidades, snapshot/restore que preserva as linhas excluídas e snackbars “Desfazer” foram implementados. Revisão independente sem achados críticos/importantes; recomendação de usar relógio injetado também no estorno do cartão foi resolvida. Validação local: análise limpa, 194 testes aprovados, cobertura 73,54%, integração Windows 2/2. PR draft #6, run CI 41148582388, passou em Windows, Ubuntu e APK Android. Relatório: `RELATORIO_FASE_2_3.md`. A Fase 2 completa continua pendente.

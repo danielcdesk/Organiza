@@ -8,7 +8,7 @@ import 'package:path/path.dart' as path;
 import 'package:sqlite3/sqlite3.dart';
 
 void main() {
-  test('schema 17 chega ao 18 com compras vinculadas e saldo intacto',
+  test('schema 17 chega ao 19 com compras vinculadas e saldo intacto',
       () async {
     final folder = await Directory.systemTemp.createTemp('organiza-card-v18-');
     addTearDown(() => folder.delete(recursive: true));
@@ -48,7 +48,7 @@ void main() {
     source.close();
 
     final migrated = AppDatabase.openFile(file);
-    expect(migrated.schemaVersion, 18);
+    expect(migrated.schemaVersion, 19);
     expect(migrated.loadCardPurchases().single.paidInstallments, {1});
     expect(
         FinancialRules.currentBalance(
@@ -68,7 +68,7 @@ void main() {
     expect(purchase['subcategory_id'], isNotNull);
     expect(raw.select('PRAGMA foreign_key_check'), isEmpty);
     raw.close();
-    expect(File('${file.path}.pre-v18.bak').existsSync(), isTrue);
+    expect(File('${file.path}.pre-v19.bak').existsSync(), isTrue);
     final reopened = AppDatabase.openFile(file);
     expect(reopened.tableCounts['card_purchases'], 1);
     reopened.validateIntegrity();

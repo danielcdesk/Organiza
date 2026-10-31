@@ -1,5 +1,9 @@
 # Estado conhecido como bom
 
+## Fase 2.3 — validação local (30/10/2026)
+
+Branch `codex/organiza-v3-fase-2-3`, sobre `codex/organiza-v3-fase-2-2`, schema 19. `flutter analyze --no-pub` sem problemas; `flutter test --no-pub --coverage` com 194 testes aprovados e 8.374/11.387 linhas (73,54%); integração Windows com 2 fluxos aprovada. Revisão independente sem achados críticos/importantes. PR draft #6, CI run 41148582388, verde em Windows/Ubuntu/Android. Migração em banco real e execução em Android físico não foram validadas; ver [relatório da Fase 2.3](implementation/RELATORIO_FASE_2_3.md).
+
 ## Linha de base V3 — 29/10/2026
 
 Validação local após a Fase 0: análise sem problemas com lints reforçados, 116 testes Flutter aprovados, cobertura de linhas 67,10% (6.282/9.362) e 2 fluxos de integração Windows aprovados. Sem alteração do schema. CI remoto e Android físico não são considerados aprovados por esses resultados. [Relatório de Fase 0](implementation/RELATORIO_FASE_0.md).

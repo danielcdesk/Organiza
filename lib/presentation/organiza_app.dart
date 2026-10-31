@@ -738,6 +738,8 @@ class _OrganizaShellState extends State<OrganizaShell>
     if (confirmed != true || !mounted) return;
     try {
       widget.store.deleteAccount(accountId);
+      _showUndoDelete(SoftDeleteEntity.account, accountId,
+          message: 'Conta excluída.');
     } on ArgumentError catch (error) {
       _showError(
           error.message?.toString() ?? 'Não foi possível excluir a conta.');
@@ -761,7 +763,12 @@ class _OrganizaShellState extends State<OrganizaShell>
           ? 'Este salário pertence a uma recorrência. A ocorrência será excluída e os próximos salários deixarão de ser criados; os meses anteriores permanecem no histórico.'
           : 'O saldo e os relatórios serão recalculados imediatamente.',
     );
-    if (confirmed) widget.store.deleteTransaction(transactionId);
+    if (confirmed) {
+      final canceledSchedule = widget.store.deleteTransaction(transactionId);
+      _showUndoDelete(SoftDeleteEntity.transaction, transactionId,
+          message: 'Lançamento excluído.',
+          canceledSalarySchedule: canceledSchedule);
+    }
   }
 
   Future<void> _editTransaction(TransactionRecord item) async {
@@ -819,7 +826,11 @@ class _OrganizaShellState extends State<OrganizaShell>
       title: 'Excluir orçamento?',
       message: 'O limite mensal desta categoria será removido.',
     );
-    if (confirmed) widget.store.deleteBudget(id);
+    if (confirmed) {
+      widget.store.deleteBudget(id);
+      _showUndoDelete(SoftDeleteEntity.budget, id,
+          message: 'Orçamento excluído.');
+    }
   }
 
   Future<void> _cancelSalarySchedule(String id) async {
@@ -835,7 +846,11 @@ class _OrganizaShellState extends State<OrganizaShell>
       title: 'Excluir assinatura?',
       message: 'A cobrança recorrente deixará de aparecer no calendário.',
     );
-    if (confirmed) widget.store.deleteSubscription(id);
+    if (confirmed) {
+      widget.store.deleteSubscription(id);
+      _showUndoDelete(SoftDeleteEntity.subscription, id,
+          message: 'Assinatura excluída.');
+    }
   }
 
   Future<bool> _confirmDelete(
@@ -857,6 +872,25 @@ class _OrganizaShellState extends State<OrganizaShell>
           ),
         ) ??
         false;
+  }
+
+  void _showUndoDelete(SoftDeleteEntity entity, String id,
+      {required String message, SalarySchedule? canceledSalarySchedule}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        content: Text(message),
+        duration: const Duration(seconds: 6),
+        action: SnackBarAction(
+          label: 'Desfazer',
+          onPressed: () => widget.store.restoreDeletedRecord(
+            entity,
+            id,
+            canceledSalarySchedule: canceledSalarySchedule,
+          ),
+        ),
+      ));
   }
 
   Future<void> _openTransactionDialog({
@@ -922,7 +956,10 @@ class _OrganizaShellState extends State<OrganizaShell>
       title: 'Excluir tarefa?',
       message: 'A tarefa será removida da sua lista local.',
     );
-    if (confirmed) widget.store.deleteTask(id);
+    if (confirmed) {
+      widget.store.deleteTask(id);
+      _showUndoDelete(SoftDeleteEntity.task, id, message: 'Tarefa excluída.');
+    }
   }
 
   Future<void> _openShoppingDialog() async {
@@ -974,7 +1011,11 @@ class _OrganizaShellState extends State<OrganizaShell>
       title: 'Excluir item?',
       message: 'O item será removido da lista de desejos/compras.',
     );
-    if (confirmed) widget.store.deleteShoppingItem(id);
+    if (confirmed) {
+      widget.store.deleteShoppingItem(id);
+      _showUndoDelete(SoftDeleteEntity.shoppingItem, id,
+          message: 'Item excluído.');
+    }
   }
 
   Future<void> _openProfileDialog() async {
@@ -1041,7 +1082,11 @@ class _OrganizaShellState extends State<OrganizaShell>
       title: 'Excluir meta?',
       message: 'O progresso registrado nesta meta será removido.',
     );
-    if (confirmed) widget.store.deleteFinancialGoal(id);
+    if (confirmed) {
+      widget.store.deleteFinancialGoal(id);
+      _showUndoDelete(SoftDeleteEntity.financialGoal, id,
+          message: 'Meta excluída.');
+    }
   }
 
   Future<void> _deleteInvestment(String id) async {
@@ -1049,7 +1094,11 @@ class _OrganizaShellState extends State<OrganizaShell>
       title: 'Excluir investimento?',
       message: 'A posição manual será removida da carteira consolidada.',
     );
-    if (confirmed) widget.store.deleteInvestment(id);
+    if (confirmed) {
+      widget.store.deleteInvestment(id);
+      _showUndoDelete(SoftDeleteEntity.investment, id,
+          message: 'Investimento excluído.');
+    }
   }
 
   Future<void> _openCardDialog() async {

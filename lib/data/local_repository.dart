@@ -102,7 +102,6 @@ class LocalRepository {
       _database.insertTransaction(item);
   void insertTask(TaskItem item) => _database.insertTask(item);
   void setTaskDone(String id, bool value) => _database.setTaskDone(id, value);
-  void deleteTask(String id) => _database.deleteTask(id);
   void insertShoppingItem(ShoppingItem item) =>
       _database.insertShoppingItem(item);
   void setShoppingItemPurchased(String id, bool value) =>
@@ -111,7 +110,6 @@ class LocalRepository {
       _database.updateShoppingItem(item);
   void setShoppingItemImage(String id, String? imagePath) =>
       _database.setShoppingItemImage(id, imagePath);
-  void deleteShoppingItem(String id) => _database.deleteShoppingItem(id);
   void insertCreditCard(CreditCard item) => _database.insertCreditCard(item);
   void insertCardPurchase(CardPurchase item) =>
       _database.insertCardPurchase(item);
@@ -154,16 +152,14 @@ class LocalRepository {
       _database.setTransactionSettled(id, value);
   void updateFinancialGoalSaved(String id, int savedInCents) =>
       _database.updateFinancialGoalSaved(id, savedInCents);
-  void deleteAccount(String id) => _database.deleteAccount(id);
-  void deleteTransaction(String id) => _database.deleteTransaction(id);
   void updateTransactionDetails(String id, int cents, String description) =>
       _database.updateTransactionDetails(id, cents, description);
   void updateTransaction(TransactionRecord item) =>
       _database.updateTransaction(item);
-  void deleteBudget(String id) => _database.deleteBudget(id);
-  void deleteSubscription(String id) => _database.deleteSubscription(id);
-  void deleteFinancialGoal(String id) => _database.deleteFinancialGoal(id);
-  void deleteInvestment(String id) => _database.deleteInvestment(id);
+  bool softDelete(SoftDeleteEntity entity, String id, DateTime deletedAtUtc) =>
+      _database.softDelete(entity, id, deletedAtUtc);
+  bool restore(SoftDeleteEntity entity, String id) =>
+      _database.restore(entity, id);
   void saveSalaryAllocation(SalaryAllocation item) =>
       _database.saveSalaryAllocation(item);
   void transaction(void Function() operation) =>

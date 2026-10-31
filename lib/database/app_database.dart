@@ -15,7 +15,41 @@ class AppDatabase {
   int _transactionDepth = 0;
   final String? filePath;
   static int get currentSchemaVersion => _schemaVersion;
-  static const _schemaVersion = 18;
+  static const _schemaVersion = 19;
+  static const _auditTables = <String>[
+    'transactions',
+    'accounts',
+    'credit_cards',
+    'card_purchases',
+    'investments',
+    'budgets',
+    'subscriptions',
+    'financial_goals',
+    'shopping_items',
+    'tasks',
+  ];
+  static const _auditTriggerNames = <String>{
+    'audit_transactions_insert',
+    'audit_transactions_update',
+    'audit_accounts_insert',
+    'audit_accounts_update',
+    'audit_credit_cards_insert',
+    'audit_credit_cards_update',
+    'audit_card_purchases_insert',
+    'audit_card_purchases_update',
+    'audit_investments_insert',
+    'audit_investments_update',
+    'audit_budgets_insert',
+    'audit_budgets_update',
+    'audit_subscriptions_insert',
+    'audit_subscriptions_update',
+    'audit_financial_goals_insert',
+    'audit_financial_goals_update',
+    'audit_shopping_items_insert',
+    'audit_shopping_items_update',
+    'audit_tasks_insert',
+    'audit_tasks_update',
+  };
   static const _backupTables = <String>[
     'accounts',
     'transactions',
@@ -139,6 +173,10 @@ class AppDatabase {
   int get schemaVersion =>
       _database.select('PRAGMA user_version').first['user_version'] as int;
 
+  String _activeRowPredicate([String? alias]) => schemaVersion >= 19
+      ? '${alias == null ? '' : '$alias.'}deleted_at IS NULL'
+      : '1 = 1';
+
   static List<String> _tablesForVersion(int version) => _backupTables
       .where((table) =>
           version >=
@@ -195,8 +233,14 @@ class AppDatabase {
     final objects = _database.select(
       "SELECT type, name FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'",
     );
-    if (objects
-        .any((row) => row['type'] == 'trigger' || row['type'] == 'view')) {
+    final expectedTriggers = version >= 19 ? _auditTriggerNames : <String>{};
+    final actualTriggers = objects
+        .where((row) => row['type'] == 'trigger')
+        .map((row) => row['name'] as String)
+        .toSet();
+    if (objects.any((row) => row['type'] == 'view') ||
+        actualTriggers.any((name) => !expectedTriggers.contains(name)) ||
+        actualTriggers.length != expectedTriggers.length) {
       throw const FormatException('O banco contém objetos não reconhecidos.');
     }
     final expectedTables = _tablesForVersion(version).toSet();
@@ -760,6 +804,37 @@ class AppDatabase {
       }
       _database.execute('PRAGMA user_version = 18');
     }
+    if (current < 19 && target >= 19) {
+      for (final table in _auditTables) {
+        _addColumnIfMissing(table, 'updated_at', "TEXT NOT NULL DEFAULT ''");
+        _addColumnIfMissing(table, 'deleted_at', 'TEXT');
+        _database.execute('''
+          UPDATE "$table"
+          SET updated_at = created_at
+          WHERE updated_at IS NULL OR updated_at = ''
+        ''');
+        _database.execute('''
+          CREATE TRIGGER IF NOT EXISTS "audit_${table}_insert"
+          AFTER INSERT ON "$table"
+          WHEN NEW.updated_at = ''
+          BEGIN
+            UPDATE "$table" SET updated_at = NEW.created_at
+            WHERE rowid = NEW.rowid;
+          END
+        ''');
+        _database.execute('''
+          CREATE TRIGGER IF NOT EXISTS "audit_${table}_update"
+          AFTER UPDATE ON "$table"
+          WHEN NEW.updated_at = OLD.updated_at
+          BEGIN
+            UPDATE "$table"
+            SET updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+            WHERE rowid = NEW.rowid;
+          END
+        ''');
+      }
+      _database.execute('PRAGMA user_version = 19');
+    }
   }
 
   void _addColumnIfMissing(String table, String column, String definition) {
@@ -884,6 +959,7 @@ class AppDatabase {
 
   static void _configure(Database database, {required bool persistent}) {
     database.execute('PRAGMA foreign_keys = ON');
+    database.execute('PRAGMA recursive_triggers = OFF');
     database.execute('PRAGMA busy_timeout = 5000');
     database.execute('PRAGMA synchronous = NORMAL');
     if (persistent) database.execute('PRAGMA journal_mode = WAL');
@@ -1029,7 +1105,8 @@ class AppDatabase {
   }
 
   List<Account> loadAccounts() => _database
-      .select('SELECT * FROM accounts ORDER BY created_at ASC')
+      .select('SELECT * FROM accounts WHERE ${_activeRowPredicate()} '
+          'ORDER BY created_at ASC')
       .map((row) => Account(
             id: row['id'] as String,
             name: row['name'] as String,
@@ -1047,13 +1124,15 @@ class AppDatabase {
           ? '''SELECT *, category AS resolved_category, subcategory AS resolved_subcategory,
               NULL AS category_id, NULL AS subcategory_id,
               NULL AS system_type
-             FROM transactions ORDER BY occurred_on DESC, created_at DESC'''
+             FROM transactions WHERE ${_activeRowPredicate()}
+             ORDER BY occurred_on DESC, created_at DESC'''
           : '''SELECT t.*, ${schemaVersion < 18 ? 'NULL AS system_type,' : ''}
               COALESCE(c.name, t.category) AS resolved_category,
              COALESCE(sc.name, t.subcategory) AS resolved_subcategory
              FROM transactions t
              LEFT JOIN finance_categories c ON c.id = t.category_id
              LEFT JOIN finance_subcategories sc ON sc.id = t.subcategory_id
+             WHERE ${_activeRowPredicate('t')}
              ORDER BY t.occurred_on DESC, t.created_at DESC''')
       .map((row) => TransactionRecord(
             id: row['id'] as String,
@@ -1084,8 +1163,8 @@ class AppDatabase {
       .toList();
 
   List<TaskItem> loadTasks() => _database
-      .select(
-          'SELECT * FROM tasks ORDER BY is_done ASC, due_on ASC, created_at DESC')
+      .select('SELECT * FROM tasks WHERE ${_activeRowPredicate()} '
+          'ORDER BY is_done ASC, due_on ASC, created_at DESC')
       .map((row) => TaskItem(
             id: row['id'] as String,
             title: row['title'] as String,
@@ -1098,8 +1177,8 @@ class AppDatabase {
       .toList();
 
   List<ShoppingItem> loadShoppingItems() => _database
-      .select(
-          'SELECT * FROM shopping_items ORDER BY is_purchased ASC, created_at DESC')
+      .select('SELECT * FROM shopping_items WHERE ${_activeRowPredicate()} '
+          'ORDER BY is_purchased ASC, created_at DESC')
       .map((row) => ShoppingItem(
             id: row['id'] as String,
             name: row['name'] as String,
@@ -1115,7 +1194,8 @@ class AppDatabase {
       .toList();
 
   List<CreditCard> loadCreditCards() => _database
-      .select('SELECT * FROM credit_cards ORDER BY created_at ASC')
+      .select('SELECT * FROM credit_cards WHERE ${_activeRowPredicate()} '
+          'ORDER BY created_at ASC')
       .map((row) => CreditCard(
             id: row['id'] as String,
             name: row['name'] as String,
@@ -1132,7 +1212,10 @@ class AppDatabase {
   List<CardPurchase> loadCardPurchases() {
     final paidInstallments = <String, Set<int>>{};
     for (final row in _database.select(
-      'SELECT purchase_id, installment_number FROM card_installment_payments',
+      '''SELECT p.purchase_id, p.installment_number
+         FROM card_installment_payments p
+         JOIN card_purchases c ON c.id = p.purchase_id
+         WHERE ${_activeRowPredicate('c')}''',
     )) {
       paidInstallments
           .putIfAbsent(row['purchase_id'] as String, () => <int>{})
@@ -1143,12 +1226,14 @@ class AppDatabase {
             ? '''SELECT *, 'Outros' AS resolved_category,
                  'Geral' AS resolved_subcategory,
                  NULL AS category_id, NULL AS subcategory_id
-                 FROM card_purchases ORDER BY purchased_on DESC, created_at DESC'''
+                 FROM card_purchases WHERE ${_activeRowPredicate()}
+                 ORDER BY purchased_on DESC, created_at DESC'''
             : '''SELECT p.*, COALESCE(c.name, 'Outros') AS resolved_category,
                  COALESCE(sc.name, 'Geral') AS resolved_subcategory
                  FROM card_purchases p
                  LEFT JOIN finance_categories c ON c.id = p.category_id
                  LEFT JOIN finance_subcategories sc ON sc.id = p.subcategory_id
+                 WHERE ${_activeRowPredicate('p')}
                  ORDER BY p.purchased_on DESC, p.created_at DESC''')
         .map((row) => CardPurchase(
               id: row['id'] as String,
@@ -1204,7 +1289,8 @@ class AppDatabase {
       .toList();
 
   List<InvestmentPosition> loadInvestments() => _database
-      .select('SELECT * FROM investments ORDER BY created_at DESC')
+      .select('SELECT * FROM investments WHERE ${_activeRowPredicate()} '
+          'ORDER BY created_at DESC')
       .map((row) => InvestmentPosition(
             id: row['id'] as String,
             name: row['name'] as String,
@@ -1232,9 +1318,11 @@ class AppDatabase {
   List<Budget> loadBudgets() => _database
       .select(schemaVersion < 17
           ? '''SELECT *, category AS resolved_category, NULL AS category_id
-             FROM budgets ORDER BY year DESC, month DESC, created_at DESC'''
+             FROM budgets WHERE ${_activeRowPredicate()}
+             ORDER BY year DESC, month DESC, created_at DESC'''
           : '''SELECT b.*, COALESCE(c.name, b.category) AS resolved_category
              FROM budgets b LEFT JOIN finance_categories c ON c.id = b.category_id
+             WHERE ${_activeRowPredicate('b')}
              ORDER BY b.year DESC, b.month DESC, b.created_at DESC''')
       .map((row) => Budget(
             id: row['id'] as String,
@@ -1250,9 +1338,11 @@ class AppDatabase {
   List<Subscription> loadSubscriptions() => _database
       .select(schemaVersion < 17
           ? '''SELECT *, category AS resolved_category, NULL AS category_id
-             FROM subscriptions ORDER BY is_active DESC, billing_day ASC, created_at DESC'''
+             FROM subscriptions WHERE ${_activeRowPredicate()}
+             ORDER BY is_active DESC, billing_day ASC, created_at DESC'''
           : '''SELECT s.*, COALESCE(c.name, s.category) AS resolved_category
              FROM subscriptions s LEFT JOIN finance_categories c ON c.id = s.category_id
+             WHERE ${_activeRowPredicate('s')}
              ORDER BY s.is_active DESC, s.billing_day ASC, s.created_at DESC''')
       .map((row) => Subscription(
             id: row['id'] as String,
@@ -1279,9 +1369,11 @@ class AppDatabase {
   List<FinancialGoal> loadFinancialGoals() => _database
       .select(schemaVersion < 17
           ? '''SELECT *, category AS resolved_category FROM financial_goals
+             WHERE ${_activeRowPredicate()}
              ORDER BY deadline IS NULL, deadline ASC, created_at DESC'''
           : '''SELECT *, COALESCE(goal_category_name, category) AS resolved_category
-             FROM financial_goals ORDER BY deadline IS NULL, deadline ASC, created_at DESC''')
+             FROM financial_goals WHERE ${_activeRowPredicate()}
+             ORDER BY deadline IS NULL, deadline ASC, created_at DESC''')
       .map((row) => FinancialGoal(
             id: row['id'] as String,
             name: row['name'] as String,
@@ -1621,9 +1713,6 @@ class AppDatabase {
         [value ? 1 : 0, id],
       );
 
-  void deleteTask(String id) =>
-      _database.execute('DELETE FROM tasks WHERE id = ?', [id]);
-
   void insertShoppingItem(ShoppingItem item) => _database.execute(
         '''INSERT INTO shopping_items(
           id, name, quantity, estimated_unit_price_cents, priority, is_purchased,
@@ -1667,9 +1756,6 @@ class AppDatabase {
           item.id,
         ],
       );
-
-  void deleteShoppingItem(String id) =>
-      _database.execute('DELETE FROM shopping_items WHERE id = ?', [id]);
 
   void insertCreditCard(CreditCard card) => _database.execute(
         '''INSERT INTO credit_cards(
@@ -1779,7 +1865,8 @@ class AppDatabase {
     DateTime paidOn,
   ) {
     final purchase = _database.select(
-      'SELECT installments FROM card_purchases WHERE id = ?',
+      'SELECT installments FROM card_purchases WHERE id = ? '
+      'AND ${_activeRowPredicate()}',
       [purchaseId],
     );
     if (purchase.isEmpty) throw ArgumentError('Compra não encontrada.');
@@ -1934,7 +2021,9 @@ class AppDatabase {
           return;
         }
         final existing = _database.select(
-            'SELECT category_id FROM transactions WHERE id = ?', [item.id]);
+            'SELECT category_id FROM transactions WHERE id = ? '
+            'AND ${_activeRowPredicate()}',
+            [item.id]);
         final keepsCategory = existing.isNotEmpty &&
             existing.single['category_id'] == item.categoryId;
         final category = item.type == TransactionType.transfer
@@ -2057,7 +2146,9 @@ class AppDatabase {
           return;
         }
         final existing = _database.select(
-            'SELECT category_id FROM subscriptions WHERE id = ?', [item.id]);
+            'SELECT category_id FROM subscriptions WHERE id = ? '
+            'AND ${_activeRowPredicate()}',
+            [item.id]);
         final keepsCategory = existing.isNotEmpty &&
             existing.single['category_id'] == item.categoryId;
         final category = _resolveCategory(
@@ -2124,19 +2215,37 @@ class AppDatabase {
         [savedInCents, id],
       );
 
-  void deleteAccount(String id) =>
-      _database.execute('DELETE FROM accounts WHERE id = ?', [id]);
+  bool softDelete(SoftDeleteEntity entity, String id, DateTime deletedAtUtc) {
+    if (schemaVersion < 19) {
+      throw StateError('Exclusão lógica exige o schema 19.');
+    }
+    final result = _database.select(
+      'SELECT id FROM ${entity.tableName} WHERE id = ? AND deleted_at IS NULL',
+      [id],
+    );
+    if (result.isEmpty) return false;
+    _database.execute(
+      'UPDATE ${entity.tableName} SET deleted_at = ? WHERE id = ? AND deleted_at IS NULL',
+      [deletedAtUtc.toUtc().toIso8601String(), id],
+    );
+    return true;
+  }
 
-  void deleteTransaction(String id) =>
-      _database.execute('DELETE FROM transactions WHERE id = ?', [id]);
-  void deleteBudget(String id) =>
-      _database.execute('DELETE FROM budgets WHERE id = ?', [id]);
-  void deleteSubscription(String id) =>
-      _database.execute('DELETE FROM subscriptions WHERE id = ?', [id]);
-  void deleteFinancialGoal(String id) =>
-      _database.execute('DELETE FROM financial_goals WHERE id = ?', [id]);
-  void deleteInvestment(String id) =>
-      _database.execute('DELETE FROM investments WHERE id = ?', [id]);
+  bool restore(SoftDeleteEntity entity, String id) {
+    if (schemaVersion < 19) {
+      throw StateError('Restauração lógica exige o schema 19.');
+    }
+    final result = _database.select(
+      'SELECT id FROM ${entity.tableName} WHERE id = ? AND deleted_at IS NOT NULL',
+      [id],
+    );
+    if (result.isEmpty) return false;
+    _database.execute(
+      'UPDATE ${entity.tableName} SET deleted_at = NULL WHERE id = ? AND deleted_at IS NOT NULL',
+      [id],
+    );
+    return true;
+  }
 
   void saveSalaryAllocation(SalaryAllocation allocation) => _database.execute(
         '''UPDATE salary_allocation
