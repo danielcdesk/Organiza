@@ -229,7 +229,9 @@ class AppDatabase {
   }
 
   /// Rejects unexpected user tables, columns and executable schema objects.
-  void validateIntegrity() {
+  void validateIntegrity() => _validateIntegrity();
+
+  void _validateIntegrity({Set<String> allowedMissingTables = const {}}) {
     final version = schemaVersion;
     if (version < 1 || version > _schemaVersion) {
       throw const FormatException('Versão de schema não suportada.');
@@ -252,17 +254,25 @@ class AppDatabase {
         .where((row) => row['type'] == 'table')
         .map((row) => row['name'] as String)
         .toSet();
-    if (actualTables.length != expectedTables.length ||
-        !actualTables.containsAll(expectedTables)) {
+    final missingTables = expectedTables.difference(actualTables);
+    if (actualTables.difference(expectedTables).isNotEmpty ||
+        missingTables.difference(allowedMissingTables).isNotEmpty) {
       throw const FormatException('O banco contém tabelas incompatíveis.');
     }
     final expected = _emptyAtVersion(version);
     try {
-      for (final table in expectedTables) {
+      for (final table in expectedTables.difference(missingTables)) {
         final columns = _tableColumns(table);
         final expectedColumns = expected._tableColumns(table);
-        if (columns.length != expectedColumns.length ||
-            !columns.containsAll(expectedColumns)) {
+        // Preserve this known extra field so migrations never discard data.
+        final legacyColumns = version >= 16 && table == 'subscriptions'
+            ? const {'icon_key'}
+            : const <String>{};
+        if (!columns.containsAll(expectedColumns) ||
+            columns
+                .difference(expectedColumns)
+                .difference(legacyColumns)
+                .isNotEmpty) {
           throw FormatException('Colunas incompatíveis na tabela $table.');
         }
       }
@@ -303,7 +313,7 @@ class AppDatabase {
     });
   }
 
-  void _createPreMigrationCopy() {
+  void _createPreMigrationCopy({Set<String> allowedMissingTables = const {}}) {
     final backup = File('$filePath.pre-v$_schemaVersion.bak');
     if (backup.existsSync()) {
       backup.renameSync(
@@ -313,7 +323,8 @@ class AppDatabase {
     _database.execute('VACUUM INTO ?', [backup.path]);
     final copied = sqlite3.open(backup.path, mode: OpenMode.readOnly);
     try {
-      AppDatabase._(copied).validateIntegrity();
+      AppDatabase._(copied)
+          ._validateIntegrity(allowedMissingTables: allowedMissingTables);
     } finally {
       copied.close();
     }
@@ -455,9 +466,21 @@ class AppDatabase {
       validateIntegrity();
       return;
     }
-    if (current > 0) validateIntegrity();
-    if (current > 0 && filePath != null) _createPreMigrationCopy();
+    final repairMissingInstallmentPayments =
+        current == 16 && !_tableExists('card_installment_payments');
+    final toleratedMissingTables = repairMissingInstallmentPayments
+        ? const {'card_installment_payments'}
+        : const <String>{};
+    if (current > 0) {
+      _validateIntegrity(allowedMissingTables: toleratedMissingTables);
+    }
+    if (current > 0 && filePath != null) {
+      _createPreMigrationCopy(allowedMissingTables: toleratedMissingTables);
+    }
     transaction(() {
+      if (repairMissingInstallmentPayments) {
+        _createCardInstallmentPaymentsTable();
+      }
       _applyMigrations(current, _schemaVersion);
       validateIntegrity();
     });
@@ -722,15 +745,7 @@ class AppDatabase {
       _database.execute('PRAGMA user_version = 15');
     }
     if (current < 16 && target >= 16) {
-      _database.execute('''
-        CREATE TABLE card_installment_payments (
-          purchase_id TEXT NOT NULL
-            REFERENCES card_purchases(id) ON DELETE CASCADE,
-          installment_number INTEGER NOT NULL CHECK(installment_number BETWEEN 1 AND 48),
-          paid_on TEXT NOT NULL,
-          PRIMARY KEY (purchase_id, installment_number)
-        );
-      ''');
+      _createCardInstallmentPaymentsTable();
       _database.execute('PRAGMA user_version = 16');
     }
     if (current < 17 && target >= 17) {
@@ -879,6 +894,23 @@ class AppDatabase {
         PRAGMA user_version = 21;
       ''');
     }
+  }
+
+  bool _tableExists(String name) => _database.select(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
+        [name],
+      ).isNotEmpty;
+
+  void _createCardInstallmentPaymentsTable() {
+    _database.execute('''
+      CREATE TABLE IF NOT EXISTS card_installment_payments (
+        purchase_id TEXT NOT NULL
+          REFERENCES card_purchases(id) ON DELETE CASCADE,
+        installment_number INTEGER NOT NULL CHECK(installment_number BETWEEN 1 AND 48),
+        paid_on TEXT NOT NULL,
+        PRIMARY KEY (purchase_id, installment_number)
+      );
+    ''');
   }
 
   void _addColumnIfMissing(String table, String column, String definition) {
