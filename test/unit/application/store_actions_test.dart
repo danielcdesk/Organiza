@@ -164,6 +164,80 @@ void main() {
     expect(store.accounts, isEmpty);
   });
 
+  test('arquivar conta mantém histórico e impede novos lançamentos', () {
+    final store = OrganizaStore.inMemory(
+        clock: Clock.fixed(DateTime.utc(2026, 3, 10, 12)));
+    addTearDown(store.dispose);
+    store.addAccount('Principal', 100000);
+    final accountId = store.accounts.single.id;
+    store.addTransaction(
+      accountId: accountId,
+      type: TransactionType.expense,
+      amountInCents: 10000,
+      description: 'Compra histórica',
+    );
+
+    store.archiveAccount(accountId);
+
+    expect(store.activeAccounts, isEmpty);
+    expect(store.accounts.single.archivedAt, DateTime.utc(2026, 3, 10, 12));
+    expect(store.transactions.single.description, 'Compra histórica');
+    expect(store.balance, 90000);
+    expect(
+      () => store.addTransaction(
+        accountId: accountId,
+        type: TransactionType.expense,
+        amountInCents: 1000,
+        description: 'Nova compra',
+      ),
+      throwsArgumentError,
+    );
+
+    store.restoreAccount(accountId);
+    expect(store.activeAccounts.single.id, accountId);
+    expect(store.accounts.single.archivedAt, isNull);
+    expect(store.balance, 90000);
+    expect(store.transactions, hasLength(1));
+  });
+
+  test('arquivar conta com salário recorrente exige cancelar agenda', () {
+    final store = OrganizaStore.inMemory();
+    addTearDown(store.dispose);
+    store.addAccount('Principal', 0);
+    final accountId = store.accounts.single.id;
+    final future = DateTime(DateTime.now().year + 1, 1, 5);
+    store.addTransaction(
+      accountId: accountId,
+      type: TransactionType.income,
+      amountInCents: 100000,
+      description: 'Salário',
+      category: 'Salário',
+      occurredOn: future,
+      scheduleType: TransactionScheduleType.recurring,
+    );
+
+    expect(() => store.archiveAccount(accountId), throwsArgumentError);
+    expect(store.accounts.single.archivedAt, isNull);
+    expect(store.salarySchedules, hasLength(1));
+  });
+
+  test('inclusão patrimonial não altera saldo e pode incluir conta arquivada',
+      () {
+    final store = OrganizaStore.inMemory();
+    addTearDown(store.dispose);
+    store.addAccount('Principal', 50000);
+    final accountId = store.accounts.single.id;
+    final balance = store.balance;
+
+    store.setAccountNetWorthIncluded(accountId, false);
+    expect(store.accountBalancesByCurrencyForNetWorth, isEmpty);
+    expect(store.balance, balance);
+    store.archiveAccount(accountId);
+    store.setAccountNetWorthIncluded(accountId, true);
+    expect(store.accountBalancesByCurrencyForNetWorth, {'BRL': 50000});
+    expect(store.balance, balance);
+  });
+
   test('salva distribuição salarial que totaliza cem por cento', () {
     final store = OrganizaStore.inMemory();
     addTearDown(store.dispose);

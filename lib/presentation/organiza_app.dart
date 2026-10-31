@@ -654,6 +654,7 @@ class _OrganizaShellState extends State<OrganizaShell>
         value.name,
         value.openingCents,
         institution: value.institution,
+        type: value.type,
         customInstitutionName: value.customInstitutionName,
         customIconKey: value.customIconKey,
       );
@@ -701,6 +702,7 @@ class _OrganizaShellState extends State<OrganizaShell>
         name: value.name,
         currentBalanceInCents: value.openingCents,
         institution: value.institution,
+        type: value.type,
         customInstitutionName: value.customInstitutionName,
         customIconKey: value.customIconKey,
       );
@@ -781,7 +783,19 @@ class _OrganizaShellState extends State<OrganizaShell>
         builder: (_) => TransactionEditDialog(
               clock: widget.store.clock,
               item: item,
-              accounts: widget.store.accounts,
+              accounts: [
+                ...widget.store.activeAccounts,
+                if (widget.store.accounts.any((account) =>
+                    account.id == item.accountId && account.archivedAt != null))
+                  widget.store.accounts
+                      .firstWhere((account) => account.id == item.accountId),
+                if (item.destinationAccountId != null &&
+                    widget.store.accounts.any((account) =>
+                        account.id == item.destinationAccountId &&
+                        account.archivedAt != null))
+                  widget.store.accounts.firstWhere(
+                      (account) => account.id == item.destinationAccountId),
+              ],
               categories: widget.store.financeCategories,
               subcategories: widget.store.financeSubcategories,
             ));
@@ -910,7 +924,7 @@ class _OrganizaShellState extends State<OrganizaShell>
       builder: (_) => TransactionDialog(
         clock: widget.store.clock,
         initialType: initialType,
-        accounts: widget.store.accounts,
+        accounts: widget.store.activeAccounts,
         categories: widget.store.financeCategories,
         subcategories: widget.store.financeSubcategories,
         onCreateCategory: widget.store.addFinanceCategory,

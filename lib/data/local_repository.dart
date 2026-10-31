@@ -74,6 +74,8 @@ class LocalRepository {
     required String id,
     required String name,
     required AccountInstitution institution,
+    AccountType type = AccountType.checking,
+    String currency = 'BRL',
     String? customInstitutionName,
     String? customIconKey,
   }) =>
@@ -81,9 +83,15 @@ class LocalRepository {
         id: id,
         name: name,
         institution: institution,
+        type: type,
+        currency: currency,
         customInstitutionName: customInstitutionName,
         customIconKey: customIconKey,
       );
+  bool setAccountArchived(String id, DateTime? archivedAt) =>
+      _database.setAccountArchived(id, archivedAt);
+  bool setAccountNetWorthIncluded(String id, bool included) =>
+      _database.setAccountNetWorthIncluded(id, included);
   void updateSubscription(Subscription item) =>
       _database.updateSubscription(item);
   void setSubscriptionActive(String id, bool active) =>

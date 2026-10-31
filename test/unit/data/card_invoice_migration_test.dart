@@ -48,7 +48,7 @@ void main() {
     source.close();
 
     final migrated = AppDatabase.openFile(file);
-    expect(migrated.schemaVersion, 19);
+    expect(migrated.schemaVersion, 20);
     expect(migrated.loadCardPurchases().single.paidInstallments, {1});
     expect(
         FinancialRules.currentBalance(
@@ -68,7 +68,7 @@ void main() {
     expect(purchase['subcategory_id'], isNotNull);
     expect(raw.select('PRAGMA foreign_key_check'), isEmpty);
     raw.close();
-    expect(File('${file.path}.pre-v19.bak').existsSync(), isTrue);
+    expect(File('${file.path}.pre-v20.bak').existsSync(), isTrue);
     final reopened = AppDatabase.openFile(file);
     expect(reopened.tableCounts['card_purchases'], 1);
     reopened.validateIntegrity();
