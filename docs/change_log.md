@@ -6,7 +6,7 @@
 - Tags podem ser gerenciadas, selecionadas em lançamentos e usadas para filtrar o histórico.
 - Fotos e PDFs são copiados para a pasta privada, validados pela extensão, assinatura e SHA-256; limite de 10 MiB por arquivo.
 - Backup ZIP criptografado v2 inclui anexos com contagem e hashes, mantendo compatibilidade com arquivos v2 sem anexos.
-- Validação local: análise limpa, 214 testes (74,33% cobertura), integração Windows 2/2. Revisão independente e CI do PR draft pendentes.
+- Validação local: análise limpa, 218 testes (74,73% cobertura), integração Windows 2/2. Revisão independente concluída com correções; CI do PR draft pendente.
 
 ## 2026-10-30 — Fase 2.4, ciclo de vida das contas
 

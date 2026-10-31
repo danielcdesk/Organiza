@@ -381,6 +381,11 @@ class _TagManagerDialogState extends State<TagManagerDialog> {
   Future<void> _edit([Tag? tag]) async {
     final controller = TextEditingController(text: tag?.name ?? '');
     var selectedColor = tag?.colorValue;
+    final colors = [
+      ..._colors,
+      if (selectedColor != null && !_colors.contains(selectedColor))
+        selectedColor,
+    ];
     final result = await showDialog<(String, int?)>(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -397,7 +402,7 @@ class _TagManagerDialogState extends State<TagManagerDialog> {
             DropdownButtonFormField<int?>(
               initialValue: selectedColor,
               decoration: const InputDecoration(labelText: 'Cor'),
-              items: _colors
+              items: colors
                   .map((color) => DropdownMenuItem<int?>(
                         value: color,
                         child: Row(children: [
@@ -409,7 +414,10 @@ class _TagManagerDialogState extends State<TagManagerDialog> {
                           const SizedBox(width: 8),
                           Text(color == null
                               ? 'Padrão'
-                              : 'Cor ${_colors.indexOf(color)}'),
+                              : color == tag?.colorValue &&
+                                      !_colors.contains(color)
+                                  ? 'Cor atual'
+                                  : 'Cor ${colors.indexOf(color)}'),
                         ]),
                       ))
                   .toList(),

@@ -74,4 +74,4 @@ Schema 20 adiciona tipo de conta, moeda BRL reservada, arquivamento reversível 
 
 ## Fase 2.5 — tags e anexos (validação local concluída; PR/CI pendentes)
 
-Schema 21 adiciona tags reutilizáveis, vínculos transacionais e metadados dos anexos. UI oferece CRUD/seleção/filtro por tag e gestão de anexos; arquivos permitidos ficam na pasta privada e entram no backup v2. Análise limpa, 214 testes aprovados com 74,33% de cobertura, integração Windows 2/2. Revisão independente e CI do PR draft ainda pendentes. Relatório: `RELATORIO_FASE_2_5.md`.
+Schema 21 adiciona tags reutilizáveis, vínculos transacionais e metadados dos anexos. UI oferece CRUD/seleção/filtro por tag e gestão de anexos; arquivos permitidos ficam na pasta privada e entram no backup v2. Revisão independente concluída com correções incorporadas. Análise limpa, suíte com 218 testes e 74,73% de cobertura; integração Windows 2/2. CI do PR draft pendente. Relatório: `RELATORIO_FASE_2_5.md`.

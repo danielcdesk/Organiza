@@ -10,6 +10,31 @@ import 'package:organiza/presentation/goals_page.dart';
 import 'package:organiza/presentation/dialogs.dart';
 
 void main() {
+  testWidgets('gerenciador abre tag com cor personalizada', (tester) async {
+    final store = OrganizaStore.inMemory();
+    addTearDown(store.dispose);
+    store.createTag('Importada', colorValue: 0xFF123456);
+    await tester.pumpWidget(MaterialApp(
+      theme: OrganizaTheme.light(),
+      home: Builder(
+          builder: (context) => Scaffold(
+                body: TextButton(
+                  onPressed: () => showDialog<void>(
+                    context: context,
+                    builder: (_) => TagManagerDialog(store: store),
+                  ),
+                  child: const Text('Tags'),
+                ),
+              )),
+    ));
+    await tester.tap(find.text('Tags'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Renomear'));
+    await tester.pumpAndSettle();
+    expect(find.text('Editar tag'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('edit dialog returns cents without changing other fields',
       (tester) async {
     final now = DateTime.now();
