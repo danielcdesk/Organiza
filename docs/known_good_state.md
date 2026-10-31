@@ -2,7 +2,7 @@
 
 ## Fase 2.4 — validação local (30/10/2026)
 
-Branch `codex/organiza-v3-fase-2-4`, baseada no head da Fase 2.3, schema 20. Análise sem problemas; 203 testes aprovados com 8.627/11.536 linhas (74,78%); integração Windows 2/2. Revisão independente sem achados críticos/importantes. CI Windows/Ubuntu/Android remoto pendente. Migração em banco real e execução Android física não foram feitas. Ver [relatório da Fase 2.4](implementation/RELATORIO_FASE_2_4.md).
+Branch `codex/organiza-v3-fase-2-4`, baseada no head da Fase 2.3, schema 20. Análise sem problemas; 203 testes aprovados com 8.627/11.536 linhas (74,78%); integração Windows 2/2. Revisão independente sem achados críticos/importantes. PR draft #7, CI run 41150382909 verde em Windows/Ubuntu/Android. Migração em banco real e execução Android física não foram feitas. Ver [relatório da Fase 2.4](implementation/RELATORIO_FASE_2_4.md).
 
 ## Fase 2.3 — validação local (30/10/2026)
 

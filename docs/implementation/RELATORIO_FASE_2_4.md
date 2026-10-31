@@ -1,6 +1,6 @@
 # Relatório da Fase 2.4 — Tipo e ciclo de vida das contas
 
-Data: 2026-10-30. Estado: implementação local validada; revisão independente concluída; CI do PR pendente.
+Data: 2026-10-30. Estado: implementação validada localmente e no CI; PR draft aberto, sem merge.
 
 ## 1. Resumo
 
@@ -30,11 +30,11 @@ Arquivar não remove a conta nem modifica saldo e transações. Reativar limpa `
 
 ## 5. Revisão e CI
 
-Revisão independente não encontrou problemas críticos ou importantes. A recomendação menor de acrescentar teste visual de conta foi atendida em `account_lifecycle_test.dart`. O PR draft será aberto contra `codex/organiza-v3-fase-2-3`; a execução verde de CI Windows/Ubuntu/Android continua sendo gate antes de avançar para schema 21.
+Revisão independente não encontrou problemas críticos ou importantes. A recomendação menor de acrescentar teste visual de conta foi atendida em `account_lifecycle_test.dart`. PR draft [#7](https://github.com/danielcdesk/Organiza/pull/7) está aberto contra `codex/organiza-v3-fase-2-3`. GitHub Actions run **41150382909** passou nos jobs Windows, Ubuntu e APK Android release sem assinatura. PR continua draft e não foi integrado.
 
 ## 6. Não validado
 
-Não houve migração sobre banco financeiro real nem execução em aparelho Android físico. O CI remoto desta fase ainda não terminou. Multi-moeda com edição/conversão não foi implementada: moeda é reservada, novas contas usam BRL e cada código é exibido/totalizado separadamente.
+Não houve migração sobre banco financeiro real nem execução em aparelho Android físico. Multi-moeda com edição/conversão não foi implementada: moeda é reservada, novas contas usam BRL e cada código é exibido/totalizado separadamente.
 
 ## 7. Decisões mantidas
 
@@ -42,4 +42,4 @@ Compras no cartão seguem pela data da compra, e o pagamento da fatura reduz som
 
 ## 8. Próxima etapa
 
-Esperar CI do PR draft da Fase 2.4. Não iniciar schema 21 até todos os jobs Windows, Ubuntu e Android passarem.
+CI do PR draft da Fase 2.4 passou. Próxima fase só deve começar como trabalho separado; o PR #7 continua draft aguardando decisão de integração.

@@ -1,11 +1,11 @@
 # Registro de mudanças
 
-## 2026-10-30 — Fase 2.4, ciclo de vida das contas (CI pendente)
+## 2026-10-30 — Fase 2.4, ciclo de vida das contas
 
 - Schema 20 adiciona tipo, estado arquivado reversível, inclusão patrimonial e moeda BRL padrão preservando saldos existentes.
 - Contas arquivadas mantêm histórico e não aparecem nos seletores para novos lançamentos; patrimônio soma somente contas incluídas e agrupa por moeda.
 - UI de contas permite escolher o tipo, arquivar/reativar e ajustar inclusão patrimonial. Dívidas/financiamentos seguem adiados por decisão do produto.
-- Validação local: análise limpa, 203 testes aprovados (74,78% cobertura), integração Windows 2/2, revisão independente sem achados críticos/importantes. CI remoto pendente.
+- Validação: análise limpa, 203 testes aprovados (74,78% cobertura), integração Windows 2/2, revisão independente sem achados críticos/importantes e CI Windows/Ubuntu/Android verde (run 41150382909). PR draft #7 aberto.
 
 ## 2026-10-30 — Fase 2.3, auditoria e exclusão lógica
 
