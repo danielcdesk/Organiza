@@ -15,7 +15,7 @@ class AppDatabase {
   int _transactionDepth = 0;
   final String? filePath;
   static int get currentSchemaVersion => _schemaVersion;
-  static const _schemaVersion = 20;
+  static const _schemaVersion = 21;
   static const _auditTables = <String>[
     'transactions',
     'accounts',
@@ -70,6 +70,9 @@ class AppDatabase {
     'salary_schedules',
     'app_settings',
     'goal_categories',
+    'tags',
+    'transaction_tags',
+    'attachments',
   ];
 
   static Future<AppDatabase> open() async {
@@ -193,6 +196,7 @@ class AppDatabase {
             'salary_schedules' || 'app_settings' || 'goal_categories' => 11,
             'card_installment_payments' => 16,
             'card_invoices' || 'card_invoice_payments' => 18,
+            'tags' || 'transaction_tags' || 'attachments' => 21,
             _ => throw StateError('Tabela sem versão conhecida.'),
           })
       .toList(growable: false);
@@ -225,7 +229,9 @@ class AppDatabase {
   }
 
   /// Rejects unexpected user tables, columns and executable schema objects.
-  void validateIntegrity() {
+  void validateIntegrity() => _validateIntegrity();
+
+  void _validateIntegrity({Set<String> allowedMissingTables = const {}}) {
     final version = schemaVersion;
     if (version < 1 || version > _schemaVersion) {
       throw const FormatException('Versão de schema não suportada.');
@@ -248,17 +254,25 @@ class AppDatabase {
         .where((row) => row['type'] == 'table')
         .map((row) => row['name'] as String)
         .toSet();
-    if (actualTables.length != expectedTables.length ||
-        !actualTables.containsAll(expectedTables)) {
+    final missingTables = expectedTables.difference(actualTables);
+    if (actualTables.difference(expectedTables).isNotEmpty ||
+        missingTables.difference(allowedMissingTables).isNotEmpty) {
       throw const FormatException('O banco contém tabelas incompatíveis.');
     }
     final expected = _emptyAtVersion(version);
     try {
-      for (final table in expectedTables) {
+      for (final table in expectedTables.difference(missingTables)) {
         final columns = _tableColumns(table);
         final expectedColumns = expected._tableColumns(table);
-        if (columns.length != expectedColumns.length ||
-            !columns.containsAll(expectedColumns)) {
+        // Preserve this known extra field so migrations never discard data.
+        final legacyColumns = version >= 16 && table == 'subscriptions'
+            ? const {'icon_key'}
+            : const <String>{};
+        if (!columns.containsAll(expectedColumns) ||
+            columns
+                .difference(expectedColumns)
+                .difference(legacyColumns)
+                .isNotEmpty) {
           throw FormatException('Colunas incompatíveis na tabela $table.');
         }
       }
@@ -299,7 +313,7 @@ class AppDatabase {
     });
   }
 
-  void _createPreMigrationCopy() {
+  void _createPreMigrationCopy({Set<String> allowedMissingTables = const {}}) {
     final backup = File('$filePath.pre-v$_schemaVersion.bak');
     if (backup.existsSync()) {
       backup.renameSync(
@@ -309,7 +323,8 @@ class AppDatabase {
     _database.execute('VACUUM INTO ?', [backup.path]);
     final copied = sqlite3.open(backup.path, mode: OpenMode.readOnly);
     try {
-      AppDatabase._(copied).validateIntegrity();
+      AppDatabase._(copied)
+          ._validateIntegrity(allowedMissingTables: allowedMissingTables);
     } finally {
       copied.close();
     }
@@ -451,9 +466,21 @@ class AppDatabase {
       validateIntegrity();
       return;
     }
-    if (current > 0) validateIntegrity();
-    if (current > 0 && filePath != null) _createPreMigrationCopy();
+    final repairMissingInstallmentPayments =
+        current == 16 && !_tableExists('card_installment_payments');
+    final toleratedMissingTables = repairMissingInstallmentPayments
+        ? const {'card_installment_payments'}
+        : const <String>{};
+    if (current > 0) {
+      _validateIntegrity(allowedMissingTables: toleratedMissingTables);
+    }
+    if (current > 0 && filePath != null) {
+      _createPreMigrationCopy(allowedMissingTables: toleratedMissingTables);
+    }
     transaction(() {
+      if (repairMissingInstallmentPayments) {
+        _createCardInstallmentPaymentsTable();
+      }
       _applyMigrations(current, _schemaVersion);
       validateIntegrity();
     });
@@ -718,15 +745,7 @@ class AppDatabase {
       _database.execute('PRAGMA user_version = 15');
     }
     if (current < 16 && target >= 16) {
-      _database.execute('''
-        CREATE TABLE card_installment_payments (
-          purchase_id TEXT NOT NULL
-            REFERENCES card_purchases(id) ON DELETE CASCADE,
-          installment_number INTEGER NOT NULL CHECK(installment_number BETWEEN 1 AND 48),
-          paid_on TEXT NOT NULL,
-          PRIMARY KEY (purchase_id, installment_number)
-        );
-      ''');
+      _createCardInstallmentPaymentsTable();
       _database.execute('PRAGMA user_version = 16');
     }
     if (current < 17 && target >= 17) {
@@ -846,6 +865,52 @@ class AppDatabase {
         PRAGMA user_version = 20;
       ''');
     }
+    if (current < 21 && target >= 21) {
+      _database.execute('''
+        CREATE TABLE tags (
+          id TEXT PRIMARY KEY NOT NULL,
+          name TEXT NOT NULL COLLATE NOCASE UNIQUE,
+          color_value INTEGER,
+          created_at TEXT NOT NULL
+        );
+        CREATE TABLE transaction_tags (
+          transaction_id TEXT NOT NULL
+            REFERENCES transactions(id) ON DELETE CASCADE,
+          tag_id TEXT NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+          PRIMARY KEY (transaction_id, tag_id)
+        );
+        CREATE TABLE attachments (
+          id TEXT PRIMARY KEY NOT NULL,
+          transaction_id TEXT NOT NULL
+            REFERENCES transactions(id) ON DELETE CASCADE,
+          relative_path TEXT NOT NULL,
+          mime_type TEXT NOT NULL,
+          size_bytes INTEGER NOT NULL CHECK(size_bytes > 0),
+          sha256 TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX idx_attachments_transaction
+          ON attachments(transaction_id, created_at);
+        PRAGMA user_version = 21;
+      ''');
+    }
+  }
+
+  bool _tableExists(String name) => _database.select(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
+        [name],
+      ).isNotEmpty;
+
+  void _createCardInstallmentPaymentsTable() {
+    _database.execute('''
+      CREATE TABLE IF NOT EXISTS card_installment_payments (
+        purchase_id TEXT NOT NULL
+          REFERENCES card_purchases(id) ON DELETE CASCADE,
+        installment_number INTEGER NOT NULL CHECK(installment_number BETWEEN 1 AND 48),
+        paid_on TEXT NOT NULL,
+        PRIMARY KEY (purchase_id, installment_number)
+      );
+    ''');
   }
 
   void _addColumnIfMissing(String table, String column, String definition) {
@@ -1138,6 +1203,150 @@ class AppDatabase {
             currency: schemaVersion >= 20 ? row['currency'] as String : 'BRL',
           ))
       .toList();
+
+  List<Tag> loadTags() => _database
+      .select('SELECT * FROM tags ORDER BY name COLLATE NOCASE, id')
+      .map((row) => Tag(
+            id: row['id'] as String,
+            name: row['name'] as String,
+            colorValue: row['color_value'] as int?,
+            createdAt: DateTime.parse(row['created_at'] as String),
+          ))
+      .toList();
+
+  List<Tag> loadTransactionTags(String transactionId) => _database
+      .select('''
+        SELECT tags.* FROM tags
+        INNER JOIN transaction_tags ON transaction_tags.tag_id = tags.id
+        WHERE transaction_tags.transaction_id = ?
+        ORDER BY tags.name COLLATE NOCASE, tags.id
+      ''', [transactionId])
+      .map((row) => Tag(
+            id: row['id'] as String,
+            name: row['name'] as String,
+            colorValue: row['color_value'] as int?,
+            createdAt: DateTime.parse(row['created_at'] as String),
+          ))
+      .toList();
+
+  Map<String, List<Tag>> loadAllTransactionTags() {
+    final values = <String, List<Tag>>{};
+    for (final row in _database.select('''
+      SELECT transaction_tags.transaction_id, tags.*
+      FROM transaction_tags
+      INNER JOIN tags ON tags.id = transaction_tags.tag_id
+      ORDER BY tags.name COLLATE NOCASE, tags.id
+    ''')) {
+      (values[row['transaction_id'] as String] ??= []).add(Tag(
+        id: row['id'] as String,
+        name: row['name'] as String,
+        colorValue: row['color_value'] as int?,
+        createdAt: DateTime.parse(row['created_at'] as String),
+      ));
+    }
+    return Map.unmodifiable({
+      for (final entry in values.entries)
+        entry.key: List<Tag>.unmodifiable(entry.value),
+    });
+  }
+
+  void insertTag(Tag tag) => _database.execute(
+        'INSERT INTO tags(id, name, color_value, created_at) VALUES (?, ?, ?, ?)',
+        [tag.id, tag.name, tag.colorValue, tag.createdAt.toIso8601String()],
+      );
+
+  void updateTag(Tag tag) => _database.execute(
+        'UPDATE tags SET name = ?, color_value = ? WHERE id = ?',
+        [tag.name, tag.colorValue, tag.id],
+      );
+
+  bool deleteTag(String id) {
+    _database.execute('DELETE FROM tags WHERE id = ?', [id]);
+    return _database.updatedRows > 0;
+  }
+
+  void setTransactionTags(String transactionId, Set<String> tagIds) {
+    if (_database.select(
+      'SELECT id FROM transactions WHERE id = ? AND ${_activeRowPredicate()}',
+      [transactionId],
+    ).isEmpty) {
+      throw ArgumentError('Lançamento não encontrado.');
+    }
+    final existingIds = tagIds.isEmpty
+        ? <String>{}
+        : _database
+            .select(
+                'SELECT id FROM tags WHERE id IN (${List.filled(tagIds.length, '?').join(', ')})',
+                tagIds.toList())
+            .map((row) => row['id'] as String)
+            .toSet();
+    if (existingIds.length != tagIds.length) {
+      throw ArgumentError('Uma ou mais tags não existem.');
+    }
+    transaction(() {
+      _database.execute('DELETE FROM transaction_tags WHERE transaction_id = ?',
+          [transactionId]);
+      for (final tagId in tagIds) {
+        _database.execute(
+            'INSERT INTO transaction_tags(transaction_id, tag_id) VALUES (?, ?)',
+            [transactionId, tagId]);
+      }
+    });
+  }
+
+  List<Attachment> loadAttachments(String transactionId) => _database
+      .select('''
+        SELECT * FROM attachments WHERE transaction_id = ?
+        ORDER BY created_at, id
+      ''', [transactionId])
+      .map((row) => Attachment(
+            id: row['id'] as String,
+            transactionId: row['transaction_id'] as String,
+            relativePath: row['relative_path'] as String,
+            mimeType: row['mime_type'] as String,
+            sizeBytes: row['size_bytes'] as int,
+            sha256: row['sha256'] as String,
+            createdAt: DateTime.parse(row['created_at'] as String),
+          ))
+      .toList();
+
+  List<Attachment> loadAllAttachments() => _database
+      .select(
+          'SELECT * FROM attachments ORDER BY transaction_id, created_at, id')
+      .map((row) => Attachment(
+            id: row['id'] as String,
+            transactionId: row['transaction_id'] as String,
+            relativePath: row['relative_path'] as String,
+            mimeType: row['mime_type'] as String,
+            sizeBytes: row['size_bytes'] as int,
+            sha256: row['sha256'] as String,
+            createdAt: DateTime.parse(row['created_at'] as String),
+          ))
+      .toList();
+
+  void insertAttachment(Attachment attachment) => _database.execute(
+        '''INSERT INTO attachments(
+          id, transaction_id, relative_path, mime_type, size_bytes, sha256, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)''',
+        [
+          attachment.id,
+          attachment.transactionId,
+          attachment.relativePath,
+          attachment.mimeType,
+          attachment.sizeBytes,
+          attachment.sha256,
+          attachment.createdAt.toIso8601String(),
+        ],
+      );
+
+  String? deleteAttachment(String id) {
+    final rows = _database
+        .select('SELECT relative_path FROM attachments WHERE id = ?', [id]);
+    if (rows.isEmpty) return null;
+    final relativePath = rows.single['relative_path'] as String;
+    _database.execute('DELETE FROM attachments WHERE id = ?', [id]);
+    return relativePath;
+  }
 
   List<TransactionRecord> loadTransactions() => _database
       .select(schemaVersion < 17

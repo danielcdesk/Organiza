@@ -17,6 +17,7 @@ class TransactionsPage extends StatefulWidget {
     required this.onDelete,
     required this.onSettledChanged,
     this.onEdit,
+    this.onManageAttachments,
   });
 
   final OrganizaStore store;
@@ -25,6 +26,7 @@ class TransactionsPage extends StatefulWidget {
   final ValueChanged<String> onDelete;
   final void Function(String id, bool value) onSettledChanged;
   final ValueChanged<TransactionRecord>? onEdit;
+  final ValueChanged<TransactionRecord>? onManageAttachments;
 
   @override
   State<TransactionsPage> createState() => _TransactionsPageState();
@@ -36,6 +38,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
   var _pendingOnly = false;
   late DateTime? _month;
   String? _accountId;
+  String? _tagId;
   bool _largestFirst = false;
   int _visibleCount = 50;
   final _search = TextEditingController();
@@ -63,6 +66,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
         _search.clear();
         _pendingOnly = false;
         _accountId = null;
+        _tagId = null;
         _largestFirst = false;
         _visibleCount = 50;
         _month = _currentMonth;
@@ -79,6 +83,10 @@ class _TransactionsPageState extends State<TransactionsPage> {
       final matchesAccount = _accountId == null ||
           item.accountId == _accountId ||
           item.destinationAccountId == _accountId;
+      final matchesTag = _tagId == null ||
+          widget.store
+              .tagsForTransaction(item.id)
+              .any((tag) => tag.id == _tagId);
       final needle = _query.toLowerCase();
       final matchesQuery = needle.isEmpty ||
           item.description.toLowerCase().contains(needle) ||
@@ -88,7 +96,8 @@ class _TransactionsPageState extends State<TransactionsPage> {
           matchesStatus &&
           matchesQuery &&
           matchesMonth &&
-          matchesAccount;
+          matchesAccount &&
+          matchesTag;
     }).toList()
       ..sort((a, b) {
         if (_largestFirst) {
@@ -155,6 +164,9 @@ class _TransactionsPageState extends State<TransactionsPage> {
                   onFilter: (value) => setState(() => _filter = value),
                   pendingOnly: _pendingOnly,
                   onPending: (value) => setState(() => _pendingOnly = value),
+                  tags: widget.store.tags,
+                  tagId: _tagId,
+                  onTag: (value) => setState(() => _tagId = value),
                 ),
                 SizedBox(height: OrganizaDesignTokens.of(context).spaceMd),
                 LayoutBuilder(builder: (context, constraints) {
@@ -305,13 +317,18 @@ class _TransactionsPageState extends State<TransactionsPage> {
                 label: 'Ações do lançamento',
                 child: PopupMenuButton<String>(
                   tooltip: 'Ações do lançamento',
-                  onSelected: (value) => value == 'edit'
-                      ? widget.onEdit?.call(item)
-                      : widget.onDelete(item.id),
+                  onSelected: (value) => switch (value) {
+                    'edit' => widget.onEdit?.call(item),
+                    'attachments' => widget.onManageAttachments?.call(item),
+                    _ => widget.onDelete(item.id),
+                  },
                   itemBuilder: (_) => [
                     if (widget.onEdit != null)
                       const PopupMenuItem(
                           value: 'edit', child: Text('Editar lançamento')),
+                    if (widget.onManageAttachments != null)
+                      const PopupMenuItem(
+                          value: 'attachments', child: Text('Anexos')),
                     const PopupMenuItem(
                         value: 'delete', child: Text('Excluir lançamento')),
                   ],
@@ -582,11 +599,17 @@ class _TransactionFilters extends StatelessWidget {
     required this.onFilter,
     required this.pendingOnly,
     required this.onPending,
+    required this.tags,
+    required this.tagId,
+    required this.onTag,
   });
   final TransactionType? filter;
   final ValueChanged<TransactionType?> onFilter;
   final bool pendingOnly;
   final ValueChanged<bool> onPending;
+  final List<Tag> tags;
+  final String? tagId;
+  final ValueChanged<String?> onTag;
   @override
   Widget build(BuildContext context) => Wrap(
         spacing: OrganizaDesignTokens.of(context).spaceSm,
@@ -619,6 +642,18 @@ class _TransactionFilters extends StatelessWidget {
               label: const Text('Pendentes'),
               selected: pendingOnly,
               onSelected: onPending),
+          if (tags.isNotEmpty)
+            DropdownButton<String?>(
+              value: tagId,
+              hint: const Text('Filtrar por tag'),
+              items: [
+                const DropdownMenuItem<String?>(
+                    value: null, child: Text('Todas as tags')),
+                ...tags.map((tag) => DropdownMenuItem<String?>(
+                    value: tag.id, child: Text(tag.name))),
+              ],
+              onChanged: onTag,
+            ),
         ],
       );
 }

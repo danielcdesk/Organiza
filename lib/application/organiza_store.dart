@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:clock/clock.dart';
+
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
@@ -11,6 +12,7 @@ import '../domain/financial_rules.dart';
 import '../domain/card_invoice_rules.dart';
 import '../domain/credit_card_rules.dart';
 import '../domain/models.dart';
+import '../services/attachment_storage_service.dart';
 import '../services/backup_service.dart';
 import '../services/backup_coordinator.dart';
 import '../services/app_storage_paths.dart';
@@ -49,6 +51,9 @@ class OrganizaStore extends ChangeNotifier {
   }
 
   List<Account> accounts = [];
+  List<Tag> tags = [];
+  Map<String, List<Tag>> transactionTagsById = const {};
+  Map<String, List<Attachment>> attachmentsByTransactionId = const {};
   List<Account> get activeAccounts => List.unmodifiable(
       accounts.where((account) => account.archivedAt == null));
   Map<String, int> get accountBalancesByCurrencyForNetWorth =>
@@ -330,6 +335,12 @@ class OrganizaStore extends ChangeNotifier {
   void reload() {
     accounts = _repository.loadAccounts();
     transactions = _repository.loadTransactions();
+    tags = _repository.loadTags();
+    transactionTagsById = _repository.loadAllTransactionTags();
+    attachmentsByTransactionId = {
+      for (final transaction in transactions)
+        transaction.id: _repository.loadAttachments(transaction.id),
+    };
     salarySchedules = _repository.loadSalarySchedules();
     _materializeDueSalaries();
     tasks = _repository.loadTasks();
@@ -685,6 +696,118 @@ class OrganizaStore extends ChangeNotifier {
           cleanInstitutionName?.isEmpty == true ? null : cleanInstitutionName,
       customIconKey: customIconKey,
     ));
+    reload();
+  }
+
+  Tag createTag(String name, {int? colorValue}) {
+    final cleanName = name.trim();
+    if (cleanName.isEmpty || cleanName.length > 80) {
+      throw ArgumentError('O nome da tag deve ter entre 1 e 80 caracteres.');
+    }
+    if (colorValue != null && (colorValue < 0 || colorValue > 0xFFFFFFFF)) {
+      throw ArgumentError('A cor da tag é inválida.');
+    }
+    if (tags.any((tag) => tag.name.toLowerCase() == cleanName.toLowerCase())) {
+      throw ArgumentError('Já existe uma tag com esse nome.');
+    }
+    final tag = Tag(
+      id: _id(),
+      name: cleanName,
+      colorValue: colorValue,
+      createdAt: _now,
+    );
+    _repository.insertTag(tag);
+    reload();
+    return tags.firstWhere((item) => item.id == tag.id);
+  }
+
+  void updateTag({required String id, required String name, int? colorValue}) {
+    final existing = tags.where((tag) => tag.id == id).firstOrNull;
+    if (existing == null) throw ArgumentError('Tag não encontrada.');
+    final cleanName = name.trim();
+    if (cleanName.isEmpty || cleanName.length > 80) {
+      throw ArgumentError('O nome da tag deve ter entre 1 e 80 caracteres.');
+    }
+    if (colorValue != null && (colorValue < 0 || colorValue > 0xFFFFFFFF)) {
+      throw ArgumentError('A cor da tag é inválida.');
+    }
+    if (tags.any((tag) =>
+        tag.id != id && tag.name.toLowerCase() == cleanName.toLowerCase())) {
+      throw ArgumentError('Já existe uma tag com esse nome.');
+    }
+    _repository.updateTag(Tag(
+      id: id,
+      name: cleanName,
+      colorValue: colorValue,
+      createdAt: existing.createdAt,
+    ));
+    reload();
+  }
+
+  void deleteTag(String id) {
+    if (tags.every((tag) => tag.id != id)) {
+      throw ArgumentError('Tag não encontrada.');
+    }
+    if (!_repository.deleteTag(id)) {
+      throw StateError('Não foi possível excluir a tag.');
+    }
+    reload();
+  }
+
+  List<Tag> tagsForTransaction(String transactionId) =>
+      transactionTagsById[transactionId] ?? const [];
+
+  void setTransactionTags(String transactionId, Set<String> tagIds) {
+    if (transactions.every((transaction) => transaction.id != transactionId)) {
+      throw ArgumentError('Lançamento não encontrado.');
+    }
+    if (tagIds.any((id) => tags.every((tag) => tag.id != id))) {
+      throw ArgumentError('Uma ou mais tags não existem.');
+    }
+    _repository.setTransactionTags(transactionId, tagIds);
+    reload();
+  }
+
+  List<Attachment> attachmentsForTransaction(String transactionId) =>
+      attachmentsByTransactionId[transactionId] ?? const [];
+
+  Future<Attachment?> addAttachment(String transactionId,
+      {AttachmentStorageService storage =
+          const AttachmentStorageService()}) async {
+    if (transactions.every((item) => item.id != transactionId)) {
+      throw ArgumentError('Lançamento não encontrado.');
+    }
+    final stored = await storage.pickAndStore();
+    if (stored == null) return null;
+    final attachment = Attachment(
+      id: _id(),
+      transactionId: transactionId,
+      relativePath: stored.relativePath,
+      mimeType: stored.mimeType,
+      sizeBytes: stored.sizeBytes,
+      sha256: stored.sha256,
+      createdAt: _now,
+    );
+    try {
+      _repository.insertAttachment(attachment);
+    } catch (_) {
+      await storage.delete(stored.relativePath);
+      rethrow;
+    }
+    reload();
+    return attachment;
+  }
+
+  Future<void> removeAttachment(String id,
+      {AttachmentStorageService storage =
+          const AttachmentStorageService()}) async {
+    final relativePath = _repository.deleteAttachment(id);
+    if (relativePath == null) throw ArgumentError('Anexo não encontrado.');
+    try {
+      await storage.delete(relativePath);
+    } on FileSystemException {
+      // Metadata is authoritative; an undeletable private orphan is not exposed.
+    }
     reload();
   }
 
@@ -1469,7 +1592,7 @@ class OrganizaStore extends ChangeNotifier {
   }
 
   void updateTransaction(TransactionRecord updated,
-      {bool applyToFuture = false}) {
+      {bool applyToFuture = false, Set<String>? tagIds}) {
     final previous =
         transactions.where((item) => item.id == updated.id).firstOrNull;
     if (previous == null) throw ArgumentError('Lançamento não encontrado.');
@@ -1492,6 +1615,10 @@ class OrganizaStore extends ChangeNotifier {
                 activeAccounts.every((account) =>
                     account.id != updated.destinationAccountId)))) {
       throw ArgumentError('Escolha uma conta de destino diferente.');
+    }
+    if (tagIds != null &&
+        tagIds.any((id) => tags.every((tag) => tag.id != id))) {
+      throw ArgumentError('Uma ou mais tags não existem.');
     }
     final description = updated.description.trim().isEmpty
         ? (updated.subcategory == 'Geral'
@@ -1541,6 +1668,7 @@ class OrganizaStore extends ChangeNotifier {
           isSettled:
               item.id == previous.id ? updated.isSettled : item.isSettled,
         ));
+        if (tagIds != null) _repository.setTransactionTags(item.id, tagIds);
       }
     });
     reload();

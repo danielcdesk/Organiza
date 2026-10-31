@@ -15,12 +15,14 @@ class PreparedBackup {
   const PreparedBackup({
     this.database,
     this.images,
+    this.attachments,
     this.manifest = const {},
     this.legacySnapshot,
   });
 
   final File? database;
   final Directory? images;
+  final Directory? attachments;
   final Map<String, dynamic> manifest;
   final Map<String, dynamic>? legacySnapshot;
   bool get isLegacy => legacySnapshot != null;
@@ -40,6 +42,9 @@ class BackupArchiveService {
   static final _imageName = RegExp(
       r'^[A-Za-z0-9][A-Za-z0-9._-]{0,199}\.(jpg|jpeg|png|webp|gif)$',
       caseSensitive: false);
+  static final _attachmentName = RegExp(
+      r'^[A-Za-z0-9][A-Za-z0-9._-]{0,199}\.(jpg|jpeg|png|webp|gif|pdf)$',
+      caseSensitive: false);
   static final _reservedName = RegExp(
       r'^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\.|$)',
       caseSensitive: false);
@@ -47,6 +52,7 @@ class BackupArchiveService {
   Future<File> export({
     required File database,
     required Directory imageDirectory,
+    Directory? attachmentDirectory,
     required Map<String, int> tableCounts,
     required int schemaVersion,
     required String password,
@@ -96,6 +102,41 @@ class BackupArchiveService {
         total += files[name]!.length;
       }
     }
+    if (attachmentDirectory != null && await attachmentDirectory.exists()) {
+      if (await FileSystemEntity.type(attachmentDirectory.path,
+              followLinks: false) !=
+          FileSystemEntityType.directory) {
+        throw const FormatException('A pasta de anexos deve ser privada.');
+      }
+      await for (final entity in attachmentDirectory.list(followLinks: false)) {
+        final name = 'attachments/${path.basename(entity.path)}';
+        _entryLimit(name);
+        if (entity is! File ||
+            await FileSystemEntity.type(entity.path, followLinks: false) !=
+                FileSystemEntityType.file) {
+          throw const FormatException(
+              'A pasta de anexos contém entrada inválida.');
+        }
+        if (files.keys.any((key) => key.toLowerCase() == name.toLowerCase())) {
+          throw const FormatException('Nomes de anexos duplicados.');
+        }
+        if (files.length + 2 > maxEntries) {
+          throw const FormatException('O backup contém arquivos demais.');
+        }
+        final length = await entity.length();
+        if (length <= 0 ||
+            length > maxImageBytes ||
+            total + length > maxTotalBytes - maxManifestBytes) {
+          throw const FormatException('O backup excede o limite de tamanho.');
+        }
+        files[name] = await _readBounded(entity, maxImageBytes);
+        total += files[name]!.length;
+      }
+    }
+    final imageCount =
+        files.keys.where((name) => name.startsWith('images/')).length;
+    final attachmentCount =
+        files.keys.where((name) => name.startsWith('attachments/')).length;
     final descriptions = <String, Object?>{};
     for (final name in files.keys.toList()..sort()) {
       final bytes = files[name]!;
@@ -111,7 +152,8 @@ class BackupArchiveService {
       'schemaVersion': schemaVersion,
       'createdAt': createdAt.toUtc().toIso8601String(),
       'tableCounts': tableCounts,
-      'imageCount': files.length - 1,
+      'imageCount': imageCount,
+      'attachmentCount': attachmentCount,
       'fileCount': files.length,
       'files': descriptions,
     };
@@ -138,7 +180,10 @@ class BackupArchiveService {
     if (path.equals(
             path.absolute(database.path), path.absolute(destination.path)) ||
         path.isWithin(path.absolute(imageDirectory.path),
-            path.absolute(destination.path))) {
+            path.absolute(destination.path)) ||
+        (attachmentDirectory != null &&
+            path.isWithin(path.absolute(attachmentDirectory.path),
+                path.absolute(destination.path)))) {
       throw const FormatException(
           'Escolha um destino separado dos dados do aplicativo.');
     }
@@ -183,7 +228,9 @@ class BackupArchiveService {
     final working = await staging.createTemp('organiza-backup-');
     try {
       final images = Directory(path.join(working.path, 'images'));
+      final attachments = Directory(path.join(working.path, 'attachments'));
       await images.create();
+      await attachments.create();
       for (final entry in files.entries) {
         await File(path.joinAll([working.path, ...entry.key.split('/')]))
             .writeAsBytes(entry.value, flush: true);
@@ -191,6 +238,7 @@ class BackupArchiveService {
       return PreparedBackup(
           database: File(path.join(working.path, 'organiza.db')),
           images: images,
+          attachments: attachments,
           manifest: Map.unmodifiable(decodedManifest));
     } catch (_) {
       await working.delete(recursive: true);
@@ -247,7 +295,15 @@ class BackupArchiveService {
         descriptions is! Map<String, dynamic> ||
         descriptions.length != files.length ||
         manifest['fileCount'] != files.length ||
-        manifest['imageCount'] != files.length - 1) {
+        manifest['imageCount'] !=
+            files.keys.where((name) => name.startsWith('images/')).length ||
+        (manifest.containsKey('attachmentCount') &&
+            manifest['attachmentCount'] !=
+                files.keys
+                    .where((name) => name.startsWith('attachments/'))
+                    .length) ||
+        files.keys.any((name) => name.startsWith('attachments/')) &&
+            !manifest.containsKey('attachmentCount')) {
       throw const FormatException('Metadados do manifesto inválidos.');
     }
     _validateCounts(manifest['tableCounts']);
@@ -302,6 +358,13 @@ class BackupArchiveService {
     if (name.startsWith('images/') && name.split('/').length == 2) {
       final filename = name.substring(7);
       if (_imageName.hasMatch(filename) && !_reservedName.hasMatch(filename)) {
+        return maxImageBytes;
+      }
+    }
+    if (name.startsWith('attachments/') && name.split('/').length == 2) {
+      final filename = name.substring(12);
+      if (_attachmentName.hasMatch(filename) &&
+          !_reservedName.hasMatch(filename)) {
         return maxImageBytes;
       }
     }

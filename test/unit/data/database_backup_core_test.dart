@@ -61,7 +61,7 @@ void main() {
     expect(copied.loadPreference('theme'), 'light');
     expect(_balance(copied), 88000);
     expect(copied.filePath, destination.absolute.path);
-    expect(AppDatabase.currentSchemaVersion, 20);
+    expect(AppDatabase.currentSchemaVersion, 21);
     await expectLater(
       database.createConsistentCopy(file),
       throwsArgumentError,

@@ -71,3 +71,7 @@ Schema 19, filtros de tombstones nas dez entidades, snapshot/restore que preserv
 ## Fase 2.4 — tipo e ciclo de vida das contas (CI verde)
 
 Schema 20 adiciona tipo de conta, moeda BRL reservada, arquivamento reversível e opção de inclusão patrimonial. Migração mantém saldos e vínculos; contas arquivadas ficam fora dos seletores de novos movimentos, preservando histórico. Patrimônio é agrupado por moeda, sem conversão. Análise limpa, 203 testes aprovados com 74,78% de cobertura, integração Windows 2/2 e revisão independente sem achados críticos/importantes. PR draft #7, CI run 41150382909 passou em Windows/Ubuntu/Android. Ver `RELATORIO_FASE_2_4.md`.
+
+## Fase 2.5 — tags e anexos (validação local concluída; PR/CI pendentes)
+
+Schema 21 adiciona tags reutilizáveis, vínculos transacionais e metadados dos anexos. UI oferece CRUD/seleção/filtro por tag e gestão de anexos; arquivos permitidos ficam na pasta privada e entram no backup v2. Revisão independente concluída com correções incorporadas. Análise limpa, suíte com 218 testes e 74,73% de cobertura; integração Windows 2/2. PR draft #8, CI run 41153807299 verde em Windows/Ubuntu/Android. Relatório: `RELATORIO_FASE_2_5.md`.

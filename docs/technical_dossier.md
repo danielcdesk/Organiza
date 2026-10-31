@@ -548,3 +548,11 @@ Leituras normais das dez entidades excluem `deleted_at IS NOT NULL`; snapshots e
 A migração 19→20 adiciona a `accounts` o tipo restrito a `checking`, `savings`, `wallet`, `investment` ou `other`, `archived_at`, `include_in_net_worth` (padrão 1) e `currency` (padrão `BRL`). Contas existentes tornam-se correntes, ativas, incluídas no patrimônio e em BRL sem recalcular saldo nem alterar transações. O backup validado anterior à migração usa o sufixo `.pre-v20.bak`.
 
 Arquivar é estado reversível, separado de `deleted_at`: a conta continua na tela e mantém saldo e histórico, mas deixa de ser opção para novos lançamentos, transferências e pagamentos de fatura. A conta com salário recorrente ativo só pode ser arquivada após cancelar a agenda. A edição histórica pode conservar a conta arquivada já vinculada. A inclusão patrimonial é independente do arquivamento e não altera caixa. Saldos patrimoniais são agrupados por código de moeda; nenhuma conversão ou soma entre moedas é feita. A interface ainda cria contas em BRL.
+
+## 22. Schema 21 — tags e anexos privados (Fase 2.5)
+
+A migração 20→21 cria `tags` com nome único sem distinção ASCII de maiúsculas, `transaction_tags` com chaves estrangeiras em cascata e `attachments` com metadados e limite SQL `size_bytes > 0`. Os vínculos de tag e metadados de anexo acompanham snapshots; exclusão lógica de transação preserva ambos para restauração.
+
+Os arquivos são copiados para `attachments/` na raiz privada do app usando nomes UUID. O caminho armazenado é relativo e limitado a um único arquivo dentro dessa pasta; symlinks, travessia de diretório, extensões fora da lista e assinaturas que não correspondem ao MIME são recusados. JPG/JPEG, PNG, WEBP, GIF e PDF são aceitos até 10 MiB cada. SHA-256 e tamanho são verificados ao abrir uma imagem.
+
+O backup ZIP criptografado v2 leva entradas `attachments/`, hashes e `attachmentCount`. Manifestos v2 antigos sem essa propriedade continuam válidos quando não contêm anexos. Exportação e restauração preservam arquivos locais; conflitos de mesmo nome com bytes diferentes abortam a confirmação antes da troca do banco.

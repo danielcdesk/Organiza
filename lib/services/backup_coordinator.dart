@@ -6,16 +6,20 @@ import 'package:path/path.dart' as path;
 
 import '../data/local_repository.dart';
 import '../database/app_database.dart';
+import '../domain/models.dart';
 import 'app_storage_paths.dart';
+import 'attachment_storage_service.dart';
 import 'backup_archive_service.dart';
 
 /// A validated candidate remains private until the user confirms replacement.
 class BackupPreview {
-  BackupPreview._(this._folder, this.database, this.images, this.manifest);
+  BackupPreview._(this._folder, this.database, this.images, this.attachments,
+      this.manifest);
 
   final Directory _folder;
   final File database;
   final Directory? images;
+  final Directory? attachments;
   final Map<String, dynamic> manifest;
 
   Map<String, int> get counts => (manifest['tableCounts'] as Map)
@@ -43,15 +47,44 @@ class BackupCoordinator {
       final copiedDatabase = AppDatabase.openFile(copy, migrate: false);
       late final Map<String, int> counts;
       late final int version;
+      late final List<Attachment> attachments;
       try {
         counts = copiedDatabase.tableCounts;
         version = copiedDatabase.schemaVersion;
+        attachments =
+            version >= 21 ? copiedDatabase.loadAllAttachments() : const [];
       } finally {
         copiedDatabase.close();
+      }
+      final attachmentExport =
+          Directory(path.join(scratch.path, 'attachments'));
+      await attachmentExport.create();
+      const storage = AttachmentStorageService();
+      final seenReferences = <String>{};
+      for (final attachment in attachments) {
+        if (!seenReferences.add(attachment.relativePath.toLowerCase())) {
+          throw const FormatException(
+              'Mais de um registro aponta para o mesmo arquivo.');
+        }
+        final bytes = await storage.readVerified(
+          relativePath: attachment.relativePath,
+          sizeBytes: attachment.sizeBytes,
+          sha256: attachment.sha256,
+          mimeType: attachment.mimeType,
+        );
+        final filename = path.basename(attachment.relativePath);
+        await File(path.join(attachmentExport.path, filename))
+            .writeAsBytes(bytes, flush: true);
+      }
+      if (path.isWithin(AppStoragePaths.attachmentDirectory.path,
+          path.absolute(destination.path))) {
+        throw const FormatException(
+            'Escolha um destino separado dos dados do aplicativo.');
       }
       return await _archive.export(
         database: copy,
         imageDirectory: AppStoragePaths.imageDirectory,
+        attachmentDirectory: attachmentExport,
         tableCounts: counts,
         schemaVersion: version,
         password: password,
@@ -93,6 +126,39 @@ class BackupCoordinator {
             throw const FormatException(
                 'Versão do banco não confere com o manifesto.');
           }
+          if (raw.schemaVersion >= 21) {
+            const storage = AttachmentStorageService();
+            final metadata = raw.loadAllAttachments();
+            final names = <String>{};
+            for (final attachment in metadata) {
+              final segments = attachment.relativePath.split('/');
+              if (segments.length != 2 ||
+                  segments.first != 'attachments' ||
+                  !RegExp(r'^[A-Za-z0-9][A-Za-z0-9._-]{0,199}\.(jpg|jpeg|png|webp|gif|pdf)$',
+                          caseSensitive: false)
+                      .hasMatch(segments.last) ||
+                  !names.add(segments.last.toLowerCase())) {
+                throw const FormatException(
+                    'Referência de anexo inválida no banco.');
+              }
+              await storage.verifyFile(
+                File(path.join(prepared.attachments!.path, segments.last)),
+                sizeBytes: attachment.sizeBytes,
+                sha256: attachment.sha256,
+                mimeType: attachment.mimeType,
+              );
+            }
+            final stagedNames = await prepared.attachments!
+                .list()
+                .map((entity) => path.basename(entity.path))
+                .toList();
+            if (stagedNames.length != names.length ||
+                stagedNames
+                    .any((name) => !names.contains(name.toLowerCase()))) {
+              throw const FormatException(
+                  'Os arquivos anexos não correspondem ao banco.');
+            }
+          }
         } finally {
           raw.close();
         }
@@ -104,8 +170,8 @@ class BackupCoordinator {
           staged.close();
         }
       }
-      return BackupPreview._(
-          scratch, candidate, prepared.images, prepared.manifest);
+      return BackupPreview._(scratch, candidate, prepared.images,
+          prepared.attachments, prepared.manifest);
     } catch (_) {
       if (await scratch.exists()) await scratch.delete(recursive: true);
       rethrow;
@@ -126,6 +192,8 @@ class BackupCoordinator {
     if (await replacement.exists()) await replacement.delete();
     if (await safety.exists()) await safety.delete();
     await _repository.createConsistentCopy(safety);
+    final installedAttachments = <File>[];
+    var databaseReplaced = false;
     try {
       if (preview.images != null) {
         await for (final entity in preview.images!.list(followLinks: false)) {
@@ -144,6 +212,45 @@ class BackupCoordinator {
           }
         }
       }
+      if (preview.attachments != null) {
+        await AppStoragePaths.attachmentDirectory.create(recursive: true);
+        final incoming = <(File, File)>[];
+        await for (final entity
+            in preview.attachments!.list(followLinks: false)) {
+          if (entity is! File ||
+              await FileSystemEntity.type(entity.path, followLinks: false) !=
+                  FileSystemEntityType.file) {
+            throw const FormatException('Entrada inválida na pasta de anexos.');
+          }
+          final target = File(path.join(
+              AppStoragePaths.attachmentDirectory.path,
+              path.basename(entity.path)));
+          final type =
+              await FileSystemEntity.type(target.path, followLinks: false);
+          if (type == FileSystemEntityType.link) {
+            throw const FormatException(
+                'O destino do anexo não pode ser um link.');
+          }
+          if (type == FileSystemEntityType.file) {
+            final old = await target.readAsBytes();
+            final incoming = await entity.readAsBytes();
+            if (!_sameBytes(old, incoming)) {
+              throw const FormatException(
+                  'Conflito de nome entre anexos locais.');
+            }
+          } else if (type == FileSystemEntityType.notFound) {
+            incoming.add((entity, target));
+          } else {
+            throw const FormatException(
+                'O destino do anexo não é um arquivo regular.');
+          }
+        }
+        for (final (source, target) in incoming) {
+          await target.create(exclusive: true);
+          installedAttachments.add(target);
+          await target.writeAsBytes(await source.readAsBytes(), flush: true);
+        }
+      }
       await preview.database.copy(replacement.path);
       final check = AppDatabase.openFile(replacement);
       try {
@@ -159,12 +266,18 @@ class BackupCoordinator {
               'Outro acesso mantém o banco aberto; restauração cancelada.');
         }
         await _replaceFile(replacement, live);
+        databaseReplaced = true;
       } finally {
         _repository.reopenAfterReplacement();
       }
       return safety;
     } finally {
       if (await replacement.exists()) await replacement.delete();
+      if (!databaseReplaced) {
+        for (final file in installedAttachments.reversed) {
+          if (await file.exists()) await file.delete();
+        }
+      }
       await preview.dispose();
     }
   }

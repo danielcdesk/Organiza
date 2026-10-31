@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../domain/models.dart';
+import '../application/organiza_store.dart';
 import 'shared_widgets.dart';
 import '../services/local_image_service.dart';
+import '../services/attachment_storage_service.dart';
 
 class AccountInput {
   const AccountInput({
@@ -32,17 +34,40 @@ class TransactionEditDialog extends StatefulWidget {
     required this.accounts,
     required this.categories,
     required this.subcategories,
+    this.tags = const [],
+    this.selectedTagIds = const {},
+    this.onManageTags,
   });
   final Clock clock;
   final TransactionRecord item;
   final List<Account> accounts;
   final List<FinanceCategory> categories;
   final List<FinanceSubcategory> subcategories;
+  final List<Tag> tags;
+  final Set<String> selectedTagIds;
+  final Future<List<Tag>> Function()? onManageTags;
   @override
   State<TransactionEditDialog> createState() => _TransactionEditDialogState();
 }
 
 class _TransactionEditDialogState extends State<TransactionEditDialog> {
+  late final Set<String> _tagIds = {...widget.selectedTagIds};
+  late List<Tag> _availableTags = [...widget.tags];
+
+  Future<void> _manageTags() async {
+    final reload = widget.onManageTags;
+    if (reload == null) {
+      return;
+    }
+    final tags = await reload();
+    if (mounted) {
+      setState(() {
+        _availableTags = tags;
+        _tagIds.removeWhere((id) => tags.every((tag) => tag.id != id));
+      });
+    }
+  }
+
   late var _type = widget.item.type;
   late var _accountId = widget.item.accountId;
   late String? _destinationId = widget.item.destinationAccountId;
@@ -149,6 +174,31 @@ class _TransactionEditDialogState extends State<TransactionEditDialog> {
                   controller: _description,
                   decoration:
                       const InputDecoration(labelText: 'Descrição (opcional)')),
+              const SizedBox(height: 10),
+              Row(children: [
+                const Expanded(child: Text('Tags')),
+                TextButton(
+                    onPressed: _manageTags, child: const Text('Gerenciar')),
+              ]),
+              if (_availableTags.isEmpty)
+                const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text('Nenhuma tag criada.'))
+              else
+                Wrap(spacing: 6, runSpacing: 2, children: [
+                  for (final tag in _availableTags)
+                    FilterChip(
+                      label: Text(tag.name),
+                      selected: _tagIds.contains(tag.id),
+                      onSelected: (selected) => setState(() {
+                        if (selected) {
+                          _tagIds.add(tag.id);
+                        } else {
+                          _tagIds.remove(tag.id);
+                        }
+                      }),
+                    ),
+                ]),
               if (_type != TransactionType.transfer) ...[
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
@@ -222,27 +272,29 @@ class _TransactionEditDialogState extends State<TransactionEditDialog> {
                 }
                 Navigator.pop(
                   context,
-                  TransactionRecord(
-                    id: widget.item.id,
-                    accountId: _accountId,
-                    destinationAccountId: _destinationId,
-                    type: _type,
-                    amountInCents: cents,
-                    description: _description.text.trim(),
-                    occurredOn: _occurredOn,
-                    createdAt: widget.item.createdAt,
-                    category: _type == TransactionType.transfer
-                        ? 'Transferência'
-                        : _category,
-                    subcategory: _type == TransactionType.transfer
-                        ? 'Entre contas'
-                        : _subcategory,
-                    scheduleType: widget.item.scheduleType,
-                    seriesId: widget.item.seriesId,
-                    installmentNumber: widget.item.installmentNumber,
-                    installmentCount: widget.item.installmentCount,
-                    isSettled: _isSettled,
-                  ),
+                  TransactionEditResult(
+                      TransactionRecord(
+                        id: widget.item.id,
+                        accountId: _accountId,
+                        destinationAccountId: _destinationId,
+                        type: _type,
+                        amountInCents: cents,
+                        description: _description.text.trim(),
+                        occurredOn: _occurredOn,
+                        createdAt: widget.item.createdAt,
+                        category: _type == TransactionType.transfer
+                            ? 'Transferência'
+                            : _category,
+                        subcategory: _type == TransactionType.transfer
+                            ? 'Entre contas'
+                            : _subcategory,
+                        scheduleType: widget.item.scheduleType,
+                        seriesId: widget.item.seriesId,
+                        installmentNumber: widget.item.installmentNumber,
+                        installmentCount: widget.item.installmentCount,
+                        isSettled: _isSettled,
+                      ),
+                      Set.unmodifiable(_tagIds)),
                 );
               },
               child: const Text('Salvar alteração'))
@@ -301,6 +353,226 @@ class _TransactionEditDialogState extends State<TransactionEditDialog> {
     );
     if (selected != null && mounted) setState(() => _occurredOn = selected);
   }
+}
+
+class TransactionEditResult {
+  const TransactionEditResult(this.transaction, this.tagIds);
+  final TransactionRecord transaction;
+  final Set<String> tagIds;
+}
+
+class TagManagerDialog extends StatefulWidget {
+  const TagManagerDialog({super.key, required this.store});
+  final OrganizaStore store;
+  @override
+  State<TagManagerDialog> createState() => _TagManagerDialogState();
+}
+
+class _TagManagerDialogState extends State<TagManagerDialog> {
+  static const _colors = <int?>[
+    null,
+    0xFFB45309,
+    0xFF0F766E,
+    0xFF4338CA,
+    0xFFBE185D,
+    0xFF374151,
+  ];
+
+  Future<void> _edit([Tag? tag]) async {
+    final controller = TextEditingController(text: tag?.name ?? '');
+    var selectedColor = tag?.colorValue;
+    final colors = [
+      ..._colors,
+      if (selectedColor != null && !_colors.contains(selectedColor))
+        selectedColor,
+    ];
+    final result = await showDialog<(String, int?)>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(tag == null ? 'Nova tag' : 'Editar tag'),
+          content: Column(mainAxisSize: MainAxisSize.min, children: [
+            TextField(
+              controller: controller,
+              autofocus: true,
+              maxLength: 80,
+              decoration: const InputDecoration(labelText: 'Nome'),
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<int?>(
+              initialValue: selectedColor,
+              decoration: const InputDecoration(labelText: 'Cor'),
+              items: colors
+                  .map((color) => DropdownMenuItem<int?>(
+                        value: color,
+                        child: Row(children: [
+                          CircleAvatar(
+                              radius: 8,
+                              backgroundColor: color == null
+                                  ? Colors.transparent
+                                  : Color(color)),
+                          const SizedBox(width: 8),
+                          Text(color == null
+                              ? 'Padrão'
+                              : color == tag?.colorValue &&
+                                      !_colors.contains(color)
+                                  ? 'Cor atual'
+                                  : 'Cor ${colors.indexOf(color)}'),
+                        ]),
+                      ))
+                  .toList(),
+              onChanged: (value) => setDialogState(() => selectedColor = value),
+            ),
+          ]),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancelar')),
+            FilledButton(
+                onPressed: () =>
+                    Navigator.pop(context, (controller.text, selectedColor)),
+                child: const Text('Salvar')),
+          ],
+        ),
+      ),
+    );
+    controller.dispose();
+    if (result == null || !mounted) return;
+    try {
+      if (tag == null) {
+        widget.store.createTag(result.$1, colorValue: result.$2);
+      } else {
+        widget.store
+            .updateTag(id: tag.id, name: result.$1, colorValue: result.$2);
+      }
+      setState(() {});
+    } on ArgumentError catch (e) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(e.message.toString())));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        title: const Text('Gerenciar tags'),
+        content: SizedBox(
+            width: 420,
+            child: ListView(shrinkWrap: true, children: [
+              for (final tag in widget.store.tags)
+                ListTile(
+                    title: Text(tag.name),
+                    trailing: Wrap(children: [
+                      IconButton(
+                          tooltip: 'Renomear',
+                          onPressed: () => _edit(tag),
+                          icon: const Icon(Icons.edit_outlined)),
+                      IconButton(
+                          tooltip: 'Excluir',
+                          onPressed: () {
+                            widget.store.deleteTag(tag.id);
+                            setState(() {});
+                          },
+                          icon: const Icon(Icons.delete_outline)),
+                    ])),
+              OutlinedButton.icon(
+                  onPressed: () => _edit(),
+                  icon: const Icon(Icons.add),
+                  label: const Text('Nova tag')),
+            ])),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Concluir'))
+        ],
+      );
+}
+
+class AttachmentManagerDialog extends StatefulWidget {
+  const AttachmentManagerDialog(
+      {super.key, required this.store, required this.transaction});
+  final OrganizaStore store;
+  final TransactionRecord transaction;
+  @override
+  State<AttachmentManagerDialog> createState() =>
+      _AttachmentManagerDialogState();
+}
+
+class _AttachmentManagerDialogState extends State<AttachmentManagerDialog> {
+  var _busy = false;
+  Future<void> _add() async {
+    setState(() => _busy = true);
+    try {
+      await widget.store.addAttachment(widget.transaction.id);
+      if (mounted) setState(() {});
+    } on FormatException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        title: const Text('Anexos do lançamento'),
+        content: SizedBox(
+            width: 440,
+            child: ListView(shrinkWrap: true, children: [
+              for (final attachment in widget.store
+                  .attachmentsForTransaction(widget.transaction.id))
+                ListTile(
+                  leading: attachment.mimeType.startsWith('image/')
+                      ? FutureBuilder<List<int>>(
+                          future: const AttachmentStorageService().readVerified(
+                            relativePath: attachment.relativePath,
+                            sizeBytes: attachment.sizeBytes,
+                            sha256: attachment.sha256,
+                            mimeType: attachment.mimeType,
+                          ),
+                          builder: (context, snapshot) => snapshot.hasData
+                              ? Image.memory(Uint8List.fromList(snapshot.data!),
+                                  width: 46, height: 46, fit: BoxFit.cover)
+                              : const SizedBox(
+                                  width: 46,
+                                  height: 46,
+                                  child: Icon(Icons.broken_image_outlined)),
+                        )
+                      : const Icon(Icons.picture_as_pdf_outlined),
+                  title: Text(attachment.relativePath.split('/').last,
+                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                  subtitle: Text(
+                      '${attachment.mimeType} · ${(attachment.sizeBytes / 1024).ceil()} KB'),
+                  trailing: IconButton(
+                      tooltip: 'Remover anexo',
+                      icon: const Icon(Icons.delete_outline),
+                      onPressed: () async {
+                        await widget.store.removeAttachment(attachment.id);
+                        if (mounted) setState(() {});
+                      }),
+                ),
+              if (widget.store
+                  .attachmentsForTransaction(widget.transaction.id)
+                  .isEmpty)
+                const Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Text(
+                        'Nenhum anexo. Fotos e PDFs ficam armazenados em privado.')),
+              OutlinedButton.icon(
+                  onPressed: _busy ? null : _add,
+                  icon: const Icon(Icons.attach_file),
+                  label:
+                      Text(_busy ? 'Adicionando…' : 'Adicionar foto ou PDF')),
+              const Text('Máximo de 10 MiB por arquivo.',
+                  style: TextStyle(fontSize: 12)),
+            ])),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Concluir'))
+        ],
+      );
 }
 
 class AccountDialog extends StatefulWidget {

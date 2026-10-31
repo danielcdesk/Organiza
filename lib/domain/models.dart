@@ -74,6 +74,40 @@ class Account {
   final String currency;
 }
 
+class Tag {
+  const Tag({
+    required this.id,
+    required this.name,
+    this.colorValue,
+    required this.createdAt,
+  });
+
+  final String id;
+  final String name;
+  final int? colorValue;
+  final DateTime createdAt;
+}
+
+class Attachment {
+  const Attachment({
+    required this.id,
+    required this.transactionId,
+    required this.relativePath,
+    required this.mimeType,
+    required this.sizeBytes,
+    required this.sha256,
+    required this.createdAt,
+  });
+
+  final String id;
+  final String transactionId;
+  final String relativePath;
+  final String mimeType;
+  final int sizeBytes;
+  final String sha256;
+  final DateTime createdAt;
+}
+
 class TransactionRecord {
   const TransactionRecord({
     required this.id,

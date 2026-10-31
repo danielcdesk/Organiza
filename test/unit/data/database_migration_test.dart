@@ -74,7 +74,7 @@ void main() {
       createdAt: now,
     ));
 
-    expect(database.schemaVersion, 20);
+    expect(database.schemaVersion, 21);
     expect(database.schemaVersion, AppDatabase.currentSchemaVersion);
     expect(database.loadAccounts().single.name, 'Principal');
     expect(
@@ -138,7 +138,7 @@ void main() {
     expect(database.loadCardPurchases().single.paidInstallments, {2});
   });
 
-  test('migração schema 18 para 20 preserva dados e inicializa auditoria',
+  test('migração schema 18 para 21 preserva dados e inicializa auditoria',
       () async {
     final folder =
         await Directory.systemTemp.createTemp('organiza-soft-delete-');
@@ -232,8 +232,8 @@ void main() {
 
     final migrated = AppDatabase.openFile(file);
     addTearDown(migrated.close);
-    expect(migrated.schemaVersion, 20);
-    expect(migrated.tableCounts, countsBefore);
+    expect(migrated.schemaVersion, 21);
+    expect(migrated.tableCounts, _countsWithV21Tables(countsBefore));
     expect(
       FinancialRules.currentBalance(
           migrated.loadAccounts(), migrated.loadTransactions()),
@@ -258,7 +258,7 @@ void main() {
       expect(row['deleted_at'], isNull, reason: table);
     }
     migrated.validateIntegrity();
-    expect(File('${file.path}.pre-v20.bak').existsSync(), isTrue);
+    expect(File('${file.path}.pre-v21.bak').existsSync(), isTrue);
   });
 
   test('schema 19 inicializa e atualiza updated_at por triggers conhecidos',
@@ -295,8 +295,8 @@ void main() {
 
     final reopened = AppDatabase.openFile(file);
     addTearDown(reopened.close);
-    expect(reopened.schemaVersion, 20);
-    expect(reopened.tableCounts, countsBefore);
+    expect(reopened.schemaVersion, 21);
+    expect(reopened.tableCounts, _countsWithV21Tables(countsBefore));
 
     final raw = sqlite3.open(file.path);
     expect(
@@ -313,7 +313,7 @@ void main() {
     expect(reopened.validateIntegrity, throwsFormatException);
   });
 
-  test('migração schema 19 para 20 preenche campos de conta sem alterar saldo',
+  test('migração schema 19 para 21 preenche campos de conta sem alterar saldo',
       () async {
     final folder =
         await Directory.systemTemp.createTemp('organiza-account-v20-');
@@ -346,8 +346,8 @@ void main() {
     final migrated = AppDatabase.openFile(file);
     addTearDown(migrated.close);
 
-    expect(migrated.schemaVersion, 20);
-    expect(migrated.tableCounts, countsBefore);
+    expect(migrated.schemaVersion, 21);
+    expect(migrated.tableCounts, _countsWithV21Tables(countsBefore));
     expect(
       FinancialRules.currentBalance(
           migrated.loadAccounts(), migrated.loadTransactions()),
@@ -363,6 +363,13 @@ void main() {
     expect(accountRow['name'], 'Carteira histórica');
     expect(accountRow['institution'], 'nubank');
     migrated.validateIntegrity();
-    expect(File('${file.path}.pre-v20.bak').existsSync(), isTrue);
+    expect(File('${file.path}.pre-v21.bak').existsSync(), isTrue);
   });
 }
+
+Map<String, int> _countsWithV21Tables(Map<String, int> existing) => {
+      ...existing,
+      'tags': 0,
+      'transaction_tags': 0,
+      'attachments': 0,
+    };
