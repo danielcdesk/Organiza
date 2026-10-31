@@ -33,6 +33,13 @@ class AppStoragePaths {
           'A pasta de imagens não pode ser um link.');
     }
     await images.create(recursive: true);
+    final attachments = Directory(path.join(selected.path, 'attachments'));
+    if (FileSystemEntity.typeSync(attachments.path, followLinks: false) ==
+        FileSystemEntityType.link) {
+      throw const FileSystemException(
+          'A pasta de anexos não pode ser um link.');
+    }
+    await attachments.create(recursive: true);
     _rootDirectory = selected;
   }
 
@@ -42,6 +49,32 @@ class AppStoragePaths {
 
   static Directory get imageDirectory =>
       Directory(path.join(rootDirectory.path, 'images'));
+
+  static Directory get attachmentDirectory =>
+      Directory(path.join(rootDirectory.path, 'attachments'));
+
+  static File resolveAttachment(String reference) {
+    final segments = reference.split('/');
+    if (reference.isEmpty ||
+        reference.contains('\u0000') ||
+        reference.contains('\\') ||
+        segments.length != 2 ||
+        segments.first != 'attachments' ||
+        !RegExp(r'^[a-zA-Z0-9][a-zA-Z0-9._-]*$').hasMatch(segments.last) ||
+        segments.last == '.' ||
+        segments.last == '..') {
+      throw const FormatException('Referência de anexo inválida.');
+    }
+    final file = File(path.join(attachmentDirectory.path, segments.last));
+    if (FileSystemEntity.typeSync(attachmentDirectory.path,
+                followLinks: false) ==
+            FileSystemEntityType.link ||
+        FileSystemEntity.typeSync(file.path, followLinks: false) ==
+            FileSystemEntityType.link) {
+      throw const FormatException('Referência de anexo inválida.');
+    }
+    return file;
+  }
 
   /// Reads legacy absolute references until startup has imported their images.
   /// New references always consist of `images/<filename>` using POSIX slashes.

@@ -34,7 +34,8 @@ void main() {
   Future<List<int>> zipFixture(
       {Map<String, List<int>>? content,
       bool wrongHash = false,
-      int? imageCount}) async {
+      int? imageCount,
+      int? attachmentCount}) async {
     final entries = content ??
         {
           'organiza.db': [1, 2, 3],
@@ -61,6 +62,7 @@ void main() {
       'tableCounts': {'accounts': 1},
       'imageCount': imageCount ??
           entries.keys.where((name) => name.startsWith('images/')).length,
+      if (attachmentCount != null) 'attachmentCount': attachmentCount,
       'fileCount': entries.length,
       'files': files
     };
@@ -78,11 +80,17 @@ void main() {
       ..writeAsBytesSync([0, 255, 1, 2]);
     final images = Directory(path.join(temporary.path, 'source-images'))
       ..createSync();
+    final attachments =
+        Directory(path.join(temporary.path, 'source-attachments'))
+          ..createSync();
     File(path.join(images.path, 'photo.png')).writeAsBytesSync([9, 8, 7]);
+    File(path.join(attachments.path, 'receipt.pdf'))
+        .writeAsBytesSync('%PDF-1.7'.codeUnits);
     final destination = File(path.join(temporary.path, 'copy.organizabak'));
     await service.export(
         database: database,
         imageDirectory: images,
+        attachmentDirectory: attachments,
         tableCounts: {'accounts': 2},
         schemaVersion: 16,
         password: password,
@@ -99,9 +107,14 @@ void main() {
     expect(
         await File(path.join(prepared.images!.path, 'photo.png')).readAsBytes(),
         [9, 8, 7]);
+    expect(
+        await File(path.join(prepared.attachments!.path, 'receipt.pdf'))
+            .readAsBytes(),
+        '%PDF-1.7'.codeUnits);
     expect(prepared.manifest['tableCounts'], {'accounts': 2});
     expect(prepared.manifest['createdAt'], '2026-10-29T12:00:00.000Z');
     expect(prepared.manifest['imageCount'], 1);
+    expect(prepared.manifest['attachmentCount'], 1);
     expect((prepared.manifest['files'] as Map)['organiza.db'], {
       'size': 4,
       'sha256':
@@ -127,6 +140,38 @@ void main() {
         service.prepare(source, password, staging), throwsA(isA<Exception>()));
     expect(sentinel.readAsStringSync(), 'original');
     expect(staging.listSync(), hasLength(1));
+  });
+
+  test('valida anexo no ZIP e exige contagem correta', () async {
+    final entries = {
+      'organiza.db': [1, 2, 3],
+      'attachments/receipt.pdf': '%PDF-1.7'.codeUnits,
+    };
+    final good =
+        await protect(await zipFixture(content: entries, attachmentCount: 1));
+    final prepared = await service.prepare(good, password,
+        Directory(path.join(temporary.path, 'attachments-stage')));
+    expect(
+        await File(path.join(prepared.attachments!.path, 'receipt.pdf'))
+            .readAsBytes(),
+        '%PDF-1.7'.codeUnits);
+    final wrongCount = await protect(
+        await zipFixture(content: entries, attachmentCount: 0),
+        name: 'wrong-count.organizabak');
+    await expectLater(
+        service.prepare(wrongCount, password,
+            Directory(path.join(temporary.path, 'bad-stage'))),
+        throwsFormatException);
+    final wrongPath = await protect(
+        await zipFixture(content: {
+          'organiza.db': [1],
+          '../receipt.pdf': [1]
+        }, attachmentCount: 1),
+        name: 'wrong-path.organizabak');
+    await expectLater(
+        service.prepare(wrongPath, password,
+            Directory(path.join(temporary.path, 'path-stage'))),
+        throwsFormatException);
   });
 
   test('rejeita caminhos absolutos, travessia e arquivos fora do contrato',

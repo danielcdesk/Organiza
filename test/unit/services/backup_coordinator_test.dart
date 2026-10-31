@@ -47,9 +47,18 @@ void main() {
     ));
     repository.savePreference('profile_name', 'Antes');
     repository.savePreference('profile_photo_path', 'images/foto.png');
+    final tag = Tag(id: 'tag-casa', name: 'Casa', createdAt: DateTime(2026, 10, 1));
+    repository.insertTag(tag);
+    repository.setTransactionTags('compra', {tag.id});
+    final attachment = Attachment(id: 'anexo-recibo', transactionId: 'compra',
+      relativePath: 'attachments/recibo.pdf', mimeType: 'application/pdf',
+      sizeBytes: 8, sha256: '0' * 64, createdAt: DateTime(2026, 10, 2));
+    repository.insertAttachment(attachment);
     final image =
         File(path.join(AppStoragePaths.imageDirectory.path, 'foto.png'));
     await image.writeAsBytes([1, 2, 3]);
+    final receipt = File(path.join(AppStoragePaths.attachmentDirectory.path, 'recibo.pdf'));
+    await receipt.writeAsBytes('%PDF-1.7'.codeUnits);
     final archive = File(path.join(sandbox.path, 'backup.organizabak'));
     await backups.export('senha-segura', archive);
 
@@ -60,6 +69,7 @@ void main() {
       DateTime.utc(2026, 2, 3),
     );
     await image.delete();
+    await receipt.delete();
     final preview = await backups.prepare(archive, 'senha-segura');
     expect(preview.counts['app_settings'], greaterThan(0));
     expect(repository.loadPreference('profile_name'), 'Depois');
@@ -73,6 +83,9 @@ void main() {
         87655);
     expect(repository.loadPreference('profile_photo_path'), 'images/foto.png');
     expect(await image.readAsBytes(), [1, 2, 3]);
+    expect(await receipt.readAsBytes(), '%PDF-1.7'.codeUnits);
+    expect(repository.loadTransactionTags('compra').single.id, tag.id);
+    expect(repository.loadAttachments('compra').single.id, attachment.id);
   });
 
   test('senha errada não altera dados atuais', () async {

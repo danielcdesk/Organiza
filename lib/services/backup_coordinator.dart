@@ -11,11 +11,13 @@ import 'backup_archive_service.dart';
 
 /// A validated candidate remains private until the user confirms replacement.
 class BackupPreview {
-  BackupPreview._(this._folder, this.database, this.images, this.manifest);
+  BackupPreview._(this._folder, this.database, this.images, this.attachments,
+      this.manifest);
 
   final Directory _folder;
   final File database;
   final Directory? images;
+  final Directory? attachments;
   final Map<String, dynamic> manifest;
 
   Map<String, int> get counts => (manifest['tableCounts'] as Map)
@@ -52,6 +54,7 @@ class BackupCoordinator {
       return await _archive.export(
         database: copy,
         imageDirectory: AppStoragePaths.imageDirectory,
+        attachmentDirectory: AppStoragePaths.attachmentDirectory,
         tableCounts: counts,
         schemaVersion: version,
         password: password,
@@ -104,8 +107,8 @@ class BackupCoordinator {
           staged.close();
         }
       }
-      return BackupPreview._(
-          scratch, candidate, prepared.images, prepared.manifest);
+      return BackupPreview._(scratch, candidate, prepared.images,
+          prepared.attachments, prepared.manifest);
     } catch (_) {
       if (await scratch.exists()) await scratch.delete(recursive: true);
       rethrow;
@@ -138,6 +141,26 @@ class BackupCoordinator {
             if (!_sameBytes(old, incoming)) {
               throw const FormatException(
                   'Conflito de nome entre imagens locais.');
+            }
+          } else {
+            await entity.copy(target.path);
+          }
+        }
+      }
+      if (preview.attachments != null) {
+        await AppStoragePaths.attachmentDirectory.create(recursive: true);
+        await for (final entity
+            in preview.attachments!.list(followLinks: false)) {
+          if (entity is! File) continue;
+          final target = File(path.join(
+              AppStoragePaths.attachmentDirectory.path,
+              path.basename(entity.path)));
+          if (await target.exists()) {
+            final old = await target.readAsBytes();
+            final incoming = await entity.readAsBytes();
+            if (!_sameBytes(old, incoming)) {
+              throw const FormatException(
+                  'Conflito de nome entre anexos locais.');
             }
           } else {
             await entity.copy(target.path);
