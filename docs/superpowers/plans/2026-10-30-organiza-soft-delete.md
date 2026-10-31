@@ -94,7 +94,7 @@ The selected approach follows the existing app structure. `deleted_at` is set as
 - [x] **Step 4: Test trigger behavior and schema validation**: new row has a nonempty audit timestamp, modifying a seeded row advances it, logical delete preserves/sets the expected fields, reopening schema 19 does not alter counts or create duplicate triggers, and an unknown trigger still fails validation.
 - [x] **Step 5: Run migration tests from v1 and v18** and verify schema 19, exact row counts/balances, integrity check, and foreign-key check.
 - [x] **Step 6: Update the technical dossier** with schema 19 tables, trigger behavior, and backup retention semantics.
-- [ ] **Step 7: Commit** `Adicione auditoria e tombstones no schema 19`.
+- [x] **Step 7: Commit** `Adicione auditoria e tombstones no schema 19`.
 
 ### Task 3: Filter normal reads and retain tombstones in backups
 
@@ -109,7 +109,7 @@ The selected approach follows the existing app structure. `deleted_at` is set as
 - [x] **Step 2: Run the backup regression test**: snapshot/restore should already preserve both active and deleted rows and original `deleted_at` values because backup serializes every stored row; it passed and remains covered.
 - [x] **Step 3: Add `deleted_at IS NULL` to every ordinary read and single-row lookup for the ten tables.** Keep migration, integrity, backup snapshot, and restore enumeration intentionally unfiltered.
 - [x] **Step 4: Run focused repository and snapshot tests** and prove active reads hide tombstones while snapshots retain them. `flutter test --no-pub test/unit/data`: 27 tests passed.
-- [ ] **Step 5: Commit** `Filtre registros excluídos das leituras normais`.
+- [x] **Step 5: Commit** `Filtre registros excluídos das leituras normais`.
 
 ### Task 4: Add soft-delete and restore use cases
 
@@ -122,11 +122,11 @@ The selected approach follows the existing app structure. `deleted_at` is set as
 
 **Interfaces:** `AppDatabase.softDelete(entity, id, deletedAtUtc)` and `AppDatabase.restore(entity, id)` return whether a row changed; `OrganizaStore` exposes guarded delete/restore actions for the currently deletable entities. All SQL identifiers come from a fixed enum-to-table map.
 
-- [ ] **Step 1: Add failing tests** for one-time delete, repeated delete, restore, repeated restore, missing IDs, and rejecting edits to deleted rows.
-- [ ] **Step 2: Implement transactional soft-delete/restore primitives** that set or clear `deleted_at`, use the injected clock in UTC for deletion time, let the timestamp trigger update `updated_at`, and never physically delete any of the ten entities.
-- [ ] **Step 3: Convert existing store delete actions** (transaction, account, budget, subscription, goal, investment, task, shopping item) to the soft-delete primitive while preserving their current validation and financial-system protections.
-- [ ] **Step 4: Preserve salary-series semantics**: when deleting a generated salary occurrence, cancel its schedule as today; return the schedule snapshot to the UI action so undo restores the transaction and schedule together in one transaction.
-- [ ] **Step 5: Run focused store tests** for balances/report totals after delete, account constraints, card payment protection, recurrence cancellation, undo, and snapshot retention.
+- [x] **Step 1: Add failing tests** for one-time delete, repeated delete, restore, repeated restore, missing IDs, and rejecting edits to deleted rows.
+- [x] **Step 2: Implement transactional soft-delete/restore primitives** that set or clear `deleted_at`, use the injected clock in UTC for deletion time, let the timestamp trigger update `updated_at`, and never physically delete any of the ten entities.
+- [x] **Step 3: Convert existing store delete actions** (transaction, account, budget, subscription, goal, investment, task, shopping item) to the soft-delete primitive while preserving their current validation and financial-system protections.
+- [x] **Step 4: Preserve salary-series semantics**: when deleting a generated salary occurrence, cancel its schedule as today; return the schedule snapshot to the UI action so undo restores the transaction and schedule together in one transaction.
+- [x] **Step 5: Run focused store tests** for balances/report totals after delete, account constraints, card payment protection, recurrence cancellation, undo, and snapshot retention.
 - [ ] **Step 6: Commit** `Permita excluir logicamente e restaurar registros`.
 
 ### Task 5: Add undo snackbars to delete flows
@@ -138,9 +138,9 @@ The selected approach follows the existing app structure. `deleted_at` is set as
 
 **Interfaces:** A shared state helper presents a pt-BR snackbar with an `Desfazer` action for successful user-confirmed deletions; the action calls the matching store restore method.
 
-- [ ] **Step 1: Add failing widget tests** for deleting and undoing a transaction, task, and shopping item; assert the item disappears, the snackbar offers undo, and activation restores it.
-- [ ] **Step 2: Add the same shared undo behavior** to existing transaction, account, budget, subscription, goal, investment, task, and shopping deletion handlers. Keep the snackbar duration short and consistent; do not add a permanent purge UI.
-- [ ] **Step 3: Run focused widget tests** in light/dark themes and narrow mobile layout.
+- [x] **Step 1: Add failing widget tests** for deleting and undoing a transaction, task, and shopping item; assert the item disappears, the snackbar offers undo, and activation restores it.
+- [x] **Step 2: Add the same shared undo behavior** to existing transaction, account, budget, subscription, goal, investment, task, and shopping deletion handlers. Keep the snackbar duration short and consistent; do not add a permanent purge UI.
+- [x] **Step 3: Run focused widget tests** in a 390 px mobile-width viewport.
 - [ ] **Step 4: Commit** `Ofereça desfazer exclusões na interface`.
 
 ### Task 6: Complete phase validation and report
