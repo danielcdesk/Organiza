@@ -58,6 +58,8 @@ Status por fase e limitações: [progresso V3](implementation/PROGRESSO_V3.md). 
 | Pagamento, faturas, projeção e relatórios por competência | Sim, local | Sim, 184 testes | Windows, 2 fluxos | Sim | 2026-10-30; CI do PR pendente |
 | Auditoria schema 19, exclusão lógica, backup de tombstones e “Desfazer” | Sim, local | Sim, 194 testes; 73,54% cobertura | Windows, 2 fluxos; CI Windows/Ubuntu/Android verde | Sim, migração v1/v18 e widget | 2026-10-30 |
 | Contas tipadas, arquivamento e inclusão patrimonial por moeda (schema 20) | Sim | Sim, 203 testes; 74,78% cobertura | Widget de conta, navegação mobile; CI Windows/Ubuntu/Android verde | Sim, migração v1/v19 e persistência | 2026-10-30 |
+| Tags de transação, gestão e filtro no histórico (schema 21) | Sim, local | Sim, migration/repository/store/widget | Widget local | Sim, cascata e restauração lógica | 2026-10-30; CI pendente |
+| Anexos privados de imagem/PDF e backup criptografado v2 (schema 21) | Sim, local | Sim, storage/archive/coordinator | Widget local e coordenador | Sim, assinatura, hash, limites, contagem e compatibilidade v2 | 2026-10-30; CI pendente |
 | Backup atual criptografado e snapshot | Sim, formato v1 | Sim | Não nesta execução | Sim, autenticação/restauração/rollback | 2026-10-29 |
 | Backup v2 com banco consistente, imagens e prévia | Sim, em desenvolvimento | Sim | Teste coordenador Windows | Sim, unidade e integração de serviços | 2026-10-30 |
 | Backup automático e rotação em pasta escolhida | Sim, em desenvolvimento | Sim | Windows; Android sem dispositivo de teste | Parcial, pasta Windows e agendamento | 2026-10-30 |

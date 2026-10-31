@@ -1,5 +1,13 @@
 # Registro de mudanças
 
+## 2026-10-30 — Fase 2.5, tags e anexos (validação local concluída)
+
+- Schema 21 adiciona tags, vínculos de tags a transações e metadados de anexos; snapshots e backups incluem as tabelas.
+- Tags podem ser gerenciadas, selecionadas em lançamentos e usadas para filtrar o histórico.
+- Fotos e PDFs são copiados para a pasta privada, validados pela extensão, assinatura e SHA-256; limite de 10 MiB por arquivo.
+- Backup ZIP criptografado v2 inclui anexos com contagem e hashes, mantendo compatibilidade com arquivos v2 sem anexos.
+- Validação local: análise limpa, 214 testes (74,33% cobertura), integração Windows 2/2. Revisão independente e CI do PR draft pendentes.
+
 ## 2026-10-30 — Fase 2.4, ciclo de vida das contas
 
 - Schema 20 adiciona tipo, estado arquivado reversível, inclusão patrimonial e moeda BRL padrão preservando saldos existentes.
