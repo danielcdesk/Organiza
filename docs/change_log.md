@@ -5,7 +5,7 @@
 - Schema 19 adiciona `updated_at`/`deleted_at` às dez entidades do contrato; triggers mantêm timestamps e migração preenche dados existentes.
 - Leituras do app ocultam tombstones, snapshots/backup os preservam e as exclusões oferecem “Desfazer” por seis segundos.
 - Exclusão e restauração usam lista tipada de tabelas; salário recorrente restaura a agenda junto com a ocorrência. Expurgo e sincronização não foram incluídos.
-- Validação local: análise limpa, 194 testes aprovados (73,54% cobertura), integração Windows 2/2 e revisão independente sem achados críticos/importantes. CI do PR permanece pendente.
+- Validação: análise limpa, 194 testes aprovados (73,54% cobertura), integração Windows 2/2 e revisão independente sem achados críticos/importantes. CI PR #6 run 41148582388 verde em Windows, Ubuntu e Android.
 
 ## 2026-10-29 — Fundação V3 (Fase 0)
 

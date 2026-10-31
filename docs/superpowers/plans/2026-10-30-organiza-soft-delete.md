@@ -158,7 +158,7 @@ The selected approach follows the existing app structure. `deleted_at` is set as
 - [x] **Step 2: Update docs** with schema 19, audit/undo behavior, actual validation, unsupported device checks, and unresolved risks.
 - [x] **Step 3: Re-run focused and full validation** after documentation/fixture changes where relevant; ensure no tombstone has leaked into normal views or been omitted from backup.
 - [x] **Step 4: Request an independent review** of the final diff; fix every important finding and document any minor deferral.
-- [ ] **Step 5: Create an isolated draft PR** based on the Phase 2.2 branch, then wait for Windows/Ubuntu CI green before the next schema.
+- [x] **Step 5: Create an isolated draft PR** based on the Phase 2.2 branch, then wait for Windows/Ubuntu CI green before the next schema. PR #6 is draft; run 41148582388 is green for Windows, Ubuntu, and Android.
 
 ## Acceptance
 

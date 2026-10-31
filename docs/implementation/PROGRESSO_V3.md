@@ -66,4 +66,4 @@ Schema 18, compra por categoria/data, pagamentos idempotentes com estorno, proje
 
 ## Fase 2.3 — auditoria e exclusão lógica
 
-Schema 19, filtros de tombstones nas dez entidades, snapshot/restore que preserva as linhas excluídas e snackbars “Desfazer” foram implementados. Revisão independente sem achados críticos/importantes; recomendação de usar relógio injetado também no estorno do cartão foi resolvida. Validação local repetida: análise limpa, 194 testes aprovados, cobertura 73,54%, integração Windows 2/2. Relatório: `RELATORIO_FASE_2_3.md`. PR draft e CI remotos Windows/Ubuntu/Android são o gate restante; a Fase 2 completa continua pendente.
+Schema 19, filtros de tombstones nas dez entidades, snapshot/restore que preserva as linhas excluídas e snackbars “Desfazer” foram implementados. Revisão independente sem achados críticos/importantes; recomendação de usar relógio injetado também no estorno do cartão foi resolvida. Validação local: análise limpa, 194 testes aprovados, cobertura 73,54%, integração Windows 2/2. PR draft #6, run CI 41148582388, passou em Windows, Ubuntu e APK Android. Relatório: `RELATORIO_FASE_2_3.md`. A Fase 2 completa continua pendente.

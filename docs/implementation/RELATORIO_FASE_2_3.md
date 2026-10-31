@@ -1,6 +1,6 @@
 # Relatório da Fase 2.3 — Auditoria e exclusão lógica
 
-Data: 2026-10-30. Estado local: implementação concluída e validada; CI do PR ainda pendente.
+Data: 2026-10-30. Estado: implementação concluída e validada; PR draft aberto, CI verde.
 
 ## 1. Resumo
 
@@ -32,7 +32,7 @@ Confirmações de exclusão preservam suas validações existentes. Pagamentos d
 
 ## 5. CI e revisão
 
-Branch `codex/organiza-v3-fase-2-3`, baseada no head da Fase 2.2 (`4b84b573`). PR draft será aberto contra `codex/organiza-v3-fase-2-2`; os jobs remotos Windows/Ubuntu/Android serão registrados após conclusão. A revisão independente não encontrou achados críticos/importantes. A recomendação menor sobre o relógio em wrappers antigos foi resolvida: os wrappers foram removidos, e o estorno de cartão também usa o relógio UTC injetado.
+Branch `codex/organiza-v3-fase-2-3`, baseada no head da Fase 2.2 (`4b84b573`). PR draft #6 está aberto contra `codex/organiza-v3-fase-2-2`: https://github.com/danielcdesk/Organiza/pull/6. GitHub Actions run **41148582388** passou nos jobs de análise/testes Ubuntu, análise/testes Windows e APK Android release sem assinatura. A revisão independente não encontrou achados críticos/importantes. A recomendação menor sobre o relógio em wrappers antigos foi resolvida: os wrappers foram removidos, e o estorno de cartão também usa o relógio UTC injetado.
 
 ## 6. Não validado e riscos
 
@@ -44,4 +44,4 @@ Compras no cartão continuam categorizadas pela data da compra e pagamento reduz
 
 ## 8. Próxima etapa
 
-Aguardar CI verde no PR draft antes de iniciar a próxima migração de schema. A Fase 2 completa ainda não está concluída.
+A Fase 2.3 passou no CI. A Fase 2 completa ainda não está concluída; a próxima migração pode seguir pelo fluxo de revisão do PR #6.
