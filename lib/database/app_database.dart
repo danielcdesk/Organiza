@@ -1714,7 +1714,7 @@ class AppDatabase {
       );
 
   void deleteTask(String id) =>
-      _database.execute('DELETE FROM tasks WHERE id = ?', [id]);
+      softDelete(SoftDeleteEntity.task, id, DateTime.now().toUtc());
 
   void insertShoppingItem(ShoppingItem item) => _database.execute(
         '''INSERT INTO shopping_items(
@@ -1761,7 +1761,7 @@ class AppDatabase {
       );
 
   void deleteShoppingItem(String id) =>
-      _database.execute('DELETE FROM shopping_items WHERE id = ?', [id]);
+      softDelete(SoftDeleteEntity.shoppingItem, id, DateTime.now().toUtc());
 
   void insertCreditCard(CreditCard card) => _database.execute(
         '''INSERT INTO credit_cards(
@@ -2221,19 +2221,51 @@ class AppDatabase {
         [savedInCents, id],
       );
 
+  bool softDelete(SoftDeleteEntity entity, String id, DateTime deletedAtUtc) {
+    if (schemaVersion < 19) {
+      throw StateError('Exclusão lógica exige o schema 19.');
+    }
+    final result = _database.select(
+      'SELECT id FROM ${entity.tableName} WHERE id = ? AND deleted_at IS NULL',
+      [id],
+    );
+    if (result.isEmpty) return false;
+    _database.execute(
+      'UPDATE ${entity.tableName} SET deleted_at = ? WHERE id = ? AND deleted_at IS NULL',
+      [deletedAtUtc.toUtc().toIso8601String(), id],
+    );
+    return true;
+  }
+
+  bool restore(SoftDeleteEntity entity, String id) {
+    if (schemaVersion < 19) {
+      throw StateError('Restauração lógica exige o schema 19.');
+    }
+    final result = _database.select(
+      'SELECT id FROM ${entity.tableName} WHERE id = ? AND deleted_at IS NOT NULL',
+      [id],
+    );
+    if (result.isEmpty) return false;
+    _database.execute(
+      'UPDATE ${entity.tableName} SET deleted_at = NULL WHERE id = ? AND deleted_at IS NOT NULL',
+      [id],
+    );
+    return true;
+  }
+
   void deleteAccount(String id) =>
-      _database.execute('DELETE FROM accounts WHERE id = ?', [id]);
+      softDelete(SoftDeleteEntity.account, id, DateTime.now().toUtc());
 
   void deleteTransaction(String id) =>
-      _database.execute('DELETE FROM transactions WHERE id = ?', [id]);
+      softDelete(SoftDeleteEntity.transaction, id, DateTime.now().toUtc());
   void deleteBudget(String id) =>
-      _database.execute('DELETE FROM budgets WHERE id = ?', [id]);
+      softDelete(SoftDeleteEntity.budget, id, DateTime.now().toUtc());
   void deleteSubscription(String id) =>
-      _database.execute('DELETE FROM subscriptions WHERE id = ?', [id]);
+      softDelete(SoftDeleteEntity.subscription, id, DateTime.now().toUtc());
   void deleteFinancialGoal(String id) =>
-      _database.execute('DELETE FROM financial_goals WHERE id = ?', [id]);
+      softDelete(SoftDeleteEntity.financialGoal, id, DateTime.now().toUtc());
   void deleteInvestment(String id) =>
-      _database.execute('DELETE FROM investments WHERE id = ?', [id]);
+      softDelete(SoftDeleteEntity.investment, id, DateTime.now().toUtc());
 
   void saveSalaryAllocation(SalaryAllocation allocation) => _database.execute(
         '''UPDATE salary_allocation

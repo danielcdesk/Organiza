@@ -2,6 +2,24 @@ enum TransactionType { income, expense, transfer }
 
 enum TransactionSystemType { cardPayment }
 
+/// Tables eligible for logical deletion. Values are kept explicit so callers
+/// can never pass arbitrary SQL identifiers to the persistence layer.
+enum SoftDeleteEntity {
+  transaction('transactions'),
+  account('accounts'),
+  creditCard('credit_cards'),
+  cardPurchase('card_purchases'),
+  investment('investments'),
+  budget('budgets'),
+  subscription('subscriptions'),
+  financialGoal('financial_goals'),
+  shoppingItem('shopping_items'),
+  task('tasks');
+
+  const SoftDeleteEntity(this.tableName);
+  final String tableName;
+}
+
 enum CardInvoiceStatus { open, closed, partiallyPaid, paid }
 
 enum AccountInstitution {

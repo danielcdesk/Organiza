@@ -164,6 +164,10 @@ class LocalRepository {
   void deleteSubscription(String id) => _database.deleteSubscription(id);
   void deleteFinancialGoal(String id) => _database.deleteFinancialGoal(id);
   void deleteInvestment(String id) => _database.deleteInvestment(id);
+  bool softDelete(SoftDeleteEntity entity, String id, DateTime deletedAtUtc) =>
+      _database.softDelete(entity, id, deletedAtUtc);
+  bool restore(SoftDeleteEntity entity, String id) =>
+      _database.restore(entity, id);
   void saveSalaryAllocation(SalaryAllocation item) =>
       _database.saveSalaryAllocation(item);
   void transaction(void Function() operation) =>

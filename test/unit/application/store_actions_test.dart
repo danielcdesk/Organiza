@@ -344,6 +344,65 @@ void main() {
 
     expect(store.tasks.map((item) => item.title), ['Revisar orçamento']);
     expect(() => store.deleteTask(removed.id), throwsArgumentError);
+    expect(() => store.toggleTask(removed, true), throwsArgumentError);
+    expect(
+        store.restoreDeletedRecord(SoftDeleteEntity.task, removed.id), isTrue);
+    expect(store.tasks.map((item) => item.title),
+        containsAll(['Comprar material', 'Revisar orçamento']));
+    expect(
+        store.restoreDeletedRecord(SoftDeleteEntity.task, removed.id), isFalse);
+  });
+
+  test('exclui e restaura lançamento sem perder o registro do snapshot', () {
+    final store = OrganizaStore.inMemory();
+    addTearDown(store.dispose);
+    store.addAccount('Principal', 100000);
+    store.addTransaction(
+      accountId: store.accounts.single.id,
+      type: TransactionType.expense,
+      amountInCents: 2500,
+      description: 'Café',
+    );
+    final transaction = store.transactions.single;
+
+    expect(store.deleteTransaction(transaction.id), isNull);
+    expect(store.transactions, isEmpty);
+    expect(
+      store.restoreDeletedRecord(SoftDeleteEntity.transaction, transaction.id),
+      isTrue,
+    );
+    expect(store.transactions.single.id, transaction.id);
+  });
+
+  test('desfazer salário recorrente restaura ocorrência e agenda', () {
+    final store = OrganizaStore.inMemory();
+    addTearDown(store.dispose);
+    store.addAccount('Principal', 0);
+    final now = DateTime.now();
+    store.addTransaction(
+      accountId: store.accounts.single.id,
+      type: TransactionType.income,
+      amountInCents: 200000,
+      description: 'Salário',
+      category: 'Salário',
+      occurredOn: DateTime(now.year, now.month, 1),
+      scheduleType: TransactionScheduleType.recurring,
+    );
+    final occurrence = store.transactions.single;
+    final schedule = store.salarySchedules.single;
+
+    final canceled = store.deleteTransaction(occurrence.id);
+    expect(canceled?.id, schedule.id);
+    expect(store.salarySchedules, isEmpty);
+    expect(
+        store.restoreDeletedRecord(
+          SoftDeleteEntity.transaction,
+          occurrence.id,
+          canceledSalarySchedule: canceled,
+        ),
+        isTrue);
+    expect(store.salarySchedules.single.id, schedule.id);
+    expect(store.transactions.single.id, occurrence.id);
   });
 
   test('lista de compras persiste quantidade, prioridade, baixa e exclusão',

@@ -7,6 +7,83 @@ import 'package:path/path.dart' as path;
 import 'package:sqlite3/sqlite3.dart';
 
 void main() {
+  test('excluir lançamento conserva a linha como tombstone', () {
+    final database = AppDatabase.openInMemoryAtVersionForTest(19);
+    addTearDown(database.close);
+    final createdAt = DateTime.utc(2026, 1, 1);
+    database.insertAccount(Account(
+      id: 'account-delete',
+      name: 'Principal',
+      openingBalanceInCents: 10000,
+      createdAt: createdAt,
+    ));
+    database.insertTransaction(TransactionRecord(
+      id: 'transaction-delete',
+      accountId: 'account-delete',
+      type: TransactionType.expense,
+      amountInCents: 1000,
+      description: 'Teste',
+      occurredOn: createdAt,
+      createdAt: createdAt,
+    ));
+
+    database.deleteTransaction('transaction-delete');
+
+    final transactions = ((database.exportSnapshot()['tables']
+            as Map<Object?, Object?>)['transactions'] as List)
+        .cast<Map<Object?, Object?>>();
+    expect(transactions, hasLength(1));
+    expect(transactions.single['deleted_at'], isNotNull);
+    expect(database.loadTransactions(), isEmpty);
+  });
+
+  test('exclusão e restauração são idempotentes e atualizam auditoria', () {
+    final database = AppDatabase.openInMemoryAtVersionForTest(19);
+    addTearDown(database.close);
+    final createdAt = DateTime.utc(2026, 1, 1);
+    database.insertAccount(Account(
+      id: 'account-restore',
+      name: 'Principal',
+      openingBalanceInCents: 0,
+      createdAt: createdAt,
+    ));
+
+    expect(
+      database.softDelete(
+        SoftDeleteEntity.account,
+        'account-restore',
+        DateTime.utc(2026, 2, 3),
+      ),
+      isTrue,
+    );
+    expect(
+      database.softDelete(
+        SoftDeleteEntity.account,
+        'account-restore',
+        DateTime.utc(2026, 2, 4),
+      ),
+      isFalse,
+    );
+    expect(database.loadAccounts(), isEmpty);
+    expect(
+        database.restore(SoftDeleteEntity.account, 'account-restore'), isTrue);
+    expect(
+        database.restore(SoftDeleteEntity.account, 'account-restore'), isFalse);
+    expect(database.loadAccounts(), hasLength(1));
+    final row = ((database.exportSnapshot()['tables']
+            as Map<Object?, Object?>)['accounts'] as List)
+        .cast<Map<Object?, Object?>>()
+        .single;
+    expect(row['deleted_at'], isNull);
+    expect(row['updated_at'], isNotEmpty);
+    expect(
+      database.softDelete(
+          SoftDeleteEntity.account, 'missing', DateTime.utc(2026, 2, 3)),
+      isFalse,
+    );
+    expect(database.restore(SoftDeleteEntity.account, 'missing'), isFalse);
+  });
+
   test('leituras comuns ocultam tombstones das dez entidades', () async {
     final folder =
         await Directory.systemTemp.createTemp('organiza-read-filter-');
@@ -193,13 +270,14 @@ void main() {
 
     final snapshot = database.exportSnapshot();
     final accountRows =
-        ((snapshot['tables'] as Map)['accounts'] as List).cast<Map>();
+        ((snapshot['tables'] as Map<Object?, Object?>)['accounts'] as List)
+            .cast<Map<Object?, Object?>>();
     expect(accountRows, hasLength(1));
     expect(accountRows.single['deleted_at'], '2026-02-01T00:00:00.000Z');
     database.restoreSnapshot(Map<String, dynamic>.from(snapshot));
-    final restoredRows =
-        ((database.exportSnapshot()['tables'] as Map)['accounts'] as List)
-            .cast<Map>();
+    final restoredRows = ((database.exportSnapshot()['tables']
+            as Map<Object?, Object?>)['accounts'] as List)
+        .cast<Map<Object?, Object?>>();
     expect(restoredRows.single['deleted_at'], '2026-02-01T00:00:00.000Z');
   });
 }

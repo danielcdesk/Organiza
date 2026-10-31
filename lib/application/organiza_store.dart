@@ -831,6 +831,9 @@ class OrganizaStore extends ChangeNotifier {
   }
 
   void toggleTask(TaskItem task, bool value) {
+    if (tasks.every((item) => item.id != task.id)) {
+      throw ArgumentError('Tarefa não encontrada.');
+    }
     _repository.setTaskDone(task.id, value);
     reload();
   }
@@ -839,7 +842,7 @@ class OrganizaStore extends ChangeNotifier {
     if (tasks.every((task) => task.id != id)) {
       throw ArgumentError('Tarefa não encontrada.');
     }
-    _repository.deleteTask(id);
+    _repository.softDelete(SoftDeleteEntity.task, id, _now.toUtc());
     reload();
   }
 
@@ -929,7 +932,7 @@ class OrganizaStore extends ChangeNotifier {
     if (shoppingItems.every((item) => item.id != id)) {
       throw ArgumentError('Item não encontrado.');
     }
-    _repository.deleteShoppingItem(id);
+    _repository.softDelete(SoftDeleteEntity.shoppingItem, id, _now.toUtc());
     reload();
   }
 
@@ -1324,7 +1327,7 @@ class OrganizaStore extends ChangeNotifier {
     if (salarySchedules.any((item) => item.accountId == accountId)) {
       throw ArgumentError('Exclua o salário recorrente desta conta antes.');
     }
-    _repository.deleteAccount(accountId);
+    _repository.softDelete(SoftDeleteEntity.account, accountId, _now.toUtc());
     reload();
   }
 
@@ -1353,20 +1356,39 @@ class OrganizaStore extends ChangeNotifier {
     reload();
   }
 
-  void deleteTransaction(String id) {
+  SalarySchedule? deleteTransaction(String id) {
     final item = transactions.where((entry) => entry.id == id).firstOrNull;
-    if (item?.systemType == TransactionSystemType.cardPayment) {
+    if (item == null) throw ArgumentError('Lançamento não encontrado.');
+    if (item.systemType == TransactionSystemType.cardPayment) {
       throw ArgumentError('Estorne o pagamento pela fatura.');
     }
+    SalarySchedule? canceledSchedule;
     _repository.transaction(() {
-      if (item?.category.toLowerCase() == 'salário' &&
-          item?.seriesId != null &&
-          salarySchedules.any((entry) => entry.id == item!.seriesId)) {
-        _repository.deleteSalarySchedule(item!.seriesId!);
+      if (item.category.toLowerCase() == 'salário' && item.seriesId != null) {
+        canceledSchedule = salarySchedules
+            .where((entry) => entry.id == item.seriesId)
+            .firstOrNull;
+        if (canceledSchedule != null) {
+          _repository.deleteSalarySchedule(canceledSchedule!.id);
+        }
       }
-      _repository.deleteTransaction(id);
+      _repository.softDelete(SoftDeleteEntity.transaction, id, _now.toUtc());
     });
     reload();
+    return canceledSchedule;
+  }
+
+  bool restoreDeletedRecord(SoftDeleteEntity entity, String id,
+      {SalarySchedule? canceledSalarySchedule}) {
+    var restored = false;
+    _repository.transaction(() {
+      restored = _repository.restore(entity, id);
+      if (restored && canceledSalarySchedule != null) {
+        _repository.insertSalarySchedule(canceledSalarySchedule);
+      }
+    });
+    if (restored) reload();
+    return restored;
   }
 
   void cancelSalarySchedule(String id) {
@@ -1466,12 +1488,18 @@ class OrganizaStore extends ChangeNotifier {
   }
 
   void deleteBudget(String id) {
-    _repository.deleteBudget(id);
+    if (budgets.every((item) => item.id != id)) {
+      throw ArgumentError('Orçamento não encontrado.');
+    }
+    _repository.softDelete(SoftDeleteEntity.budget, id, _now.toUtc());
     reload();
   }
 
   void deleteSubscription(String id) {
-    _repository.deleteSubscription(id);
+    if (subscriptions.every((item) => item.id != id)) {
+      throw ArgumentError('Assinatura não encontrada.');
+    }
+    _repository.softDelete(SoftDeleteEntity.subscription, id, _now.toUtc());
     reload();
   }
 
@@ -1573,12 +1601,18 @@ class OrganizaStore extends ChangeNotifier {
   }
 
   void deleteFinancialGoal(String id) {
-    _repository.deleteFinancialGoal(id);
+    if (financialGoals.every((item) => item.id != id)) {
+      throw ArgumentError('Meta não encontrada.');
+    }
+    _repository.softDelete(SoftDeleteEntity.financialGoal, id, _now.toUtc());
     reload();
   }
 
   void deleteInvestment(String id) {
-    _repository.deleteInvestment(id);
+    if (investments.every((item) => item.id != id)) {
+      throw ArgumentError('Investimento não encontrado.');
+    }
+    _repository.softDelete(SoftDeleteEntity.investment, id, _now.toUtc());
     reload();
   }
 
@@ -1672,6 +1706,9 @@ class OrganizaStore extends ChangeNotifier {
   }
 
   void setTransactionSettled(String id, bool value) {
+    if (transactions.every((item) => item.id != id)) {
+      throw ArgumentError('Lançamento não encontrado.');
+    }
     if (transactions.any((item) =>
         item.id == id &&
         item.systemType == TransactionSystemType.cardPayment)) {
