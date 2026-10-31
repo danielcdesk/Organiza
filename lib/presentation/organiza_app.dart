@@ -538,6 +538,7 @@ class _OrganizaShellState extends State<OrganizaShell>
             onDelete: _deleteTransaction,
             onSettledChanged: widget.store.setTransactionSettled,
             onEdit: _editTransaction,
+            onManageAttachments: _manageAttachments,
           ),
         2 => AccountsPage(
             store: widget.store,
@@ -778,7 +779,7 @@ class _OrganizaShellState extends State<OrganizaShell>
       _showError('Estorne o pagamento pela fatura.');
       return;
     }
-    final input = await showDialog<TransactionRecord>(
+    final input = await showDialog<TransactionEditResult>(
         context: context,
         builder: (_) => TransactionEditDialog(
               clock: widget.store.clock,
@@ -798,6 +799,18 @@ class _OrganizaShellState extends State<OrganizaShell>
               ],
               categories: widget.store.financeCategories,
               subcategories: widget.store.financeSubcategories,
+              tags: widget.store.tags,
+              selectedTagIds: widget.store
+                  .tagsForTransaction(item.id)
+                  .map((t) => t.id)
+                  .toSet(),
+              onManageTags: () async {
+                await showDialog<void>(
+                  context: context,
+                  builder: (_) => TagManagerDialog(store: widget.store),
+                );
+                return widget.store.tags;
+              },
             ));
     if (input == null || !mounted) return;
     try {
@@ -827,12 +840,22 @@ class _OrganizaShellState extends State<OrganizaShell>
         if (scope == null || !mounted) return;
         applyToFuture = scope == 'future';
       }
-      widget.store.updateTransaction(input, applyToFuture: applyToFuture);
+      widget.store
+          .updateTransaction(input.transaction, applyToFuture: applyToFuture);
+      widget.store.setTransactionTags(item.id, input.tagIds);
       ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Lançamento atualizado.')));
     } on ArgumentError catch (error) {
       _showError(error.message.toString());
     }
+  }
+
+  Future<void> _manageAttachments(TransactionRecord item) async {
+    await showDialog<void>(
+      context: context,
+      builder: (_) =>
+          AttachmentManagerDialog(store: widget.store, transaction: item),
+    );
   }
 
   Future<void> _deleteBudget(String id) async {

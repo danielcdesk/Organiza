@@ -21,7 +21,7 @@ void main() {
         description: 'Original',
         occurredOn: now,
         createdAt: now);
-    TransactionRecord? result;
+    TransactionEditResult? result;
     final account = Account(
         id: 'a', name: 'Conta', openingBalanceInCents: 0, createdAt: now);
     final category = FinanceCategory(
@@ -34,20 +34,22 @@ void main() {
         categoryId: category.id,
         name: 'Geral',
         createdAt: now);
+    final tag = Tag(id: 'tag-house', name: 'Casa', createdAt: now);
     await tester.pumpWidget(MaterialApp(
         theme: OrganizaTheme.light(),
         home: Builder(
             builder: (context) => Scaffold(
                 body: TextButton(
                     onPressed: () async {
-                      result = await showDialog<TransactionRecord>(
+                      result = await showDialog<TransactionEditResult>(
                           context: context,
                           builder: (_) => TransactionEditDialog(
                               clock: Clock.fixed(now),
                               item: item,
                               accounts: [account],
                               categories: [category],
-                              subcategories: [subcategory]));
+                              subcategories: [subcategory],
+                              tags: [tag]));
                     },
                     child: const Text('Editar'))))));
     await tester.tap(find.text('Editar'));
@@ -58,10 +60,13 @@ void main() {
     expect(find.text('Informe um valor válido.'), findsOneWidget);
     await tester.enterText(find.byType(TextField).first, '25,50');
     await tester.enterText(find.byType(TextField).last, 'Corrigido');
+    await tester.ensureVisible(find.text('Casa'));
+    await tester.tap(find.text('Casa'));
     await tester.tap(find.text('Salvar alteração'));
     await tester.pumpAndSettle();
-    expect(result?.amountInCents, 2550);
-    expect(result?.description, 'Corrigido');
+    expect(result?.transaction.amountInCents, 2550);
+    expect(result?.transaction.description, 'Corrigido');
+    expect(result?.tagIds, {tag.id});
   });
   testWidgets('goals fit a compact viewport', (tester) async {
     tester.view.physicalSize = const Size(390, 844);
@@ -123,6 +128,48 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Compra antiga'), findsNothing);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('histórico pode ser filtrado por tag', (tester) async {
+    tester.view.physicalSize = const Size(1280, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final store = OrganizaStore.inMemory();
+    addTearDown(store.dispose);
+    store.addAccount('Banco A', 0);
+    store.addTransaction(
+        accountId: store.accounts.single.id,
+        type: TransactionType.expense,
+        amountInCents: 100,
+        description: 'Com etiqueta');
+    store.addTransaction(
+        accountId: store.accounts.single.id,
+        type: TransactionType.expense,
+        amountInCents: 200,
+        description: 'Sem etiqueta');
+    final tag = store.createTag('Casa');
+    store.setTransactionTags(
+        store.transactions
+            .firstWhere((t) => t.description == 'Com etiqueta')
+            .id,
+        {tag.id});
+    await tester.pumpWidget(MaterialApp(
+        theme: OrganizaTheme.light(),
+        home: Scaffold(
+            body: TransactionsPage(
+                store: store,
+                hideValues: false,
+                onAdd: () {},
+                onDelete: (_) {},
+                onSettledChanged: (_, __) {}))));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Todas as tags'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Casa').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Com etiqueta'), findsOneWidget);
+    expect(find.text('Sem etiqueta'), findsNothing);
   });
 
   testWidgets('transaction sorting prioritizes amount across different dates',
