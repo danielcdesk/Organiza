@@ -45,6 +45,28 @@ void main() {
     expect(FinancialRules.currentBalance([primary, reserve], items), 105000);
   });
 
+  test('patrimônio agrupa moedas e respeita a inclusão por conta', () {
+    final usd = Account(
+      id: 'usd',
+      name: 'Dólares',
+      openingBalanceInCents: 25000,
+      createdAt: now,
+      currency: 'USD',
+    );
+    final excluded = Account(
+      id: 'excluded',
+      name: 'Fora do patrimônio',
+      openingBalanceInCents: 99000,
+      createdAt: now,
+      includeInNetWorth: false,
+    );
+    expect(
+      FinancialRules.accountBalancesByCurrencyForNetWorth(
+          [primary, usd, excluded], const []),
+      {'BRL': 100000, 'USD': 25000},
+    );
+  });
+
   test('saída de caixa inclui pagamento de cartão sem categorizá-lo de novo',
       () {
     final payment = TransactionRecord(

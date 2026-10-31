@@ -49,6 +49,11 @@ class OrganizaStore extends ChangeNotifier {
   }
 
   List<Account> accounts = [];
+  List<Account> get activeAccounts => List.unmodifiable(
+      accounts.where((account) => account.archivedAt == null));
+  Map<String, int> get accountBalancesByCurrencyForNetWorth =>
+      FinancialRules.accountBalancesByCurrencyForNetWorth(
+          accounts, transactions);
   List<TransactionRecord> transactions = [];
   List<TaskItem> tasks = [];
   List<ShoppingItem> shoppingItems = [];
@@ -658,6 +663,7 @@ class OrganizaStore extends ChangeNotifier {
     String name,
     int openingBalanceInCents, {
     AccountInstitution institution = AccountInstitution.generic,
+    AccountType type = AccountType.checking,
     String? customInstitutionName,
     String? customIconKey,
   }) {
@@ -674,6 +680,7 @@ class OrganizaStore extends ChangeNotifier {
       openingBalanceInCents: openingBalanceInCents,
       createdAt: _now,
       institution: institution,
+      type: type,
       customInstitutionName:
           cleanInstitutionName?.isEmpty == true ? null : cleanInstitutionName,
       customIconKey: customIconKey,
@@ -686,6 +693,7 @@ class OrganizaStore extends ChangeNotifier {
     required String name,
     required int currentBalanceInCents,
     required AccountInstitution institution,
+    AccountType? type,
     String? customInstitutionName,
     String? customIconKey,
   }) {
@@ -707,6 +715,8 @@ class OrganizaStore extends ChangeNotifier {
         id: id,
         name: cleanName,
         institution: institution,
+        type: type ?? account.type,
+        currency: account.currency,
         customInstitutionName:
             cleanInstitutionName?.isEmpty == true ? null : cleanInstitutionName,
         customIconKey: customIconKey,
@@ -729,6 +739,40 @@ class OrganizaStore extends ChangeNotifier {
     reload();
   }
 
+  void archiveAccount(String id) {
+    final account = accounts.where((item) => item.id == id).firstOrNull;
+    if (account == null) throw ArgumentError('Conta não encontrada.');
+    if (account.archivedAt != null) return;
+    if (salarySchedules.any((schedule) => schedule.accountId == id)) {
+      throw ArgumentError(
+          'Cancele o salário recorrente desta conta antes de arquivá-la.');
+    }
+    if (!_repository.setAccountArchived(id, _now.toUtc())) {
+      throw StateError('Não foi possível arquivar a conta.');
+    }
+    reload();
+  }
+
+  void restoreAccount(String id) {
+    final account = accounts.where((item) => item.id == id).firstOrNull;
+    if (account == null) throw ArgumentError('Conta não encontrada.');
+    if (account.archivedAt == null) return;
+    if (!_repository.setAccountArchived(id, null)) {
+      throw StateError('Não foi possível reativar a conta.');
+    }
+    reload();
+  }
+
+  void setAccountNetWorthIncluded(String id, bool included) {
+    if (accounts.every((item) => item.id != id)) {
+      throw ArgumentError('Conta não encontrada.');
+    }
+    if (!_repository.setAccountNetWorthIncluded(id, included)) {
+      throw StateError('Não foi possível atualizar a inclusão patrimonial.');
+    }
+    reload();
+  }
+
   void addTransaction({
     required String accountId,
     required TransactionType type,
@@ -741,6 +785,13 @@ class OrganizaStore extends ChangeNotifier {
     TransactionScheduleType scheduleType = TransactionScheduleType.single,
     int repeatCount = 1,
   }) {
+    if (activeAccounts.every((account) => account.id != accountId)) {
+      throw ArgumentError('Selecione uma conta ativa.');
+    }
+    if (type == TransactionType.transfer &&
+        activeAccounts.every((account) => account.id != destinationAccountId)) {
+      throw ArgumentError('Selecione uma conta de destino ativa.');
+    }
     if (!FinancialRules.isValidAmount(amountInCents)) {
       throw ArgumentError('Informe um valor válido.');
     }
@@ -1030,7 +1081,7 @@ class OrganizaStore extends ChangeNotifier {
   }) {
     final card = creditCards.where((item) => item.id == cardId).firstOrNull;
     if (card == null) throw ArgumentError('Cartão não encontrado.');
-    if (accounts.every((item) => item.id != accountId)) {
+    if (activeAccounts.every((item) => item.id != accountId)) {
       throw ArgumentError('Conta não encontrada.');
     }
     if (!FinancialRules.isValidAmount(amountInCents)) {
@@ -1428,14 +1479,18 @@ class OrganizaStore extends ChangeNotifier {
     if (!FinancialRules.isValidAmount(updated.amountInCents)) {
       throw ArgumentError('Informe um valor válido.');
     }
-    if (accounts.every((account) => account.id != updated.accountId)) {
+    if (accounts.every((account) => account.id != updated.accountId) ||
+        (updated.accountId != previous.accountId &&
+            activeAccounts
+                .every((account) => account.id != updated.accountId))) {
       throw ArgumentError('Conta não encontrada.');
     }
     if (updated.type == TransactionType.transfer &&
         (updated.destinationAccountId == null ||
             updated.destinationAccountId == updated.accountId ||
-            accounts.every(
-                (account) => account.id != updated.destinationAccountId))) {
+            (updated.destinationAccountId != previous.destinationAccountId &&
+                activeAccounts.every((account) =>
+                    account.id != updated.destinationAccountId)))) {
       throw ArgumentError('Escolha uma conta de destino diferente.');
     }
     final description = updated.description.trim().isEmpty

@@ -191,6 +191,6 @@ void main() {
     migrated.validateIntegrity();
     migrated.close();
     active = null;
-    expect(await File('${file.path}.pre-v19.bak').exists(), isTrue);
+    expect(await File('${file.path}.pre-v20.bak').exists(), isTrue);
   });
 }

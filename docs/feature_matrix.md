@@ -57,6 +57,7 @@ Status por fase e limitações: [progresso V3](implementation/PROGRESSO_V3.md). 
 | Pizza interativa de despesas por categoria | Sim | Sim | Sim | Sim | 2026-09-16 |
 | Pagamento, faturas, projeção e relatórios por competência | Sim, local | Sim, 184 testes | Windows, 2 fluxos | Sim | 2026-10-30; CI do PR pendente |
 | Auditoria schema 19, exclusão lógica, backup de tombstones e “Desfazer” | Sim, local | Sim, 194 testes; 73,54% cobertura | Windows, 2 fluxos; CI Windows/Ubuntu/Android verde | Sim, migração v1/v18 e widget | 2026-10-30 |
+| Contas tipadas, arquivamento e inclusão patrimonial por moeda (schema 20) | Sim, local | Sim, 203 testes; 74,78% cobertura | Widget de conta e navegação mobile; CI remoto pendente | Sim, migração v1/v19 e persistência | 2026-10-30 |
 | Backup atual criptografado e snapshot | Sim, formato v1 | Sim | Não nesta execução | Sim, autenticação/restauração/rollback | 2026-10-29 |
 | Backup v2 com banco consistente, imagens e prévia | Sim, em desenvolvimento | Sim | Teste coordenador Windows | Sim, unidade e integração de serviços | 2026-10-30 |
 | Backup automático e rotação em pasta escolhida | Sim, em desenvolvimento | Sim | Windows; Android sem dispositivo de teste | Parcial, pasta Windows e agendamento | 2026-10-30 |

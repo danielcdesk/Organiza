@@ -44,6 +44,8 @@ enum AccountInstitution {
   custom,
 }
 
+enum AccountType { checking, savings, wallet, investment, other }
+
 class Account {
   const Account({
     required this.id,
@@ -53,6 +55,10 @@ class Account {
     this.institution = AccountInstitution.generic,
     this.customInstitutionName,
     this.customIconKey,
+    this.type = AccountType.checking,
+    this.archivedAt,
+    this.includeInNetWorth = true,
+    this.currency = 'BRL',
   });
 
   final String id;
@@ -62,6 +68,10 @@ class Account {
   final AccountInstitution institution;
   final String? customInstitutionName;
   final String? customIconKey;
+  final AccountType type;
+  final DateTime? archivedAt;
+  final bool includeInNetWorth;
+  final String currency;
 }
 
 class TransactionRecord {

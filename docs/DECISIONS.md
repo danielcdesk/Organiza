@@ -4,6 +4,7 @@
 
 - Compras no cartão entram na análise por categoria pela data da compra. O caixa e a projeção consideram o vencimento; pagar fatura reduz a conta sem repetir a despesa de categoria. Confirmado pelo dono do produto.
 - Dívidas e financiamentos não entram nesta execução, por escolha do dono do produto.
+- Contas passam a ter tipo corrente/poupança/carteira/investimento/outra, com BRL como padrão. Arquivar preserva saldo e histórico e remove a conta dos novos seletores; o usuário pode incluir/excluir a conta arquivada do patrimônio, cujos totais são agrupados por moeda sem conversão. Decisão de produto confirmada durante a Fase 2.4.
 - Criptografia do banco será ligada por padrão na Fase 4; bloqueio com PIN e biometria opcional. Confirmado pelo dono do produto. Ainda não implementado.
 - Totais de fatura serão derivados das compras e parcelas; registros de fatura preservam período e pagamentos.
 - Importação OFX/CSV é a alternativa local-first. Não ativar Open Finance nem rede no produto.

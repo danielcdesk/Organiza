@@ -11,6 +11,7 @@ class AccountInput {
     required this.name,
     required this.openingCents,
     required this.institution,
+    this.type = AccountType.checking,
     this.customInstitutionName,
     this.customIconKey,
   });
@@ -18,6 +19,7 @@ class AccountInput {
   final String name;
   final int openingCents;
   final AccountInstitution institution;
+  final AccountType type;
   final String? customInstitutionName;
   final String? customIconKey;
 }
@@ -380,6 +382,7 @@ class _AccountDialogState extends State<AccountDialog> {
   late final TextEditingController _balance;
   late final TextEditingController _customName;
   late AccountInstitution _institution;
+  late AccountType _type;
   late String? _customIconKey;
   String? _error;
 
@@ -403,6 +406,7 @@ class _AccountDialogState extends State<AccountDialog> {
           widget.currentBalanceCents ?? (account == null ? 0 : 0)),
     );
     _institution = account?.institution ?? AccountInstitution.generic;
+    _type = account?.type ?? AccountType.checking;
     _customName =
         TextEditingController(text: account?.customInstitutionName ?? '');
     _customIconKey = account?.customIconKey ?? 'wallet';
@@ -446,6 +450,24 @@ class _AccountDialogState extends State<AccountDialog> {
                       )
                       .toList(),
                   onChanged: (value) => setState(() => _institution = value!),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<AccountType>(
+                  initialValue: _type,
+                  decoration: const InputDecoration(labelText: 'Tipo de conta'),
+                  items: AccountType.values
+                      .map((type) => DropdownMenuItem(
+                            value: type,
+                            child: Text(switch (type) {
+                              AccountType.checking => 'Conta corrente',
+                              AccountType.savings => 'Poupança',
+                              AccountType.wallet => 'Carteira',
+                              AccountType.investment => 'Investimento',
+                              AccountType.other => 'Outra',
+                            }),
+                          ))
+                      .toList(),
+                  onChanged: (value) => setState(() => _type = value!),
                 ),
                 if (_institution == AccountInstitution.custom) ...[
                   const SizedBox(height: 12),
@@ -524,6 +546,7 @@ class _AccountDialogState extends State<AccountDialog> {
         name: _name.text,
         openingCents: cents,
         institution: _institution,
+        type: _type,
         customInstitutionName: _customName.text.trim(),
         customIconKey: _customIconKey,
       ),

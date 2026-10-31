@@ -15,7 +15,7 @@ class AppDatabase {
   int _transactionDepth = 0;
   final String? filePath;
   static int get currentSchemaVersion => _schemaVersion;
-  static const _schemaVersion = 19;
+  static const _schemaVersion = 20;
   static const _auditTables = <String>[
     'transactions',
     'accounts',
@@ -835,6 +835,17 @@ class AppDatabase {
       }
       _database.execute('PRAGMA user_version = 19');
     }
+    if (current < 20 && target >= 20) {
+      _database.execute('''
+        ALTER TABLE accounts ADD COLUMN type TEXT NOT NULL DEFAULT 'checking'
+          CHECK(type IN ('checking', 'savings', 'wallet', 'investment', 'other'));
+        ALTER TABLE accounts ADD COLUMN archived_at TEXT;
+        ALTER TABLE accounts ADD COLUMN include_in_net_worth INTEGER NOT NULL DEFAULT 1
+          CHECK(include_in_net_worth IN (0, 1));
+        ALTER TABLE accounts ADD COLUMN currency TEXT NOT NULL DEFAULT 'BRL';
+        PRAGMA user_version = 20;
+      ''');
+    }
   }
 
   void _addColumnIfMissing(String table, String column, String definition) {
@@ -1116,6 +1127,15 @@ class AppDatabase {
                 AccountInstitution.values.byName(row['institution'] as String),
             customInstitutionName: row['custom_institution_name'] as String?,
             customIconKey: row['custom_icon_key'] as String?,
+            type: schemaVersion >= 20
+                ? AccountType.values.byName(row['type'] as String)
+                : AccountType.checking,
+            archivedAt: schemaVersion >= 20 && row['archived_at'] != null
+                ? DateTime.parse(row['archived_at'] as String)
+                : null,
+            includeInNetWorth:
+                schemaVersion < 20 || (row['include_in_net_worth'] as int) == 1,
+            currency: schemaVersion >= 20 ? row['currency'] as String : 'BRL',
           ))
       .toList();
 
@@ -1503,7 +1523,13 @@ class AppDatabase {
       .toList();
 
   void insertAccount(Account account) => _database.execute(
-        '''INSERT INTO accounts(
+        schemaVersion >= 20
+            ? '''INSERT INTO accounts(
+          id, name, opening_balance_cents, created_at, institution,
+          custom_institution_name, custom_icon_key, type, archived_at,
+          include_in_net_worth, currency
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+            : '''INSERT INTO accounts(
           id, name, opening_balance_cents, created_at, institution,
           custom_institution_name, custom_icon_key
         ) VALUES (?, ?, ?, ?, ?, ?, ?)''',
@@ -1515,6 +1541,12 @@ class AppDatabase {
           account.institution.name,
           account.customInstitutionName,
           account.customIconKey,
+          if (schemaVersion >= 20) ...[
+            account.type.name,
+            account.archivedAt?.toIso8601String(),
+            account.includeInNetWorth ? 1 : 0,
+            account.currency,
+          ],
         ],
       );
 
@@ -1522,15 +1554,68 @@ class AppDatabase {
     required String id,
     required String name,
     required AccountInstitution institution,
+    AccountType type = AccountType.checking,
+    String currency = 'BRL',
     String? customInstitutionName,
     String? customIconKey,
-  }) =>
+  }) {
+    if (schemaVersion >= 20) {
       _database.execute(
-        '''UPDATE accounts SET
-          name = ?, institution = ?, custom_institution_name = ?, custom_icon_key = ?
-        WHERE id = ?''',
+        '''UPDATE accounts SET name = ?, institution = ?,
+          custom_institution_name = ?, custom_icon_key = ?, type = ?, currency = ?
+          WHERE id = ?''',
+        [
+          name,
+          institution.name,
+          customInstitutionName,
+          customIconKey,
+          type.name,
+          currency,
+          id,
+        ],
+      );
+    } else {
+      _database.execute(
+        '''UPDATE accounts SET name = ?, institution = ?,
+          custom_institution_name = ?, custom_icon_key = ? WHERE id = ?''',
         [name, institution.name, customInstitutionName, customIconKey, id],
       );
+    }
+  }
+
+  bool setAccountArchived(String id, DateTime? archivedAt) {
+    if (schemaVersion < 20) {
+      throw StateError('Arquivamento de contas exige o schema 20.');
+    }
+    if (_database.select(
+      'SELECT id FROM accounts WHERE id = ? AND ${_activeRowPredicate()}',
+      [id],
+    ).isEmpty) {
+      return false;
+    }
+    _database.execute(
+      'UPDATE accounts SET archived_at = ? WHERE id = ?',
+      [archivedAt?.toUtc().toIso8601String(), id],
+    );
+    return true;
+  }
+
+  bool setAccountNetWorthIncluded(String id, bool included) {
+    if (schemaVersion < 20) {
+      throw StateError('Inclusão patrimonial exige o schema 20.');
+    }
+    if (_database.select(
+      'SELECT id FROM accounts WHERE id = ? AND ${_activeRowPredicate()}',
+      [id],
+    ).isEmpty) {
+      return false;
+    }
+    _database.execute(
+      'UPDATE accounts SET include_in_net_worth = ? WHERE id = ?',
+      [included ? 1 : 0, id],
+    );
+    return true;
+  }
 
   void updateAccountOpeningBalance(String id, int cents) => _database.execute(
       'UPDATE accounts SET opening_balance_cents = ? WHERE id = ?',

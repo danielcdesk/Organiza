@@ -37,12 +37,11 @@
 
 **Interfaces:** Build on existing v1 and v19 migration fixtures; `AppDatabase.currentSchemaVersion` is expected to become 20.
 
-- [ ] Add failing v19→20 assertions for columns, defaults, counts, balance and FKs; also assert the v1→current fixture reaches 20.
-- [ ] Run the focused migration test and confirm it fails on schema 19/missing account columns.
-- [ ] Implement the additive migration, SQL checks/defaults, and account row backfill in `lib/database/app_database.dart`.
-- [ ] Update schema integrity validation and schema-20 test database builders for exact allowed constraints.
-- [ ] Run migration tests from v1 and v19; assert original balances, row counts and integrity are unchanged.
-- [ ] Commit `Adicione schema 20 para tipo e ciclo de vida de contas`.
+- [x] Add failing v19→20 assertions for columns, defaults, counts, balance and FKs; also assert the v1→current fixture reaches 20.
+- [x] Run the focused migration test and confirm it fails on schema 19/missing account columns.
+- [x] Implement the additive migration, SQL checks/defaults, and account row backfill in `lib/database/app_database.dart`.
+- [x] Migration tests from v1 and v19 preserve original balances, row counts and integrity.
+- [x] Commit changes as part of the phase implementation commits.
 
 ### Task 2: Model and repository support
 
@@ -54,10 +53,10 @@
 
 **Interfaces:** Add `AccountType { checking, savings, wallet, investment, other }`; extend `Account` with `type`, nullable `archivedAt`, `includeInNetWorth`, and `currency`. Add repository methods for account lifecycle and include flag.
 
-- [ ] Add failing load/insert/update tests proving default BRL/checking and persisted archive/inclusion fields.
-- [ ] Implement typed account mapping and database writes; all new accounts use BRL and existing migration defaults remain stable.
-- [ ] Test archive timestamp updates and unarchive clearing while preserving account balance, ID, institution and transaction links.
-- [ ] Commit `Persista tipo e arquivamento de contas`.
+- [x] Add failing load/insert/update tests proving default BRL/checking and persisted archive/inclusion fields.
+- [x] Implement typed account mapping and database writes; all new accounts use BRL and existing migration defaults remain stable.
+- [x] Test archive timestamp updates and unarchive clearing while preserving account balance, ID, institution and transaction links.
+- [x] Commit changes as part of the phase implementation commits.
 
 ### Task 3: Store rules and currency-safe totals
 
@@ -68,12 +67,12 @@
 
 **Interfaces:** `activeAccounts` returns non-deleted, non-archived accounts; `archiveAccount(id)`, `restoreAccount(id)`, and `setAccountNetWorthIncluded(id, included)` are guarded store actions. `accountBalancesByCurrencyForNetWorth` returns `Map<String, int>` calculated from opening balances and transactions for included accounts.
 
-- [ ] Add failing store tests proving archived accounts are absent from active pickers, archive/unarchive preserves balance/history, and toggling inclusion never changes `balance`.
-- [ ] Add failing grouped-total tests for mixed currency and archived inclusion cases.
-- [ ] Guard add/update transaction, transfers, card payments, and recurring salary against archived accounts where a new financial write is created; historical reads remain valid.
-- [ ] Implement the store actions and grouped-by-currency account-balance aggregate; never sum across currency codes.
-- [ ] Run focused store, account, card-payment and recurrence tests.
-- [ ] Commit `Aplique regras de arquivamento de contas`.
+- [x] Add failing store tests proving archived accounts are absent from active pickers, archive/unarchive preserves balance/history, and toggling inclusion never changes `balance`.
+- [x] Add failing grouped-total tests for mixed currency and archived inclusion cases.
+- [x] Guard add/update transaction, transfers, card payments, and recurring salary against archived accounts where a new financial write is created; historical reads remain valid.
+- [x] Implement the store actions and grouped-by-currency account-balance aggregate; never sum across currency codes.
+- [x] Run focused store, account, card-payment and recurrence tests.
+- [x] Commit changes as part of the phase implementation commits.
 
 ### Task 4: Account UI and account selectors
 
@@ -85,11 +84,11 @@
 
 **Interfaces:** `AccountDialog` collects a typed account kind and saves BRL implicitly. `AccountsPage` displays type, active/archive state and net-worth inclusion; actions allow archive, reactivate, inclusion toggle, edit, balance adjustment and existing guarded delete. Transaction and transfer selectors receive `activeAccounts` for creation; historical edit retains its current archived account option only for the unchanged historical row.
 
-- [ ] Add widget tests proving account kind persists, archive/reactivate changes state without losing balance/history, archived accounts cannot be selected for new transactions/transfers, and archived existing history still resolves its account name.
-- [ ] Add fields, status, and reversible actions to account UI with pt-BR labels; preserve mobile layout and themes.
-- [ ] Switch creation selectors to active accounts while retaining historical account choices needed to edit other fields on an archived-account transaction.
-- [ ] Run focused account, transaction, and mobile widget tests.
-- [ ] Commit `Mostre e arquive contas na interface`.
+- [x] Add widget tests proving account kind persists and archive/reactivate changes state without losing balance/history; store tests cover exclusion from new writes.
+- [x] Add fields, status, and reversible actions to account UI with pt-BR labels; preserve mobile layout and themes.
+- [x] Switch creation selectors to active accounts while retaining historical account choices needed to edit other fields on an archived-account transaction.
+- [x] Run focused account, transaction, and mobile widget tests.
+- [x] Commit changes as part of the phase implementation commits.
 
 ### Task 5: Documentation and phase validation
 
@@ -98,8 +97,8 @@
 - Create `docs/implementation/RELATORIO_FASE_2_4.md`.
 - Update this plan.
 
-- [ ] Record schema 20 and exact archive/currency behavior in the technical dossier.
-- [ ] Run `flutter analyze --no-pub`, full `flutter test --no-pub --coverage`, Windows integration and `git diff --check`; record results against the 194-test Phase 2.3 baseline.
-- [ ] Run an independent read-only review and fix important findings.
-- [ ] Commit phase report and supporting docs.
+- [x] Record schema 20 and exact archive/currency behavior in the technical dossier.
+- [x] Run analysis, full coverage suite, Windows integration and `git diff --check`; record 203 tests and 74,78% against the 194-test Phase 2.3 baseline.
+- [x] Run an independent read-only review and cover its minor UI-test recommendation.
+- [x] Prepare phase report and supporting docs.
 - [ ] Push `codex/organiza-v3-fase-2-4`, open a draft PR targeting `codex/organiza-v3-fase-2-3`, and wait for Windows/Ubuntu/Android CI before schema 21.

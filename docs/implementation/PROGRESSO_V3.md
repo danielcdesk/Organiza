@@ -67,3 +67,7 @@ Schema 18, compra por categoria/data, pagamentos idempotentes com estorno, proje
 ## Fase 2.3 — auditoria e exclusão lógica
 
 Schema 19, filtros de tombstones nas dez entidades, snapshot/restore que preserva as linhas excluídas e snackbars “Desfazer” foram implementados. Revisão independente sem achados críticos/importantes; recomendação de usar relógio injetado também no estorno do cartão foi resolvida. Validação local: análise limpa, 194 testes aprovados, cobertura 73,54%, integração Windows 2/2. PR draft #6, run CI 41148582388, passou em Windows, Ubuntu e APK Android. Relatório: `RELATORIO_FASE_2_3.md`. A Fase 2 completa continua pendente.
+
+## Fase 2.4 — tipo e ciclo de vida das contas (CI pendente)
+
+Schema 20 adiciona tipo de conta, moeda BRL reservada, arquivamento reversível e opção de inclusão patrimonial. Migração mantém saldos e vínculos; contas arquivadas ficam fora dos seletores de novos movimentos, preservando histórico. Patrimônio é agrupado por moeda, sem conversão. Análise limpa, 203 testes aprovados com 74,78% de cobertura, integração Windows 2/2 e revisão independente sem achados críticos/importantes. PR draft da fase deve aguardar CI Windows/Ubuntu/Android; ver `RELATORIO_FASE_2_4.md`.

@@ -542,3 +542,9 @@ A migração 17→18 cria `card_invoices` e `card_invoice_payments`, adiciona FK
 A migração 18→19 adiciona `updated_at TEXT NOT NULL` e `deleted_at TEXT NULL` a `transactions`, `accounts`, `credit_cards`, `card_purchases`, `investments`, `budgets`, `subscriptions`, `financial_goals`, `shopping_items` e `tasks`. Linhas existentes recebem `updated_at = created_at` e `deleted_at = NULL`. Triggers SQLite inicializam `updated_at` de linhas novas com `created_at` e atualizam o carimbo em alterações; `AppDatabase.validateIntegrity` permite somente os 20 triggers conhecidos da auditoria e segue rejeitando triggers desconhecidos e views.
 
 Leituras normais das dez entidades excluem `deleted_at IS NOT NULL`; snapshots e restauração mantêm os tombstones para não perder histórico. O backup automático pré-migração é `organiza.db.pre-v19.bak`. A exclusão definitiva e a política de retenção não fazem parte desta migração.
+
+## 21. Schema 20 — ciclo de vida e patrimônio de contas (Fase 2.4)
+
+A migração 19→20 adiciona a `accounts` o tipo restrito a `checking`, `savings`, `wallet`, `investment` ou `other`, `archived_at`, `include_in_net_worth` (padrão 1) e `currency` (padrão `BRL`). Contas existentes tornam-se correntes, ativas, incluídas no patrimônio e em BRL sem recalcular saldo nem alterar transações. O backup validado anterior à migração usa o sufixo `.pre-v20.bak`.
+
+Arquivar é estado reversível, separado de `deleted_at`: a conta continua na tela e mantém saldo e histórico, mas deixa de ser opção para novos lançamentos, transferências e pagamentos de fatura. A conta com salário recorrente ativo só pode ser arquivada após cancelar a agenda. A edição histórica pode conservar a conta arquivada já vinculada. A inclusão patrimonial é independente do arquivamento e não altera caixa. Saldos patrimoniais são agrupados por código de moeda; nenhuma conversão ou soma entre moedas é feita. A interface ainda cria contas em BRL.

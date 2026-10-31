@@ -783,7 +783,7 @@ class AccountsPage extends StatelessWidget {
         content: Panel(
           title: 'Contas cadastradas',
           subtitle:
-              '${store.accounts.length} conta${store.accounts.length == 1 ? '' : 's'}',
+              '${store.accounts.length} conta${store.accounts.length == 1 ? '' : 's'} · Patrimônio: ${store.accountBalancesByCurrencyForNetWorth.entries.map((entry) => '${entry.key} ${(entry.value / 100).toStringAsFixed(2)}').join(' · ')}',
           child: store.accounts.isEmpty
               ? EmptyState(
                   icon: Icons.account_balance_wallet_outlined,
@@ -840,20 +840,47 @@ class AccountsPage extends StatelessWidget {
                                                 onEdit(account.id);
                                               } else if (action == 'balance') {
                                                 onEditBalance(account.id);
+                                              } else if (action == 'archive') {
+                                                try {
+                                                  store.archiveAccount(
+                                                      account.id);
+                                                } on ArgumentError catch (error) {
+                                                  ScaffoldMessenger.of(context)
+                                                      .showSnackBar(SnackBar(
+                                                    content: Text(error.message
+                                                        .toString()),
+                                                  ));
+                                                }
+                                              } else if (action == 'restore') {
+                                                store
+                                                    .restoreAccount(account.id);
                                               } else {
                                                 onDelete(account.id);
                                               }
                                             },
-                                            itemBuilder: (_) => const [
-                                                  PopupMenuItem(
+                                            itemBuilder: (_) => [
+                                                  if (account.archivedAt ==
+                                                      null)
+                                                    const PopupMenuItem(
+                                                      value: 'archive',
+                                                      child: Text(
+                                                          'Arquivar conta'),
+                                                    )
+                                                  else
+                                                    const PopupMenuItem(
+                                                      value: 'restore',
+                                                      child: Text(
+                                                          'Reativar conta'),
+                                                    ),
+                                                  const PopupMenuItem(
                                                       value: 'edit',
                                                       child:
                                                           Text('Editar conta')),
-                                                  PopupMenuItem(
+                                                  const PopupMenuItem(
                                                       value: 'balance',
                                                       child:
                                                           Text('Editar saldo')),
-                                                  PopupMenuItem(
+                                                  const PopupMenuItem(
                                                       value: 'delete',
                                                       child: Text(
                                                           'Excluir conta')),
@@ -864,6 +891,20 @@ class AccountsPage extends StatelessWidget {
                                           style: Theme.of(context)
                                               .textTheme
                                               .titleMedium),
+                                      Text(
+                                        '${switch (account.type) {
+                                          AccountType.checking =>
+                                            'Conta corrente',
+                                          AccountType.savings => 'Poupança',
+                                          AccountType.wallet => 'Carteira',
+                                          AccountType.investment =>
+                                            'Investimento',
+                                          AccountType.other => 'Outra conta',
+                                        }}${account.archivedAt == null ? '' : ' · Arquivada'}',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall,
+                                      ),
                                       Text(
                                           institutionName(account.institution,
                                               account.customInstitutionName),
@@ -900,6 +941,20 @@ class AccountsPage extends StatelessWidget {
                                           icon: const Icon(Icons.tune_rounded,
                                               size: 17),
                                           label: const Text('Ajustar saldo')),
+                                      Row(children: [
+                                        Checkbox(
+                                          value: account.includeInNetWorth,
+                                          onChanged: (included) {
+                                            if (included != null) {
+                                              store.setAccountNetWorthIncluded(
+                                                  account.id, included);
+                                            }
+                                          },
+                                        ),
+                                        const Expanded(
+                                          child: Text('Incluir no patrimônio'),
+                                        ),
+                                      ]),
                                     ])));
                       }).toList());
                 }),

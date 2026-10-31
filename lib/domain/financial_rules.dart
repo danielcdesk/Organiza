@@ -36,6 +36,25 @@ class FinancialRules {
         (total, account) => total + accountBalance(account, transactions),
       );
 
+  /// Groups included account balances by currency. Values in different
+  /// currencies are intentionally never combined or converted.
+  static Map<String, int> accountBalancesByCurrencyForNetWorth(
+    Iterable<Account> accounts,
+    Iterable<TransactionRecord> transactions,
+  ) {
+    final items = transactions.toList(growable: false);
+    final totals = <String, int>{};
+    for (final account in accounts) {
+      if (!account.includeInNetWorth) continue;
+      totals.update(
+        account.currency,
+        (balance) => balance + accountBalance(account, items),
+        ifAbsent: () => accountBalance(account, items),
+      );
+    }
+    return Map.unmodifiable(totals);
+  }
+
   static int monthTotal(
     Iterable<TransactionRecord> items,
     DateTime month,
