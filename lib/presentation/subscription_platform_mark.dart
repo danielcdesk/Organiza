@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 /// A recognizable local mark for common subscriptions; no remote image is used.
 class SubscriptionPlatformMark extends StatelessWidget {
@@ -13,6 +14,48 @@ class SubscriptionPlatformMark extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final value = name.trim().toLowerCase();
+    if (value.contains('spotify')) {
+      return ExcludeSemantics(
+        child: Container(
+          width: 36,
+          height: 36,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: const Color(0xFF111111),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Image.asset(
+            'assets/platforms/spotify-primary-logo.png',
+            key: const ValueKey('subscription-platform-spotify-logo'),
+            width: 28,
+            height: 28,
+            fit: BoxFit.contain,
+          ),
+        ),
+      );
+    }
+    if (value.contains('chatgpt')) {
+      return ExcludeSemantics(
+        child: Container(
+          width: 36,
+          height: 36,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: const Color(0xFF0E806B),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: SvgPicture.asset(
+            'assets/platforms/openai-white-monoblossom.svg',
+            key: const ValueKey('subscription-platform-chatgpt-logo'),
+            width: 22,
+            height: 22,
+            fit: BoxFit.contain,
+          ),
+        ),
+      );
+    }
+
     final platform = _platformFor(name);
     if (platform == null) {
       final categoryName = category.trim().toLowerCase();
@@ -70,14 +113,6 @@ _PlatformStyle? _platformFor(String name) {
       background: const Color(0xFF171717),
       foreground: const Color(0xFFE50914),
       icon: null
-    );
-  }
-  if (value.contains('spotify')) {
-    return (
-      label: '',
-      background: const Color(0xFF1ED760),
-      foreground: const Color(0xFF111111),
-      icon: Icons.graphic_eq_rounded
     );
   }
   if (value.contains('youtube')) {
@@ -150,14 +185,6 @@ _PlatformStyle? _platformFor(String name) {
       background: const Color(0xFF7F41C6),
       foreground: Colors.white,
       icon: Icons.graphic_eq_rounded
-    );
-  }
-  if (value.contains('chatgpt')) {
-    return (
-      label: '',
-      background: const Color(0xFF0E806B),
-      foreground: Colors.white,
-      icon: Icons.auto_awesome_rounded
     );
   }
   if (value.contains('canva')) {
